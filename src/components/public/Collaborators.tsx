@@ -29,22 +29,24 @@ export function Collaborators() {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-        className="page-container py-3.5 sm:py-4"
+        className="page-container py-5 sm:py-6"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-          <div className="sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-6">
-            <p className="label-micro text-brand">Colaboradores</p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+          <div className="sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-8">
+            <p className="text-[11px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand">
+              Colaboradores
+            </p>
           </div>
 
-          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-5 flex-1 min-w-0">
+          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-4 sm:gap-7 flex-1 min-w-0">
             {COLLABORATORS.map((collaborator) => {
               const logo = (
-                <span className="inline-flex items-center justify-center h-11 sm:h-12 px-3 sm:px-4 rounded-xl bg-surface-muted/80 border border-gray-100 transition-all hover:border-brand/20 hover:bg-white">
+                <span className="inline-flex items-center justify-center h-16 sm:h-[4.5rem] px-5 sm:px-6 rounded-2xl bg-surface-muted/80 border border-gray-100 transition-all hover:border-brand/20 hover:bg-white">
                   <img
                     src={collaborator.logo}
                     alt={collaborator.name}
                     loading="lazy"
-                    className="max-h-8 sm:max-h-9 w-auto max-w-[130px] sm:max-w-[160px] object-contain"
+                    className="max-h-12 sm:max-h-[3.375rem] w-auto max-w-[195px] sm:max-w-[240px] object-contain"
                   />
                 </span>
               );
