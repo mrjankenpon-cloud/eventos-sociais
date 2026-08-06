@@ -23,5 +23,7 @@ export const ROUTES = {
     EVENT_REPORTS: '/controle/eventos/relatorios/:id',
     EVENT_CHECKIN: '/controle/eventos/checkin/:id',
     PURCHASE_DETAILS: '/controle/compras/:id',
+    SPONSORS: '/controle/patrocinadores',
+    INSTITUTIONS: '/controle/instituicoes',
   }
 };

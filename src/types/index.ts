@@ -1,4 +1,6 @@
 export * from './models/event';
+export * from './models/sponsor';
+export * from './models/institution';
 export * from './models/user';
 export * from './models/auth';
 export * from './models/participant';

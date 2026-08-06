@@ -9,6 +9,8 @@ import {
   X,
   User,
   ArrowLeft,
+  Handshake,
+  HeartHandshake,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +33,8 @@ export default function AdminLayout() {
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, href: ROUTES.ADMIN.DASHBOARD },
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
+    { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
+    { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
   ];
 
   const handleLogout = () => {

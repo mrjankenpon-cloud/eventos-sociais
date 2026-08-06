@@ -598,6 +598,20 @@ export default function Dashboard() {
           type: 'vagas' as ReportType,
         },
         {
+          title: 'Capacidade do Evento',
+          value:
+            selectedEvent.vagas > 0
+              ? `${Math.min(100, Math.round((eventStats.totalTickets / selectedEvent.vagas) * 100))}%`
+              : '—',
+          icon: LayoutDashboard,
+          accent: THEME.colors.primary,
+          type: 'vagas' as ReportType,
+          hint:
+            selectedEvent.vagas > 0
+              ? `${eventStats.totalTickets} de ${selectedEvent.vagas} vagas`
+              : 'Sem limite definido',
+        },
+        {
           title: 'Receita Total',
           value: formatCurrency(eventStats.arrecadado),
           icon: Wallet,
@@ -630,7 +644,7 @@ export default function Dashboard() {
               </Alert>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
               {generalCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -698,7 +712,7 @@ export default function Dashboard() {
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
               {eventCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -706,39 +720,10 @@ export default function Dashboard() {
                   value={card.value}
                   icon={card.icon}
                   accent={card.accent}
+                  hint={'hint' in card ? card.hint : undefined}
                   onClick={() => handleOpenReport(card.type)}
                 />
               ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 card-surface p-8 sm:p-10">
-                <h3 className="text-lg font-black text-gray-900 mb-4">Informações Detalhadas</h3>
-                <div className="prose prose-sm max-w-none text-gray-500 whitespace-pre-line">
-                  {selectedEvent.descricaoCompleta}
-                </div>
-              </div>
-              <div className="card-surface bg-gray-50 p-8 sm:p-10 flex flex-col justify-center text-center gap-6">
-                <PieChart size={40} className="mx-auto text-brand opacity-20" aria-hidden="true" />
-                <h4 className="font-black text-gray-900">Capacidade do Evento</h4>
-                <div className="w-full bg-white h-4 rounded-full overflow-hidden shadow-inner">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{
-                      width:
-                        selectedEvent.vagas > 0
-                          ? `${Math.min(100, (eventStats.totalTickets / selectedEvent.vagas) * 100)}%`
-                          : '0%',
-                    }}
-                    className="bg-brand h-full"
-                  />
-                </div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  {selectedEvent.vagas > 0
-                    ? `${eventStats.totalTickets} de ${selectedEvent.vagas} vagas ocupadas`
-                    : 'Sem limite de vagas definido'}
-                </p>
-              </div>
             </div>
           </motion.div>
         )}

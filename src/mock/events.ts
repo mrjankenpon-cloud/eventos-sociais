@@ -1,18 +1,25 @@
 import { Event } from '../types';
+import { normalizeEvent } from '../lib/eventForm';
 
-export const MOCK_EVENTS: Event[] = [
+const RAW_MOCK = [
   {
     id: '1',
     titulo: 'Jantar Beneficente de Gala',
+    subtitulo: 'Uma noite pela infância',
+    categoria: 'Beneficente',
     descricaoCurta: 'Uma noite inesquecível dedicada a arrecadar fundos para crianças carentes.',
-    descricaoCompleta: 'Uma noite inesquecível dedicada a arrecadar fundos para crianças carentes, com alta gastronomia e música ao vivo. Participe desta gala beneficente e ajude a transformar o futuro de centenas de famílias.',
+    descricaoCompleta:
+      'Uma noite inesquecível dedicada a arrecadar fundos para crianças carentes, com alta gastronomia e música ao vivo. Participe desta gala beneficente e ajude a transformar o futuro de centenas de famílias.',
+    regulamento: '',
     banner: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?q=80&w=2070',
     galeria: [],
     data: '2026-08-15',
     horaInicio: '20:00',
     horaFim: '23:30',
     local: 'Palácio das Artes',
-    endereco: 'Av. Paulista, 1000, São Paulo - SP',
+    endereco: 'Av. Paulista, 1000',
+    cidade: 'São Paulo - SP',
+    cep: '01310-100',
     gratuito: false,
     valor: 250,
     vagas: 200,
@@ -23,21 +30,34 @@ export const MOCK_EVENTS: Event[] = [
     permitirInscricao: true,
     textoBotao: 'Garantir Ingresso',
     linkPagamento: 'https://pagseguro.uol.com.br',
+    patrocinadoresVinculados: [
+      { id: 'sp-1', ordem: 0 },
+      { id: 'sp-2', ordem: 1 },
+    ],
+    instituicoesVinculadas: [{ id: 'inst-1', ordem: 0 }],
+    exibirPatrocinadores: true,
+    exibirInstituicoes: true,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '2',
     titulo: 'Corrida Solidária 10k',
+    subtitulo: 'Corra por uma causa',
+    categoria: 'Esportivo',
     descricaoCurta: 'Prepare seu tênis e venha correr por uma causa!',
-    descricaoCompleta: 'Prepare seu tênis e venha correr por uma causa! Todo o valor das inscrições será revertido para instituições locais que cuidam de animais abandonados.',
+    descricaoCompleta:
+      'Prepare seu tênis e venha correr por uma causa! Todo o valor das inscrições será revertido para instituições locais que cuidam de animais abandonados.',
+    regulamento: '',
     banner: 'https://images.unsplash.com/photo-1533560904424-a0c61dc306fc?q=80&w=2070',
     galeria: [],
     data: '2026-09-10',
     horaInicio: '07:00',
     horaFim: '11:00',
     local: 'Parque do Ibirapuera',
-    endereco: 'Av. Pedro Álvares Cabral, São Paulo - SP',
+    endereco: 'Av. Pedro Álvares Cabral',
+    cidade: 'São Paulo - SP',
+    cep: '04094-050',
     gratuito: false,
     valor: 80,
     vagas: 1000,
@@ -48,7 +68,13 @@ export const MOCK_EVENTS: Event[] = [
     permitirInscricao: true,
     textoBotao: 'Inscrever-se',
     linkPagamento: 'https://mercadopago.com.br',
+    patrocinadoresVinculados: [{ id: 'sp-1', ordem: 0 }],
+    instituicoesVinculadas: [{ id: 'inst-2', ordem: 0 }],
+    exibirPatrocinadores: true,
+    exibirInstituicoes: true,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
+    updatedAt: new Date().toISOString(),
+  },
 ];
+
+export const MOCK_EVENTS: Event[] = RAW_MOCK.map((e) => normalizeEvent(e));

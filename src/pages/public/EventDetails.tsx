@@ -3,16 +3,21 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Calendar, MapPin, Clock, Users, ArrowLeft, Share2, Check } from 'lucide-react';
 import { eventService } from '../../services/event.service';
-import { Event } from '../../types';
+import { sponsorService } from '../../services/sponsor.service';
+import { institutionService } from '../../services/institution.service';
+import type { Event, Institution, Sponsor } from '../../types';
 import { PageLoader } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
+import { EventPartnersSection } from '../../components/public/EventPartnersSection';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 import { THEME } from '../../theme';
 
 export default function EventDetails() {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -21,7 +26,37 @@ export default function EventDetails() {
       if (!id) return;
       try {
         const data = await eventService.getById(id);
-        if (data) setEvent(data);
+        if (data) {
+          setEvent(data);
+
+          const sponsorIds = [...data.patrocinadoresVinculados]
+            .sort((a, b) => a.ordem - b.ordem)
+            .map((l) => l.id);
+          const institutionIds = [...data.instituicoesVinculadas]
+            .sort((a, b) => a.ordem - b.ordem)
+            .map((l) => l.id);
+
+          const [spAll, instAll] = await Promise.all([
+            sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
+            institutionIds.length
+              ? institutionService.getByIds(institutionIds)
+              : Promise.resolve([]),
+          ]);
+
+          const spMap = new Map(spAll.map((s) => [s.id, s]));
+          const instMap = new Map(instAll.map((i) => [i.id, i]));
+
+          setSponsors(
+            sponsorIds
+              .map((sid) => spMap.get(sid))
+              .filter((s): s is Sponsor => Boolean(s?.ativo))
+          );
+          setInstitutions(
+            institutionIds
+              .map((iid) => instMap.get(iid))
+              .filter((i): i is Institution => Boolean(i?.ativo))
+          );
+        }
       } catch (error) {
         console.error('Erro ao carregar evento:', error);
       } finally {
@@ -104,16 +139,18 @@ export default function EventDetails() {
             >
               {event.titulo}
             </motion.h1>
-            <p className="text-white/70 text-sm sm:text-base max-w-2xl line-clamp-2">
-              {event.descricaoCurta}
-            </p>
+            {(event.subtitulo || event.descricaoCurta) && (
+              <p className="text-white/70 text-sm sm:text-base max-w-2xl line-clamp-2">
+                {event.subtitulo || event.descricaoCurta}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="page-container -mt-8 sm:-mt-10 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-          <div className="lg:col-span-2 min-w-0">
+          <div className="lg:col-span-2 min-w-0 space-y-6">
             <div className="card-surface p-6 sm:p-8 md:p-10">
               <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-5">
                 Sobre o Evento
@@ -126,11 +163,24 @@ export default function EventDetails() {
                 )}
               </div>
 
-              {event.galeria && event.galeria.length > 0 && (
+              {event.regulamento?.trim() && (
+                <div className="mt-10 pt-8 border-t border-gray-100">
+                  <h3 className="text-lg font-black text-gray-900 mb-4">Regulamento</h3>
+                  <div className="space-y-3 text-sm text-gray-600 whitespace-pre-line">
+                    {event.regulamento}
+                  </div>
+                </div>
+              )}
+
+              {event.exibirGaleria !== false &&
+                ((event.imagens?.filter((i) => !i.isCover).length ?? 0) > 0 ||
+                  (event.galeria?.length ?? 0) > 0) && (
                 <div className="mt-10">
                   <h3 className="text-lg font-black text-gray-900 mb-5">Galeria</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                    {event.galeria.map((img, idx) => (
+                    {(event.imagens?.filter((i) => !i.isCover).map((i) => i.url) ??
+                      event.galeria
+                    ).map((img, idx) => (
                       <img
                         key={idx}
                         src={img}
@@ -148,6 +198,9 @@ export default function EventDetails() {
           <aside className="min-w-0">
             <div className="card-surface p-6 sm:p-8 sticky top-24 lg:top-28">
               <div className="space-y-5 mb-8">
+                {event.categoria && (
+                  <p className="label-micro text-brand">{event.categoria}</p>
+                )}
                 <InfoRow
                   icon={Calendar}
                   label="Data"
@@ -156,15 +209,15 @@ export default function EventDetails() {
                 <InfoRow
                   icon={Clock}
                   label="Horário"
-                  value={`${event.horaInicio} às ${event.horaFim}`}
+                  value={`${event.horaInicio}${event.horaFim ? ` às ${event.horaFim}` : ''}`}
                 />
                 <InfoRow
                   icon={MapPin}
                   label="Local"
                   value={event.local}
-                  detail={event.endereco}
+                  detail={[event.endereco, event.cidade].filter(Boolean).join(' · ')}
                   action={
-                    event.googleMaps ? (
+                    event.exibirMapa !== false && event.googleMaps ? (
                       <a
                         href={event.googleMaps}
                         target="_blank"
@@ -193,12 +246,14 @@ export default function EventDetails() {
                   </p>
                 </div>
 
-                <Link
-                  to={`/evento/${event.id}/inscricao`}
-                  className="w-full h-14 sm:h-16 bg-brand text-white rounded-2xl font-black text-lg flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
-                >
-                  {event.textoBotao}
-                </Link>
+                {event.permitirCompraOnline !== false && event.permitirInscricao !== false && (
+                  <Link
+                    to={`/evento/${event.id}/inscricao`}
+                    className="w-full h-14 sm:h-16 bg-brand text-white rounded-2xl font-black text-lg flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
+                  >
+                    {event.textoBotao}
+                  </Link>
+                )}
 
                 <button
                   type="button"
@@ -221,6 +276,13 @@ export default function EventDetails() {
             </div>
           </aside>
         </div>
+
+        <EventPartnersSection
+          institutions={institutions}
+          sponsors={sponsors}
+          showInstitutions={event.exibirInstituicoes !== false}
+          showSponsors={event.exibirPatrocinadores !== false}
+        />
       </div>
     </div>
   );

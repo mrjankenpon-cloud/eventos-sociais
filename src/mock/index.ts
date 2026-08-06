@@ -1,66 +1,12 @@
-import { Event } from '../types/models/event';
 import { Participant } from '../types/models/participant';
 import { User } from '../types/models/user';
 import { Purchase } from '../types/models/purchase';
 import { Ticket } from '../types/models/ticket';
 import { TicketHistory } from '../types/models/ticketHistory';
 
-export const MOCK_EVENTS: Event[] = [
-  {
-    id: '1',
-    titulo: 'Jantar Beneficente de Gala',
-    descricaoCurta: 'Uma noite especial para apoiar crianças em tratamento oncológico.',
-    descricaoCompleta: 'Participe do nosso tradicional jantar de gala. Todo o valor arrecadado será destinado à reforma da ala pediátrica do hospital regional. Teremos apresentações musicais ao vivo e leilão beneficente.',
-    banner: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&q=80',
-    galeria: [
-      'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80'
-    ],
-    data: '2026-08-23',
-    horaInicio: '19:30',
-    horaFim: '23:30',
-    local: 'Clube dos Oficiais',
-    endereco: 'Rua das Flores, 123, São Paulo - SP',
-    googleMaps: 'https://maps.google.com',
-    gratuito: false,
-    valor: 180,
-    vagas: 100,
-    mostrarVagas: true,
-    mostrarValor: true,
-    eventoDestaque: true,
-    publicado: true,
-    permitirInscricao: true,
-    textoBotao: 'Participar',
-    linkPagamento: 'https://link-de-pagamento.com/jantar',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    titulo: 'Corrida Solidária 10k',
-    descricaoCurta: 'Corra por uma causa. Transforme vidas com cada passo.',
-    descricaoCompleta: 'A 5ª edição da nossa corrida solidária. Percursos de 5km e 10km. Kit completo incluso para todos os inscritos.',
-    banner: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&q=80',
-    galeria: [],
-    data: '2026-09-12',
-    horaInicio: '08:00',
-    horaFim: '12:00',
-    local: 'Parque Ibirapuera',
-    endereco: 'Av. Pedro Álvares Cabral, s/n, São Paulo - SP',
-    gratuito: false,
-    valor: 85,
-    vagas: 500,
-    mostrarVagas: true,
-    mostrarValor: true,
-    eventoDestaque: false,
-    publicado: true,
-    permitirInscricao: true,
-    textoBotao: 'Inscrever-se',
-    linkPagamento: 'https://link-de-pagamento.com/corrida',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+export { MOCK_EVENTS } from './events';
+export { MOCK_SPONSORS } from './sponsors';
+export { MOCK_INSTITUTIONS } from './institutions';
 
 export const MOCK_PARTICIPANTS: Participant[] = [
   {
@@ -75,8 +21,8 @@ export const MOCK_PARTICIPANTS: Participant[] = [
     statusPagamento: 'confirmado',
     checkIn: [],
     checkinRealizado: false,
-    dataInscricao: new Date().toISOString()
-  }
+    dataInscricao: new Date().toISOString(),
+  },
 ];
 
 export const MOCK_PURCHASES: Purchase[] = [
@@ -91,8 +37,8 @@ export const MOCK_PURCHASES: Purchase[] = [
     valorTotal: 360,
     statusPagamento: 'confirmado',
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 export const MOCK_TICKETS: Ticket[] = [
@@ -104,7 +50,7 @@ export const MOCK_TICKETS: Ticket[] = [
     status: 'Disponível',
     ordem: 1,
     checkinRealizado: false,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   },
   {
     id: 'TKT-002',
@@ -116,8 +62,8 @@ export const MOCK_TICKETS: Ticket[] = [
     checkinRealizado: true,
     checkinEm: new Date().toISOString(),
     operador: 'Sistema',
-    createdAt: new Date().toISOString()
-  }
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 export const MOCK_TICKET_HISTORY: TicketHistory[] = [
@@ -126,22 +72,22 @@ export const MOCK_TICKET_HISTORY: TicketHistory[] = [
     ticketId: 'TKT-001',
     tipo: 'Compra criada',
     data: new Date().toISOString(),
-    usuario: 'Sistema'
+    usuario: 'Sistema',
   },
   {
     id: 'H2',
     ticketId: 'TKT-002',
     tipo: 'Compra criada',
     data: new Date().toISOString(),
-    usuario: 'Sistema'
+    usuario: 'Sistema',
   },
   {
     id: 'H3',
     ticketId: 'TKT-002',
     tipo: 'Check-in realizado',
     data: new Date().toISOString(),
-    usuario: 'Sistema'
-  }
+    usuario: 'Sistema',
+  },
 ];
 
 export const MOCK_ADMIN_USER: User = {

@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function createId(prefix = 'id'): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 /** Parse event date string safely (avoids timezone shift for YYYY-MM-DD). */
 export function parseEventDate(date: string): Date {
   if (!date) return new Date(NaN);

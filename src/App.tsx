@@ -20,6 +20,8 @@ const EventForm = lazy(() => import('./pages/admin/EventForm'));
 const EventReports = lazy(() => import('./pages/admin/EventReports'));
 const CheckIn = lazy(() => import('./pages/admin/CheckIn'));
 const PurchaseDetails = lazy(() => import('./pages/admin/PurchaseDetails'));
+const Sponsors = lazy(() => import('./pages/admin/Sponsors'));
+const Institutions = lazy(() => import('./pages/admin/Institutions'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface-muted">
@@ -59,6 +61,8 @@ export default function App() {
               <Route path="eventos/relatorios/:id" element={<EventReports />} />
               <Route path="eventos/checkin/:id" element={<CheckIn />} />
               <Route path="compras/:id" element={<PurchaseDetails />} />
+              <Route path="patrocinadores" element={<Sponsors />} />
+              <Route path="instituicoes" element={<Institutions />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

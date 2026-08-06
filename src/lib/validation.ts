@@ -54,6 +54,14 @@ export function maskPhone(value: string): string {
 }
 
 /**
+ * Mask for CEP: 00000-000
+ */
+export function maskCEP(value: string): string {
+  const numbers = value.replace(/\D/g, '').slice(0, 8);
+  return numbers.replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+/**
  * Email validation
  */
 export function validateEmail(email: string): boolean {
