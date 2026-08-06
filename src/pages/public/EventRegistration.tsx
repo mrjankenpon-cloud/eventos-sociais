@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
@@ -13,11 +13,17 @@ import {
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
-import { Event } from '../../types';
+import type { Event, TicketType } from '../../types';
 import { Input, CPFInput, PhoneInput, Button, Alert, PageLoader } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { validateEmail } from '../../lib/validation';
-import { formatCurrency, formatEventDate } from '../../lib/utils';
+import { formatCurrency, formatEventDate, cn } from '../../lib/utils';
+import {
+  formatTicketValue,
+  getActiveTicketTypes,
+  getTicketStatus,
+} from '../../lib/eventData';
+import { DB_KEYS, subscribeDb } from '../../lib/persist';
 import { THEME } from '../../theme';
 
 export default function EventRegistration() {
@@ -28,6 +34,7 @@ export default function EventRegistration() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
+  const [ticketTypeId, setTicketTypeId] = useState('');
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -45,12 +52,57 @@ export default function EventRegistration() {
     email: false,
     quantidadeIngressos: true,
     termosAceitos: false,
+    ticketType: false,
   });
 
-  const isFormValid = Object.values(fieldValidity).every(Boolean);
+  const loadEvent = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await eventService.getById(id);
+      setEvent(data ?? null);
+      if (data) {
+        const active = getActiveTicketTypes(data).filter((t) => getTicketStatus(t).available);
+        setTicketTypeId((prev) => {
+          if (prev && active.some((t) => t.id === prev)) return prev;
+          const next = active[0]?.id ?? '';
+          setFieldValidity((v) => ({ ...v, ticketType: Boolean(next) }));
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar evento:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    setLoading(true);
+    void loadEvent();
+  }, [loadEvent]);
+
+  useEffect(() => {
+    return subscribeDb(DB_KEYS.events, () => {
+      void loadEvent();
+    });
+  }, [loadEvent]);
+
+  const activeTickets = useMemo(
+    () => (event ? getActiveTicketTypes(event) : []),
+    [event]
+  );
+
+  const selectedTicket: TicketType | undefined = useMemo(
+    () => activeTickets.find((t) => t.id === ticketTypeId),
+    [activeTickets, ticketTypeId]
+  );
+
+  const isFormValid =
+    Object.values(fieldValidity).every(Boolean) && Boolean(selectedTicket);
 
   const missingHints = useMemo(() => {
     const hints: string[] = [];
+    if (!fieldValidity.ticketType) hints.push('tipo de ingresso');
     if (!fieldValidity.nome) hints.push('nome completo');
     if (!fieldValidity.cpf) hints.push('CPF válido');
     if (!fieldValidity.telefone) hints.push('telefone');
@@ -61,34 +113,25 @@ export default function EventRegistration() {
   }, [fieldValidity]);
 
   const total = useMemo(() => {
-    if (!event || event.gratuito) return 0;
-    return event.valor * formData.quantidadeIngressos;
-  }, [event, formData.quantidadeIngressos]);
+    if (!selectedTicket) return 0;
+    return selectedTicket.valor * formData.quantidadeIngressos;
+  }, [selectedTicket, formData.quantidadeIngressos]);
 
-  useEffect(() => {
-    async function loadEvent() {
-      if (!id) return;
-      try {
-        const data = await eventService.getById(id);
-        if (data) setEvent(data);
-      } catch (error) {
-        console.error('Erro ao carregar evento:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadEvent();
-  }, [id]);
+  const maxQty = selectedTicket
+    ? Math.min(10, Math.max(1, selectedTicket.quantidade))
+    : 1;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!event || !isFormValid) return;
+    if (!event || !isFormValid || !selectedTicket) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
     try {
       await purchaseService.create({
         eventId: event.id,
+        ticketTypeId: selectedTicket.id,
+        ticketTypeNome: selectedTicket.nome,
         compradorNome: formData.nome.trim(),
         compradorCPF: formData.cpf,
         compradorTelefone: formData.telefone,
@@ -197,9 +240,10 @@ export default function EventRegistration() {
         <div className="card-surface overflow-hidden">
           <div className="bg-brand p-6 sm:p-8 text-white">
             <h1 className="text-2xl sm:text-3xl font-black mb-2">Inscrição</h1>
-            <p className="opacity-90 text-sm sm:text-base">
-              {event.titulo}
-            </p>
+            <p className="opacity-90 text-sm sm:text-base">{event.titulo}</p>
+            {event.subtitulo?.trim() ? (
+              <p className="mt-1 text-white/70 text-sm">{event.subtitulo}</p>
+            ) : null}
             <p className="mt-3 text-white/70 text-xs font-bold uppercase tracking-wider">
               {formatEventDate(event.data)} · {event.horaInicio}
             </p>
@@ -211,6 +255,63 @@ export default function EventRegistration() {
                 {submitError}
               </Alert>
             )}
+
+            <div className="space-y-3">
+              <p className="label-micro">Tipo de ingresso</p>
+              {activeTickets.length === 0 ? (
+                <Alert variant="error">
+                  Nenhum tipo de ingresso disponível para este evento.
+                </Alert>
+              ) : (
+                <ul className="space-y-2">
+                  {activeTickets.map((type) => {
+                    const status = getTicketStatus(type);
+                    const descricao = type.descricao?.trim();
+                    const selected = ticketTypeId === type.id;
+                    return (
+                      <li key={type.id}>
+                        <button
+                          type="button"
+                          disabled={!status.available}
+                          onClick={() => {
+                            setTicketTypeId(type.id);
+                            setFieldValidity((prev) => ({ ...prev, ticketType: true }));
+                            if (formData.quantidadeIngressos > type.quantidade) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                quantidadeIngressos: Math.max(1, type.quantidade),
+                              }));
+                            }
+                          }}
+                          className={cn(
+                            'w-full text-left rounded-2xl border p-4 transition-all',
+                            selected
+                              ? 'border-brand bg-brand-muted/40 ring-2 ring-brand/20'
+                              : 'border-gray-100 bg-white hover:border-brand/30',
+                            !status.available && 'opacity-50 cursor-not-allowed'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-black text-gray-900">{type.nome}</p>
+                              {descricao ? (
+                                <p className="text-sm text-gray-500 mt-1">{descricao}</p>
+                              ) : null}
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-2">
+                                {status.label} · {type.quantidade} disponíveis
+                              </p>
+                            </div>
+                            <p className="font-black text-brand tabular-nums shrink-0">
+                              {formatTicketValue(type)}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
 
             <div className="flex flex-col gap-5">
               <Input
@@ -281,7 +382,7 @@ export default function EventRegistration() {
                 label="Quantidade de Ingressos"
                 type="number"
                 min={1}
-                max={10}
+                max={maxQty}
                 icon={<Ticket size={18} />}
                 value={formData.quantidadeIngressos}
                 isValid={fieldValidity.quantidadeIngressos}
@@ -290,18 +391,26 @@ export default function EventRegistration() {
                   setFormData((prev) => ({ ...prev, quantidadeIngressos: val }));
                   setFieldValidity((prev) => ({
                     ...prev,
-                    quantidadeIngressos: val >= 1 && val <= 10,
+                    quantidadeIngressos: val >= 1 && val <= maxQty,
                   }));
                 }}
               />
             </div>
 
-            {!event.gratuito && (
-              <div className="flex items-center justify-between gap-4 rounded-2xl bg-brand-muted/60 border border-brand/10 px-5 py-4">
-                <span className="label-micro text-brand">Total</span>
-                <span className="text-xl font-black text-brand tabular-nums">
-                  {formatCurrency(total)}
-                </span>
+            {selectedTicket && (
+              <div className="rounded-2xl bg-brand-muted/60 border border-brand/10 px-5 py-4 space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm font-bold text-gray-600">{selectedTicket.nome}</span>
+                  <span className="text-sm text-gray-500 tabular-nums">
+                    {formatTicketValue(selectedTicket)} × {formData.quantidadeIngressos}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="label-micro text-brand">Total</span>
+                  <span className="text-xl font-black text-brand tabular-nums">
+                    {total === 0 ? 'Gratuito' : formatCurrency(total)}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -343,7 +452,7 @@ export default function EventRegistration() {
               disabled={!isFormValid}
               className="w-full h-14 sm:h-16 rounded-2xl text-lg"
             >
-              {isSubmitting ? 'Processando...' : 'Confirmar Inscrição'}
+              {isSubmitting ? 'Processando...' : event.textoBotao || 'Confirmar Inscrição'}
             </Button>
           </form>
         </div>

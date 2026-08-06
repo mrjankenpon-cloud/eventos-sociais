@@ -1,41 +1,58 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Event } from '../types';
-import { MOCK_EVENTS } from '../mock/events';
+import { eventService } from '../services/event.service';
+import { DB_KEYS, subscribeDb } from '../lib/persist';
 
+/** Hook bound to the same persisted event store as the rest of the app. */
 export function useEvents() {
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addEvent = (event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const refresh = useCallback(async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      const newEvent: Event = {
-        ...event,
-        id: Math.random().toString(36).substring(2, 9),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setEvents((prev) => [newEvent, ...prev]);
+    try {
+      const data = await eventService.getAll();
+      setEvents(data);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    return subscribeDb(DB_KEYS.events, () => {
+      void refresh();
+    });
+  }, [refresh]);
+
+  const addEvent = async (event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
+    setIsLoading(true);
+    try {
+      await eventService.create(event);
+      await refresh();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const updateEvent = (id: string, updatedData: Partial<Event>) => {
+  const updateEvent = async (id: string, updatedData: Partial<Event>) => {
     setIsLoading(true);
-    setTimeout(() => {
-      setEvents((prev) => 
-        prev.map((event) => (event.id === id ? { ...event, ...updatedData } : event))
-      );
+    try {
+      await eventService.update(id, updatedData);
+      await refresh();
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
-  const deleteEvent = (id: string) => {
+  const deleteEvent = async (id: string) => {
     setIsLoading(true);
-    setTimeout(() => {
-      setEvents((prev) => prev.filter((event) => event.id !== id));
+    try {
+      await eventService.delete(id);
+      await refresh();
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   return {
@@ -44,5 +61,6 @@ export function useEvents() {
     addEvent,
     updateEvent,
     deleteEvent,
+    refresh,
   };
 }

@@ -151,9 +151,10 @@ export default function EventForm() {
       errs.tiposIngresso = 'Ative ao menos um tipo de ingresso.';
     } else {
       for (const t of ativos) {
-        if (t.valor < 0) errs.tiposIngresso = `Valor inválido em ${t.nome}.`;
+        if (!t.nome.trim()) errs.tiposIngresso = 'Informe o nome de cada tipo ativo.';
+        if (t.valor < 0) errs.tiposIngresso = `Valor inválido em ${t.nome || 'ingresso'}.`;
         if (t.quantidade < 0 || !Number.isFinite(t.quantidade)) {
-          errs.tiposIngresso = `Quantidade inválida em ${t.nome}.`;
+          errs.tiposIngresso = `Quantidade inválida em ${t.nome || 'ingresso'}.`;
         }
       }
     }

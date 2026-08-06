@@ -1,13 +1,20 @@
 import type { Sponsor, SponsorFormData } from '../types/models/sponsor';
 import { MOCK_SPONSORS } from '../mock/sponsors';
 import { createId } from '../lib/utils';
+import { DB_KEYS, loadCollection, saveCollection } from '../lib/persist';
 
 class SponsorService {
-  private items: Sponsor[] = [...MOCK_SPONSORS];
+  private read(): Sponsor[] {
+    return loadCollection(DB_KEYS.sponsors, () => [...MOCK_SPONSORS]);
+  }
+
+  private write(items: Sponsor[]): void {
+    saveCollection(DB_KEYS.sponsors, items);
+  }
 
   async getAll(): Promise<Sponsor[]> {
-    await new Promise((r) => setTimeout(r, 250));
-    return [...this.items].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    await new Promise((r) => setTimeout(r, 80));
+    return [...this.read()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }
 
   async getActive(): Promise<Sponsor[]> {
@@ -16,16 +23,14 @@ class SponsorService {
   }
 
   async getById(id: string): Promise<Sponsor | undefined> {
-    await new Promise((r) => setTimeout(r, 120));
-    return this.items.find((s) => s.id === id);
+    return this.read().find((s) => s.id === id);
   }
 
   async getByIds(ids: string[]): Promise<Sponsor[]> {
     const set = new Set(ids);
-    return this.items.filter((s) => set.has(s.id));
+    return this.read().filter((s) => set.has(s.id));
   }
 
-  /** Sync seed used when migrating legacy embedded sponsors */
   ensureFromLegacy(partial: {
     id: string;
     nome: string;
@@ -33,7 +38,8 @@ class SponsorService {
     site?: string;
     ativo?: boolean;
   }): Sponsor {
-    const existing = this.items.find((s) => s.id === partial.id);
+    const items = this.read();
+    const existing = items.find((s) => s.id === partial.id);
     if (existing) return existing;
     const now = new Date().toISOString();
     const created: Sponsor = {
@@ -50,7 +56,8 @@ class SponsorService {
       createdAt: now,
       updatedAt: now,
     };
-    this.items.push(created);
+    items.push(created);
+    this.write(items);
     return created;
   }
 
@@ -62,23 +69,27 @@ class SponsorService {
       createdAt: now,
       updatedAt: now,
     };
-    this.items.push(item);
+    const items = this.read();
+    items.push(item);
+    this.write(items);
     return item;
   }
 
   async update(id: string, data: Partial<SponsorFormData>): Promise<Sponsor> {
-    const index = this.items.findIndex((s) => s.id === id);
+    const items = this.read();
+    const index = items.findIndex((s) => s.id === id);
     if (index === -1) throw new Error('Patrocinador não encontrado');
-    this.items[index] = {
-      ...this.items[index],
+    items[index] = {
+      ...items[index],
       ...data,
       updatedAt: new Date().toISOString(),
     };
-    return this.items[index];
+    this.write(items);
+    return items[index];
   }
 
   async delete(id: string): Promise<void> {
-    this.items = this.items.filter((s) => s.id !== id);
+    this.write(this.read().filter((s) => s.id !== id));
   }
 }
 

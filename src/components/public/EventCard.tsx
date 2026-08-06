@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom';
 import { Calendar, MapPin } from 'lucide-react';
 import { Event } from '../../types';
 import { Badge } from '../ui/Badge';
-import { formatCurrency, formatEventDate } from '../../lib/utils';
+import { formatEventDate } from '../../lib/utils';
+import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
 
 interface EventCardProps {
@@ -66,7 +67,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
             </div>
 
             <div className="text-brand font-black text-sm shrink-0 tabular-nums">
-              {event.gratuito ? 'GRATUITO' : formatCurrency(event.valor, 0)}
+              {getEventPriceLabel(event, 0).toUpperCase()}
             </div>
           </div>
         </div>

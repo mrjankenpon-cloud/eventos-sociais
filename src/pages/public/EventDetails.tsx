@@ -10,7 +10,10 @@ import { PageLoader } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { EventPartnersSection } from '../../components/public/EventPartnersSection';
+import { EventTicketTypes } from '../../components/public/EventTicketTypes';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
+import { getActiveTicketTypes } from '../../lib/eventData';
+import { DB_KEYS, subscribeDb } from '../../lib/persist';
 import { THEME } from '../../theme';
 
 export default function EventDetails() {
@@ -21,50 +24,66 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [shareCopied, setShareCopied] = useState(false);
 
-  useEffect(() => {
-    async function loadEvent() {
-      if (!id) return;
-      try {
-        const data = await eventService.getById(id);
-        if (data) {
-          setEvent(data);
-
-          const sponsorIds = [...data.patrocinadoresVinculados]
-            .sort((a, b) => a.ordem - b.ordem)
-            .map((l) => l.id);
-          const institutionIds = [...data.instituicoesVinculadas]
-            .sort((a, b) => a.ordem - b.ordem)
-            .map((l) => l.id);
-
-          const [spAll, instAll] = await Promise.all([
-            sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
-            institutionIds.length
-              ? institutionService.getByIds(institutionIds)
-              : Promise.resolve([]),
-          ]);
-
-          const spMap = new Map(spAll.map((s) => [s.id, s]));
-          const instMap = new Map(instAll.map((i) => [i.id, i]));
-
-          setSponsors(
-            sponsorIds
-              .map((sid) => spMap.get(sid))
-              .filter((s): s is Sponsor => Boolean(s?.ativo))
-          );
-          setInstitutions(
-            institutionIds
-              .map((iid) => instMap.get(iid))
-              .filter((i): i is Institution => Boolean(i?.ativo))
-          );
-        }
-      } catch (error) {
-        console.error('Erro ao carregar evento:', error);
-      } finally {
-        setLoading(false);
+  const loadEvent = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await eventService.getById(id);
+      if (!data) {
+        setEvent(null);
+        setSponsors([]);
+        setInstitutions([]);
+        return;
       }
+
+      setEvent(data);
+
+      const sponsorIds = [...data.patrocinadoresVinculados]
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((l) => l.id);
+      const institutionIds = [...data.instituicoesVinculadas]
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((l) => l.id);
+
+      const [spAll, instAll] = await Promise.all([
+        sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
+        institutionIds.length
+          ? institutionService.getByIds(institutionIds)
+          : Promise.resolve([]),
+      ]);
+
+      const spMap = new Map(spAll.map((s) => [s.id, s]));
+      const instMap = new Map(instAll.map((i) => [i.id, i]));
+
+      setSponsors(
+        sponsorIds
+          .map((sid) => spMap.get(sid))
+          .filter((s): s is Sponsor => Boolean(s?.ativo))
+      );
+      setInstitutions(
+        institutionIds
+          .map((iid) => instMap.get(iid))
+          .filter((i): i is Institution => Boolean(i?.ativo))
+      );
+    } catch (error) {
+      console.error('Erro ao carregar evento:', error);
+    } finally {
+      setLoading(false);
     }
-    loadEvent();
   }, [id]);
+
+  useEffect(() => {
+    setLoading(true);
+    void loadEvent();
+  }, [loadEvent]);
+
+  useEffect(() => {
+    return subscribeDb(
+      [DB_KEYS.events, DB_KEYS.sponsors, DB_KEYS.institutions],
+      () => {
+        void loadEvent();
+      }
+    );
+  }, [loadEvent]);
 
   const handleShare = useCallback(async () => {
     if (!event) return;
@@ -238,13 +257,19 @@ export default function EventDetails() {
                 )}
               </div>
 
-              <div className="pt-6 border-t border-gray-100">
-                <div className="flex items-center justify-between gap-3 mb-5">
-                  <p className="label-micro">Investimento</p>
-                  <p className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">
-                    {event.gratuito ? 'Gratuito' : formatCurrency(event.valor)}
-                  </p>
-                </div>
+              <div className="pt-6 border-t border-gray-100 space-y-5">
+                <EventTicketTypes event={event} />
+
+                {event.mostrarValor && getActiveTicketTypes(event).length === 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="label-micro">Investimento</p>
+                    <p className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">
+                      {event.gratuito || event.valor === 0
+                        ? 'Gratuito'
+                        : formatCurrency(event.valor)}
+                    </p>
+                  </div>
+                )}
 
                 {event.permitirCompraOnline !== false && event.permitirInscricao !== false && (
                   <Link

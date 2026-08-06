@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { EventCard } from '../../components/public/EventCard';
 import BannerList from '../../components/public/BannerList';
@@ -8,33 +8,42 @@ import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
 import { eventService } from '../../services/event.service';
 import { Event } from '../../types';
+import { DB_KEYS, subscribeDb } from '../../lib/persist';
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadEvents() {
-      try {
-        const data = await eventService.getPublished();
-        setEvents(data);
-      } catch (err) {
-        console.error('Erro ao carregar eventos:', err);
-        setError('Não foi possível carregar os eventos. Tente novamente em instantes.');
-      } finally {
-        setLoading(false);
-      }
+  const loadEvents = useCallback(async () => {
+    try {
+      const data = await eventService.getPublished();
+      setEvents(data);
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao carregar eventos:', err);
+      setError('Não foi possível carregar os eventos. Tente novamente em instantes.');
+    } finally {
+      setLoading(false);
     }
-    loadEvents();
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    void loadEvents();
+  }, [loadEvents]);
+
+  useEffect(() => {
+    return subscribeDb(DB_KEYS.events, () => {
+      void loadEvents();
+    });
+  }, [loadEvents]);
 
   const featured = events.filter((e) => e.eventoDestaque);
   const list = featured.length > 0 ? events.filter((e) => !e.eventoDestaque) : events;
 
   return (
     <div className="pb-16 sm:pb-20 min-h-[60vh] bg-surface-muted">
-      {/* Faixa logo abaixo do cabeçalho */}
       {!loading && <Collaborators />}
 
       <div className="page-container pt-6 sm:pt-10 space-y-10 sm:space-y-14">
@@ -50,38 +59,26 @@ export default function Home() {
           </section>
         )}
 
-        <section id="eventos" className="scroll-mt-28">
-          <div className="mb-8 sm:mb-10">
-            <p className="label-micro mb-2">Programação</p>
-            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              Eventos
-            </h2>
-            <p className="mt-2 text-sm text-gray-500 max-w-xl">
-              Participe das próximas experiências sociais e institucionais.
-            </p>
-          </div>
-
+        <section aria-label="Lista de eventos">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-              {[1, 2, 3, 4].map((n) => (
-                <Skeleton key={n} className="aspect-[4/5] rounded-[32px]" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-[4/5] rounded-3xl" />
               ))}
             </div>
-          ) : events.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8 items-stretch">
-              {(list.length > 0 ? list : events).map((event) => (
+          ) : list.length === 0 && featured.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="Nenhum evento publicado"
+              description="Volte em breve para conferir as próximas ações."
+            />
+          ) : list.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {list.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
-          ) : (
-            <div className="card-surface">
-              <EmptyState
-                icon={Calendar}
-                title="Nenhum evento disponível"
-                description="No momento não há eventos publicados. Volte em breve."
-              />
-            </div>
-          )}
+          ) : null}
         </section>
       </div>
     </div>

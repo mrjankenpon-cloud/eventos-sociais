@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { MapPin, DollarSign, Users, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
 import { Event } from '../../types';
-import { formatCurrency, parseEventDate } from '../../lib/utils';
+import { parseEventDate } from '../../lib/utils';
+import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
 
 interface BannerProps {
@@ -49,22 +50,28 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
               <h3 className="text-2xl sm:text-[32px] md:text-[38px] font-bold mb-2 tracking-tighter leading-tight drop-shadow-lg">
                 {event.titulo}
               </h3>
-              <p className="text-white/90 line-clamp-2 mb-5 text-sm font-medium leading-relaxed">
-                {event.descricaoCurta}
-              </p>
+              {(event.subtitulo || event.descricaoCurta)?.trim() ? (
+                <p className="text-white/90 line-clamp-2 mb-5 text-sm font-medium leading-relaxed">
+                  {event.subtitulo?.trim() || event.descricaoCurta}
+                </p>
+              ) : (
+                <div className="mb-5" />
+              )}
 
               <div className="flex flex-wrap gap-x-5 gap-y-3 items-center">
-                <Meta icon={MapPin} label="Local" value={event.local} />
-                <Meta
-                  icon={DollarSign}
-                  label="Ingresso"
-                  value={
-                    event.gratuito || event.valor === 0
-                      ? 'Gratuito'
-                      : formatCurrency(event.valor)
-                  }
-                />
-                <Meta icon={Users} label="Vagas" value={`${event.vagas} totais`} />
+                {event.local?.trim() ? (
+                  <Meta icon={MapPin} label="Local" value={event.local} />
+                ) : null}
+                {event.mostrarValor !== false ? (
+                  <Meta
+                    icon={DollarSign}
+                    label="Ingresso"
+                    value={getEventPriceLabel(event)}
+                  />
+                ) : null}
+                {event.mostrarVagas ? (
+                  <Meta icon={Users} label="Vagas" value={`${event.vagas} totais`} />
+                ) : null}
               </div>
             </div>
           </div>
@@ -105,7 +112,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
               className="w-full group/btn bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:border-transparent px-5 py-4 rounded-2xl transition-all duration-400 flex items-center justify-between shadow-xl backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-white/50"
             >
               <span className="font-black text-[10px] tracking-[0.35em] uppercase ml-2">
-                Participar
+                {event.textoBotao || 'Participar'}
               </span>
               <div className="w-10 h-10 rounded-xl bg-white/5 group-hover/btn:bg-black/5 flex items-center justify-center transition-transform group-hover/btn:translate-x-1">
                 <ArrowRight size={18} aria-hidden="true" />

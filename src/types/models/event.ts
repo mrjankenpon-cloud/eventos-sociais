@@ -3,6 +3,8 @@ export interface TicketType {
   /** Stable machine key — allows custom types later */
   key: string;
   nome: string;
+  /** Optional public description — omit when empty */
+  descricao: string;
   ativo: boolean;
   valor: number;
   quantidade: number;

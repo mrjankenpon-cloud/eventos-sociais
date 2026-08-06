@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, Ticket } from 'lucide-react';
 import type { TicketType } from '../../../types/models/event';
 import { createId } from '../../../lib/eventForm';
-import { Input, Button } from '../../ui';
+import { Input, Textarea, Button } from '../../ui';
 import { cn } from '../../../lib/utils';
 
 interface TicketTypesEditorProps {
@@ -21,7 +21,8 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
       {
         id: createId('tt'),
         key: `custom-${Date.now()}`,
-        nome: 'Novo tipo',
+        nome: '',
+        descricao: '',
         ativo: true,
         valor: 0,
         quantidade: 0,
@@ -38,7 +39,8 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        Cada tipo de ingresso é independente. Ative apenas os que farão parte deste evento.
+        Cada tipo é independente. Os dados abaixo são os mesmos exibidos na página pública e no
+        checkout.
       </p>
 
       <div className="space-y-4">
@@ -55,19 +57,16 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
               )}
             >
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand shadow-sm shrink-0">
                     <Ticket size={18} />
                   </div>
-                  {isCore ? (
-                    <h3 className="font-black text-gray-900">{type.nome}</h3>
-                  ) : (
-                    <input
-                      value={type.nome}
-                      onChange={(e) => update(type.id, { nome: e.target.value })}
-                      className="font-black text-gray-900 bg-transparent border-b border-dashed border-gray-300 focus:border-brand outline-none min-w-0"
-                    />
-                  )}
+                  <input
+                    value={type.nome}
+                    onChange={(e) => update(type.id, { nome: e.target.value })}
+                    placeholder="Nome do ingresso"
+                    className="font-black text-gray-900 bg-transparent border-b border-dashed border-gray-300 focus:border-brand outline-none min-w-0 flex-1"
+                  />
                 </div>
 
                 <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -85,32 +84,41 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
 
               <div
                 className={cn(
-                  'grid grid-cols-1 sm:grid-cols-2 gap-4',
+                  'space-y-4',
                   !type.ativo && 'opacity-50 pointer-events-none'
                 )}
               >
-                <Input
-                  label="Valor (R$)"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={type.valor}
-                  onChange={(e) =>
-                    update(type.id, { valor: Math.max(0, Number(e.target.value) || 0) })
-                  }
-                  hint={type.key === 'retirada' ? 'Pode ser R$ 0,00' : undefined}
-                />
-                <Input
-                  label="Quantidade disponível"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={type.quantidade}
-                  onChange={(e) =>
-                    update(type.id, {
-                      quantidade: Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                    })
-                  }
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Valor (R$)"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={type.valor}
+                    onChange={(e) =>
+                      update(type.id, { valor: Math.max(0, Number(e.target.value) || 0) })
+                    }
+                    hint={type.key === 'retirada' ? 'Pode ser R$ 0,00' : undefined}
+                  />
+                  <Input
+                    label="Quantidade disponível"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={type.quantidade}
+                    onChange={(e) =>
+                      update(type.id, {
+                        quantidade: Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                      })
+                    }
+                  />
+                </div>
+                <Textarea
+                  label="Descrição (opcional)"
+                  value={type.descricao}
+                  onChange={(e) => update(type.id, { descricao: e.target.value })}
+                  rows={2}
+                  placeholder=""
                 />
               </div>
 

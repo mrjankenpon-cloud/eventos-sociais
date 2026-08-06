@@ -16,6 +16,7 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'inteira',
       nome: 'Inteira',
+      descricao: '',
       ativo: true,
       valor: 0,
       quantidade: 100,
@@ -24,6 +25,7 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'meia',
       nome: 'Meia-Entrada',
+      descricao: '',
       ativo: false,
       valor: 0,
       quantidade: 0,
@@ -32,6 +34,7 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'retirada',
       nome: 'Retirada',
+      descricao: '',
       ativo: false,
       valor: 0,
       quantidade: 0,
@@ -128,7 +131,7 @@ export function normalizeEvent(raw: RawEvent): Event {
   const base = createEmptyEventForm();
   const tipos =
     raw.tiposIngresso && raw.tiposIngresso.length > 0
-      ? raw.tiposIngresso
+      ? raw.tiposIngresso.map(normalizeTicketType)
       : migrateLegacyTickets(raw);
 
   const imagens: GalleryImage[] =
@@ -181,25 +184,52 @@ function resolveSponsorLinks(raw: RawEvent): EventEntityLink[] {
   );
 }
 
+function normalizeTicketType(t: Partial<TicketType> & Pick<TicketType, 'id' | 'key' | 'nome'>): TicketType {
+  return {
+    id: t.id,
+    key: t.key,
+    nome: t.nome,
+    descricao: typeof t.descricao === 'string' ? t.descricao : '',
+    ativo: Boolean(t.ativo),
+    valor: Math.max(0, Number(t.valor) || 0),
+    quantidade: Math.max(0, Math.floor(Number(t.quantidade) || 0)),
+  };
+}
+
 function migrateLegacyTickets(raw: Partial<Event>): TicketType[] {
-  const defaults = defaultTicketTypes();
+  const eid = raw.id ?? 'tmp';
+  const base = (key: string, nome: string): TicketType => ({
+    id: `tt-${eid}-${key}`,
+    key,
+    nome,
+    descricao: '',
+    ativo: false,
+    valor: 0,
+    quantidade: 0,
+  });
+
+  const inteira = base('inteira', 'Inteira');
+  const meia = base('meia', 'Meia-Entrada');
+  const retirada = base('retirada', 'Retirada');
+
   if (raw.gratuito) {
-    return defaults.map((t) =>
-      t.key === 'retirada'
-        ? { ...t, ativo: true, valor: 0, quantidade: raw.vagas ?? 100 }
-        : { ...t, ativo: false }
-    );
+    return [
+      inteira,
+      meia,
+      { ...retirada, ativo: true, valor: 0, quantidade: raw.vagas ?? 100 },
+    ];
   }
-  return defaults.map((t) =>
-    t.key === 'inteira'
-      ? {
-          ...t,
-          ativo: true,
-          valor: raw.valor ?? 0,
-          quantidade: raw.vagas ?? 100,
-        }
-      : t
-  );
+
+  return [
+    {
+      ...inteira,
+      ativo: true,
+      valor: raw.valor ?? 0,
+      quantidade: raw.vagas ?? 100,
+    },
+    meia,
+    retirada,
+  ];
 }
 
 function migrateLegacyGallery(raw: Partial<Event>): GalleryImage[] {

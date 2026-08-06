@@ -1,6 +1,8 @@
 export interface Purchase {
   id: string;
   eventId: string;
+  ticketTypeId?: string;
+  ticketTypeNome?: string;
   compradorNome: string;
   compradorCPF: string;
   compradorTelefone: string;
