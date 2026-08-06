@@ -13,6 +13,7 @@ const COLLABORATORS: Collaborator[] = [
     id: 'ameo',
     name: 'AMEO — Associação da Medula Óssea',
     logo: '/collaborators/ameo.png',
+    url: 'https://ameo.org.br/',
   },
 ];
 
