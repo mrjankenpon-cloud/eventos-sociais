@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { EventCard } from '../../components/public/EventCard';
 import BannerList from '../../components/public/BannerList';
+import { Collaborators } from '../../components/public/Collaborators';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
@@ -32,16 +33,16 @@ export default function Home() {
   const list = featured.length > 0 ? events.filter((e) => !e.eventoDestaque) : events;
 
   return (
-    <div className="pb-24 sm:pb-32 min-h-[60vh] bg-surface-muted">
-      <div className="page-container pt-8 sm:pt-12">
+    <div className="pb-16 sm:pb-20 min-h-[60vh] bg-surface-muted">
+      <div className="page-container pt-8 sm:pt-12 space-y-12 sm:space-y-16">
         {error && (
-          <Alert variant="error" className="mb-8" onClose={() => setError(null)}>
+          <Alert variant="error" onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
         {!loading && featured.length > 0 && (
-          <section className="mb-6" aria-label="Eventos em destaque">
+          <section aria-label="Eventos em destaque">
             <BannerList events={featured} />
           </section>
         )}
@@ -79,6 +80,8 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        <Collaborators />
       </div>
     </div>
   );

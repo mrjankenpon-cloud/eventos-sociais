@@ -12,10 +12,7 @@ import {
   CheckCircle,
   Calendar,
   FileText,
-  Edit2,
-  Trash2,
   LayoutDashboard,
-  Plus,
   Star,
   Eye,
   Printer,
@@ -30,9 +27,7 @@ import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
-import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
-import { Badge, Button, PageLoader, Alert, Toast } from '../../components/ui';
-import { useFlashMessage } from '../../hooks/useFlashMessage';
+import { Badge, Button, PageLoader, Alert } from '../../components/ui';
 import { formatEventDate, formatCurrency } from '../../lib/utils';
 
 type ViewMode = 'general' | 'event' | 'report';
@@ -73,11 +68,6 @@ export default function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Delete flow
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const { message, show, clear } = useFlashMessage();
 
   useEffect(() => {
     async function loadData() {
@@ -284,25 +274,6 @@ export default function Dashboard() {
     setSearchTerm('');
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setDeleteId(id);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
-    try {
-      await eventService.delete(deleteId);
-      setEvents((prev) => prev.filter((e) => e.id !== deleteId));
-      show('success', 'Evento excluído com sucesso.');
-      setDeleteId(null);
-    } catch {
-      show('error', 'Erro ao excluir evento.');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   // --- Table columns ---
 
   const eventColumns: DataTableColumn<Event>[] = [
@@ -384,14 +355,6 @@ export default function Dashboard() {
       className: 'text-right',
       render: (event) => (
         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link
-            to={ROUTES.ADMIN.EVENT_EDIT.replace(':id', event.id)}
-            className="p-2.5 bg-gray-50 text-gray-400 hover:text-brand hover:bg-brand-muted rounded-xl transition-all"
-            title="Editar"
-            aria-label="Editar"
-          >
-            <Edit2 size={16} />
-          </Link>
           <button
             type="button"
             onClick={() => handleOpenEventDashboard(event)}
@@ -409,15 +372,6 @@ export default function Dashboard() {
           >
             <CheckCircle size={16} />
           </Link>
-          <button
-            type="button"
-            onClick={() => handleDeleteEvent(event.id)}
-            className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-            title="Excluir"
-            aria-label="Excluir"
-          >
-            <Trash2 size={16} />
-          </button>
         </div>
       ),
     },
@@ -668,14 +622,6 @@ export default function Dashboard() {
             <PageHeader
               title="Dashboard Geral"
               subtitle="Visão executiva consolidada da ONG."
-              actions={
-                <Link to={ROUTES.ADMIN.EVENT_NEW}>
-                  <Button className="rounded-2xl">
-                    <Plus size={18} aria-hidden="true" />
-                    Novo Evento
-                  </Button>
-                </Link>
-              }
             />
 
             {loadError && (
@@ -703,11 +649,11 @@ export default function Dashboard() {
               rowKey={(e) => e.id}
               onRowClick={handleOpenEventDashboard}
               emptyTitle="Nenhum evento cadastrado"
-              emptyDescription="Crie seu primeiro evento para começar a acompanhar as métricas."
+              emptyDescription="Cadastre eventos na aba Eventos para acompanhar as métricas."
               emptyIcon={Calendar}
               toolbar={
                 <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-lg font-black text-gray-900">Gerenciar Eventos</h2>
+                  <h2 className="text-lg font-black text-gray-900">Eventos</h2>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
                     {events.length} {events.length === 1 ? 'Evento' : 'Eventos'}
                   </span>
@@ -746,17 +692,9 @@ export default function Dashboard() {
               onBack={handleBack}
               backLabel="Voltar ao Dashboard Geral"
               actions={
-                <>
-                  <Link to={ROUTES.ADMIN.EVENT_EDIT.replace(':id', selectedEvent.id)}>
-                    <Button variant="outline" className="rounded-2xl">
-                      <Edit2 size={18} aria-hidden="true" />
-                      Editar
-                    </Button>
-                  </Link>
-                  <Link to={ROUTES.ADMIN.EVENT_CHECKIN.replace(':id', selectedEvent.id)}>
-                    <Button className="rounded-2xl">Realizar Check-in</Button>
-                  </Link>
-                </>
+                <Link to={ROUTES.ADMIN.EVENT_CHECKIN.replace(':id', selectedEvent.id)}>
+                  <Button className="rounded-2xl">Realizar Check-in</Button>
+                </Link>
               }
             />
 
@@ -847,17 +785,6 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog
-        isOpen={Boolean(deleteId)}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleConfirmDelete}
-        title="Excluir evento"
-        description="Deseja realmente excluir este evento? Esta ação não pode ser desfeita e removerá todos os dados associados."
-        confirmLabel="Excluir"
-        isLoading={deleting}
-      />
-
-      <Toast message={message} onClose={clear} />
     </div>
   );
 }

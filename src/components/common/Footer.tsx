@@ -3,7 +3,7 @@ import { APP_CONFIG, ROUTES } from '../../config';
 
 export default function Footer() {
   return (
-    <footer className="bg-surface-muted py-12 sm:py-16">
+    <footer className="bg-surface-muted pt-14 sm:pt-20 pb-12 sm:pb-16">
       <div className="page-container">
         <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
 
