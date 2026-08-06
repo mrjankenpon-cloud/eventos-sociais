@@ -41,13 +41,13 @@ export default function Home() {
           </Alert>
         )}
 
+        {!loading && <Collaborators />}
+
         {!loading && featured.length > 0 && (
           <section aria-label="Eventos em destaque">
             <BannerList events={featured} />
           </section>
         )}
-
-        {!loading && <Collaborators />}
 
         <section id="eventos" className="scroll-mt-28">
           <div className="mb-8 sm:mb-10">
