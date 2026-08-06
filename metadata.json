@@ -1,0 +1,6 @@
+{
+  "name": "Eventos Sociais",
+  "description": "Plataforma elegante para gestão e participação em eventos sociais com área administrativa dedicada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
