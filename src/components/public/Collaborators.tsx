@@ -29,24 +29,24 @@ export function Collaborators() {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-        className="page-container py-2 sm:py-2.5"
+        className="page-container py-4 sm:py-5"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <div className="sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-8">
-            <p className="text-[11px] sm:text-xs font-black uppercase tracking-[0.2em] text-brand">
+            <p className="text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-brand">
               Colaboradores
             </p>
           </div>
 
-          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-4 sm:gap-7 flex-1 min-w-0">
+          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-8 flex-1 min-w-0">
             {COLLABORATORS.map((collaborator) => {
               const logo = (
-                <span className="inline-flex items-center justify-center h-14 sm:h-16 px-2 sm:px-3 rounded-xl bg-transparent transition-all hover:opacity-90">
+                <span className="inline-flex items-center justify-center h-28 sm:h-32 px-3 sm:px-4 rounded-xl bg-transparent transition-all hover:opacity-90">
                   <img
                     src={collaborator.logo}
                     alt={collaborator.name}
                     loading="lazy"
-                    className="h-12 sm:h-14 w-auto max-w-[220px] sm:max-w-[280px] object-contain"
+                    className="h-24 sm:h-28 w-auto max-w-[440px] sm:max-w-[560px] object-contain"
                   />
                 </span>
               );
