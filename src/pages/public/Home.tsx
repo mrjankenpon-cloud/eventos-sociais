@@ -34,14 +34,15 @@ export default function Home() {
 
   return (
     <div className="pb-16 sm:pb-20 min-h-[60vh] bg-surface-muted">
-      <div className="page-container pt-8 sm:pt-12 space-y-12 sm:space-y-16">
+      {/* Faixa logo abaixo do cabeçalho */}
+      {!loading && <Collaborators />}
+
+      <div className="page-container pt-6 sm:pt-10 space-y-10 sm:space-y-14">
         {error && (
           <Alert variant="error" onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
-
-        {!loading && <Collaborators />}
 
         {!loading && featured.length > 0 && (
           <section aria-label="Eventos em destaque">
