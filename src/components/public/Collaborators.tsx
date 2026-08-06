@@ -20,59 +20,55 @@ export function Collaborators() {
   if (COLLABORATORS.length === 0) return null;
 
   return (
-    <section
-      aria-label="Colaboradores"
-      className="relative z-10 -mb-6 sm:-mb-8"
-    >
+    <section aria-label="Colaboradores" className="relative z-10">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
+        viewport={{ once: true, margin: '-20px' }}
         transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-        className="card-surface px-6 py-8 sm:px-10 sm:py-10 shadow-[var(--shadow-card-hover)] ring-1 ring-brand/5"
+        className="card-surface px-5 py-5 sm:px-8 sm:py-6 shadow-[var(--shadow-card)] ring-1 ring-brand/5"
       >
-        <div className="text-center mb-8 sm:mb-10">
-          <p className="label-micro mb-2 text-brand">Parcerias</p>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            Colaboradores
-          </h2>
-          <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
-            Instituições que caminham conosco nesta causa.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8">
+          <div className="sm:min-w-[160px] sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-8">
+            <p className="label-micro mb-1 text-brand">Parcerias</p>
+            <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+              Colaboradores
+            </h2>
+          </div>
+
+          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-4 sm:gap-6 flex-1">
+            {COLLABORATORS.map((collaborator) => {
+              const logo = (
+                <span className="inline-flex items-center justify-center h-14 sm:h-16 px-4 sm:px-5 rounded-2xl bg-white border border-gray-100 transition-all hover:border-brand/20 hover:shadow-sm hover:-translate-y-0.5">
+                  <img
+                    src={collaborator.logo}
+                    alt={collaborator.name}
+                    loading="lazy"
+                    className="max-h-10 sm:max-h-12 w-auto max-w-[140px] sm:max-w-[180px] object-contain"
+                  />
+                </span>
+              );
+
+              return (
+                <li key={collaborator.id}>
+                  {collaborator.url ? (
+                    <a
+                      href={collaborator.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={collaborator.name}
+                      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-2xl"
+                    >
+                      {logo}
+                    </a>
+                  ) : (
+                    logo
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
-
-        <ul className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-          {COLLABORATORS.map((collaborator) => {
-            const content = (
-              <span className="group flex items-center justify-center h-20 sm:h-24 w-[160px] sm:w-[200px] rounded-2xl bg-white border border-gray-100 px-5 transition-all hover:border-brand/20 hover:shadow-[var(--shadow-card)] hover:-translate-y-0.5">
-                <img
-                  src={collaborator.logo}
-                  alt={collaborator.name}
-                  loading="lazy"
-                  className="max-h-14 sm:max-h-16 w-auto max-w-full object-contain"
-                />
-              </span>
-            );
-
-            return (
-              <li key={collaborator.id}>
-                {collaborator.url ? (
-                  <a
-                    href={collaborator.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={collaborator.name}
-                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-2xl"
-                  >
-                    {content}
-                  </a>
-                ) : (
-                  content
-                )}
-              </li>
-            );
-          })}
-        </ul>
       </motion.div>
     </section>
   );

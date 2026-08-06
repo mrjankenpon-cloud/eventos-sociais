@@ -47,6 +47,8 @@ export default function Home() {
           </section>
         )}
 
+        {!loading && <Collaborators />}
+
         <section id="eventos" className="scroll-mt-28">
           <div className="mb-8 sm:mb-10">
             <p className="label-micro mb-2">Programação</p>
@@ -80,8 +82,6 @@ export default function Home() {
             </div>
           )}
         </section>
-
-        <Collaborators />
       </div>
     </div>
   );
