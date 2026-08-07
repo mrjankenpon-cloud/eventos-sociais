@@ -29,3 +29,9 @@ export const ROUTES = {
     HEALTH: '/controle/health',
   }
 };
+
+export {
+  MASTER_ADMIN_UID,
+  isMasterAdminUid,
+  isMasterAdminUser,
+} from './masterAdmin';

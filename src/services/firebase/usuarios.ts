@@ -36,6 +36,7 @@ import {
   wrapError,
 } from './helpers';
 import { logsService } from './logs';
+import { isMasterAdminUid, MASTER_ADMIN_UID } from '../../config/masterAdmin';
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -64,7 +65,56 @@ function resolveLoginEmail(usernameOrEmail: string): string {
   return `${value}@delphos.local`;
 }
 
+/** Garante perfil master no Firestore para o UID fixo. */
+async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
+  const email = normalizeEmail(fbUser.email || 'master@delphos.local');
+  const existing = await getDoc(docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID));
+  const base = existing.exists()
+    ? mapDoc<User>(existing as Parameters<typeof mapDoc>[0])
+    : null;
+
+  const profile: Omit<User, 'id'> = {
+    name: base?.name || fbUser.displayName || 'Administrador Master',
+    email: email || base?.email || 'master@delphos.local',
+    role: 'admin',
+    avatar: fbUser.photoURL || base?.avatar,
+    ativo: true,
+    master: true,
+    pending: false,
+    authProvider: base?.authProvider || 'google',
+    createdAt: base?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await setDoc(
+    docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID),
+    {
+      ...stripUndefined(profile as unknown as Record<string, unknown>),
+      ...timestamps(),
+    },
+    { merge: true }
+  );
+
+  return { id: MASTER_ADMIN_UID, ...profile };
+}
+
+function withMasterFlags(profile: User): User {
+  if (!isMasterAdminUid(profile.id)) return profile;
+  return {
+    ...profile,
+    role: 'admin',
+    master: true,
+    ativo: true,
+    pending: false,
+  };
+}
+
 async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
+  // Master UID: sempre autorizado, mesmo sem convite prévio
+  if (isMasterAdminUid(fbUser.uid)) {
+    return ensureMasterProfile(fbUser);
+  }
+
   const email = normalizeEmail(fbUser.email || '');
   if (!email) {
     throw new Error('Conta Google sem e-mail. Use outra conta.');
@@ -72,7 +122,9 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
 
   const byUid = await getDoc(docRef(COLLECTIONS.usuarios, fbUser.uid));
   if (byUid.exists()) {
-    const profile = mapDoc<User>(byUid as Parameters<typeof mapDoc>[0]);
+    const profile = withMasterFlags(
+      mapDoc<User>(byUid as Parameters<typeof mapDoc>[0])
+    );
     if (!profile.ativo) {
       throw new Error('Seu acesso está desativado. Contate um administrador.');
     }
@@ -98,6 +150,7 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
     role: invite.role || 'admin',
     avatar: fbUser.photoURL || invite.avatar,
     ativo: true,
+    master: false,
     pending: false,
     authProvider: 'google',
     createdAt: invite.createdAt,
@@ -109,7 +162,6 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
     ...timestamps(),
   });
 
-  // Remove convite por e-mail se for documento diferente do uid
   if (inviteId !== fbUser.uid) {
     try {
       await deleteDoc(docRef(COLLECTIONS.usuarios, inviteId));
@@ -253,31 +305,19 @@ export const usuariosService = {
     }
   },
 
-  async getById(id: string): Promise<User | undefined> {
-    try {
-      const snap = await getDoc(docRef(COLLECTIONS.usuarios, id));
-      if (!snap.exists()) return undefined;
-      return mapDoc<User>(snap as Parameters<typeof mapDoc>[0]);
-    } catch (error) {
-      wrapError('usuarios.getById', error);
-    }
-  },
-
-  async getAll(): Promise<User[]> {
-    try {
-      const q = query(col(COLLECTIONS.usuarios), orderBy('name', 'asc'));
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => mapDoc<User>(d));
-    } catch {
-      const snap = await getDocs(col(COLLECTIONS.usuarios));
-      return snap.docs
-        .map((d) => mapDoc<User>(d))
-        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    }
-  },
-
   async update(id: string, data: Partial<UserFormData>): Promise<User> {
     try {
+      if (isMasterAdminUid(id)) {
+        // Master não pode ser rebaixado/desativado
+        if (data.ativo === false) {
+          throw new Error('O administrador master não pode ser desativado.');
+        }
+        if (data.role && data.role !== 'admin') {
+          throw new Error('O administrador master deve permanecer como admin.');
+        }
+        data = { ...data, role: 'admin', master: true, ativo: true };
+      }
+
       const patch = { ...data };
       if (typeof patch.email === 'string') {
         patch.email = normalizeEmail(patch.email);
@@ -297,14 +337,21 @@ export const usuariosService = {
         after: updated as unknown as Record<string, unknown>,
       });
 
-      return updated;
+      return withMasterFlags(updated);
     } catch (error) {
+      if (error instanceof Error && !error.message.startsWith('[')) {
+        console.error('[usuarios.update]', error);
+        throw error;
+      }
       wrapError('usuarios.update', error);
     }
   },
 
   async delete(id: string): Promise<void> {
     try {
+      if (isMasterAdminUid(id)) {
+        throw new Error('O administrador master não pode ser removido.');
+      }
       await deleteDoc(docRef(COLLECTIONS.usuarios, id));
       await logsService.record({
         acao: 'delete',
@@ -313,7 +360,36 @@ export const usuariosService = {
         descricao: 'Permissão removida',
       });
     } catch (error) {
+      if (error instanceof Error && !error.message.startsWith('[')) {
+        console.error('[usuarios.delete]', error);
+        throw error;
+      }
       wrapError('usuarios.delete', error);
+    }
+  },
+
+  async getById(id: string): Promise<User | undefined> {
+    try {
+      const snap = await getDoc(docRef(COLLECTIONS.usuarios, id));
+      if (!snap.exists()) return undefined;
+      return withMasterFlags(mapDoc<User>(snap as Parameters<typeof mapDoc>[0]));
+    } catch (error) {
+      wrapError('usuarios.getById', error);
+    }
+  },
+
+  async getAll(): Promise<User[]> {
+    try {
+      const q = query(col(COLLECTIONS.usuarios), orderBy('name', 'asc'));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) =>
+        withMasterFlags(mapDoc<User>(d))
+      );
+    } catch {
+      const snap = await getDocs(col(COLLECTIONS.usuarios));
+      return snap.docs
+        .map((d) => withMasterFlags(mapDoc<User>(d)))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     }
   },
 

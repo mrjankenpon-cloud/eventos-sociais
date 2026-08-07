@@ -21,6 +21,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
     }
 
+    // UID do administrador master (não pode ser removido/rebaixado)
+    function isMasterUid(uid) {
+      return uid == 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
+    }
+
     function hasRole(roles) {
       return signedIn()
         && userDoc().data.ativo == true
@@ -28,23 +33,33 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasRole(['admin']);
+      return (signedIn() && isMasterUid(request.auth.uid))
+        || hasRole(['admin']);
     }
 
     function isEditor() {
-      return hasRole(['admin', 'editor']);
+      return isAdmin() || hasRole(['admin', 'editor']);
     }
 
     function isOperador() {
-      return hasRole(['admin', 'editor', 'operador']);
+      return isAdmin() || hasRole(['admin', 'editor', 'operador']);
     }
 
     function isStaff() {
-      return hasRole(['admin', 'editor', 'operador', 'viewer']);
+      return isAdmin() || hasRole(['admin', 'editor', 'operador', 'viewer']);
     }
 
     function isSelf(uid) {
       return signedIn() && request.auth.uid == uid;
+    }
+
+    function preservesMaster(userId) {
+      return !isMasterUid(userId)
+        || (
+          request.resource.data.role == 'admin'
+          && request.resource.data.ativo == true
+          && request.resource.data.master == true
+        );
     }
 
     // ---- usuarios ----
@@ -55,16 +70,22 @@ service cloud.firestore {
         || userId == request.auth.token.email
         || (resource != null && resource.data.email == request.auth.token.email)
         || isStaff()
+        || isMasterUid(request.auth.uid)
       );
-      allow list: if isStaff();
+      allow list: if isStaff() || isMasterUid(request.auth.uid);
       allow create: if isAdmin()
+        || (isMasterUid(request.auth.uid) && isSelf(userId))
         || (signedIn()
           && request.resource.data.email == request.auth.token.email
           && request.resource.data.ativo == true);
-      allow update: if isAdmin() || (isSelf(userId)
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.email == resource.data.email);
-      allow delete: if isAdmin();
+      allow update: if preservesMaster(userId) && (
+        isAdmin()
+        || isMasterUid(request.auth.uid)
+        || (isSelf(userId)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.email == resource.data.email)
+      );
+      allow delete: if isAdmin() && !isMasterUid(userId);
     }
 
     // ---- eventos ----

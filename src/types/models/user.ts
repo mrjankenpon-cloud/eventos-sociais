@@ -6,6 +6,8 @@ export interface User {
   role: 'admin' | 'editor' | 'operador' | 'viewer';
   avatar?: string;
   ativo: boolean;
+  /** Administrador master (protegido) */
+  master?: boolean;
   /** Convite ainda não vinculado a um login Google */
   pending?: boolean;
   authProvider?: 'google' | 'password' | 'invite';

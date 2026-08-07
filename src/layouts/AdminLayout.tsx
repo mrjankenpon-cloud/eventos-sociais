@@ -16,6 +16,7 @@ import {
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ROUTES, APP_CONFIG } from '../config';
+import { isMasterAdminUser } from '../config/masterAdmin';
 
 export default function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -170,13 +171,15 @@ export default function AdminLayout() {
             <div className="text-right hidden sm:block min-w-0">
               <p className="text-sm font-bold truncate">{displayName}</p>
               <p className="text-xs text-gray-400">
-                {user?.role === 'admin'
-                  ? 'Administrador'
-                  : user?.role === 'editor'
-                    ? 'Editor'
-                    : user?.role === 'operador'
-                      ? 'Operador'
-                      : 'Acesso'}
+                {isMasterAdminUser(user)
+                  ? 'Administrador Master'
+                  : user?.role === 'admin'
+                    ? 'Administrador'
+                    : user?.role === 'editor'
+                      ? 'Editor'
+                      : user?.role === 'operador'
+                        ? 'Operador'
+                        : 'Acesso'}
               </p>
             </div>
             <div

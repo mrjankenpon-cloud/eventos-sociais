@@ -19,6 +19,7 @@ import {
 import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
 import { validateEmail } from '../../lib/validation';
+import { isMasterAdminUser } from '../../config/masterAdmin';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
@@ -126,13 +127,21 @@ export default function Permissions() {
       setDeleteId(null);
       return;
     }
+    const target = items.find((u) => u.id === deleteId);
+    if (isMasterAdminUser(target)) {
+      setError('O administrador master não pode ser removido.');
+      setDeleteId(null);
+      return;
+    }
     setDeleting(true);
     try {
       await authService.delete(deleteId);
       setDeleteId(null);
       await load();
-    } catch {
-      setError('Erro ao remover permissão.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Erro ao remover permissão.'
+      );
     } finally {
       setDeleting(false);
     }
@@ -143,11 +152,17 @@ export default function Permissions() {
       setError('Você não pode desativar a própria conta.');
       return;
     }
+    if (isMasterAdminUser(u)) {
+      setError('O administrador master não pode ser desativado.');
+      return;
+    }
     try {
       await authService.update(u.id, { ativo: !u.ativo });
       await load();
-    } catch {
-      setError('Erro ao atualizar status.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Erro ao atualizar status.'
+      );
     }
   };
 
@@ -212,6 +227,9 @@ export default function Permissions() {
                   <p className="font-black text-gray-900 truncate">{u.name}</p>
                   <p className="text-sm text-gray-500 truncate">{u.email}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
+                    {isMasterAdminUser(u) && (
+                      <Badge variant="info">Master</Badge>
+                    )}
                     <Badge variant={u.ativo ? 'success' : 'neutral'}>
                       {u.ativo ? 'Ativo' : 'Inativo'}
                     </Badge>
@@ -237,7 +255,9 @@ export default function Permissions() {
                   variant="secondary"
                   className="rounded-xl h-9 text-xs"
                   onClick={() => void toggleActive(u)}
-                  disabled={currentUser?.id === u.id}
+                  disabled={
+                    currentUser?.id === u.id || isMasterAdminUser(u)
+                  }
                 >
                   {u.ativo ? 'Desativar' : 'Ativar'}
                 </Button>
@@ -246,7 +266,9 @@ export default function Permissions() {
                   variant="danger"
                   className="rounded-xl h-9 text-xs"
                   onClick={() => setDeleteId(u.id)}
-                  disabled={currentUser?.id === u.id}
+                  disabled={
+                    currentUser?.id === u.id || isMasterAdminUser(u)
+                  }
                 >
                   <Trash2 size={14} />
                   Remover
