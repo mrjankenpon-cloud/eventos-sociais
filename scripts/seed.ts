@@ -5,8 +5,8 @@
  *   npx tsx scripts/seed.ts
  *
  * Requer .env / .env.local com VITE_FIREBASE_* e opcionalmente:
- *   SEED_ADMIN_EMAIL=admin@delphos.local
- *   SEED_ADMIN_PASSWORD=Admin@123456
+ *   SEED_ADMIN_EMAIL=controleadmin@delphos.local
+ *   SEED_ADMIN_PASSWORD=admin@vogel
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -72,8 +72,8 @@ const db = getFirestore(app);
 const ADMIN_EMAIL =
   process.env.SEED_ADMIN_EMAIL ||
   process.env.VITE_ADMIN_LOGIN_EMAIL ||
-  'admin@delphos.local';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'Admin@123456';
+  'controleadmin@delphos.local';
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin@vogel';
 
 const PLACEHOLDER_IMG =
   'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?q=80&w=1200';

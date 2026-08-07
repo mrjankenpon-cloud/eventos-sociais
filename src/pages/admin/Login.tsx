@@ -75,7 +75,7 @@ export default function Login() {
               icon={<User size={18} />}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin@seudominio.com"
+              placeholder="controleadmin"
               autoComplete="username"
               required
             />

@@ -33,6 +33,14 @@ import { logsService } from './logs';
 function resolveLoginEmail(usernameOrEmail: string): string {
   const value = usernameOrEmail.trim();
   if (value.includes('@')) return value;
+
+  const normalized = value.toLowerCase();
+  // Usuário operacional sem domínio próprio
+  if (normalized === 'controleadmin') {
+    const mapped = import.meta.env.VITE_ADMIN_LOGIN_EMAIL as string | undefined;
+    return mapped?.trim() || 'controleadmin@delphos.local';
+  }
+
   const mapped = import.meta.env.VITE_ADMIN_LOGIN_EMAIL as string | undefined;
   if (mapped?.trim()) return mapped.trim();
   return `${value}@delphos.local`;
