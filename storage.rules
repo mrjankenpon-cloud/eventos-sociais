@@ -1,0 +1,57 @@
+rules_version = '2';
+
+/**
+ * DELPHOS — Firebase Storage Rules
+ * Leitura pública | Escrita somente administradores/editores autenticados
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isStaffWriter() {
+      return signedIn()
+        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.ativo == true
+        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.role in ['admin', 'editor'];
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function underMaxSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+
+    match /patrocinadores/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+
+    match /instituicoes/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+
+    match /eventos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+
+    match /configuracoes/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+
+    match /misc/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaffWriter() && isImage() && underMaxSize();
+    }
+  }
+}

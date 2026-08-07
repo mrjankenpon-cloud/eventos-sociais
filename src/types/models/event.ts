@@ -7,7 +7,12 @@ export interface TicketType {
   descricao: string;
   ativo: boolean;
   valor: number;
+  /** Capacidade total */
   quantidade: number;
+  /** Vendidos (Firestore) */
+  quantidadeVendida?: number;
+  /** Disponíveis restantes (Firestore) */
+  quantidadeDisponivel?: number;
 }
 
 export interface GalleryImage {

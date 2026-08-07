@@ -39,10 +39,10 @@ export function EventPartnersSection({
 
   return (
     <>
-      <section className="mt-10 sm:mt-12">
+      <section className="mt-4 sm:mt-5">
         <div
           className={cn(
-            'grid gap-6 lg:gap-8 items-stretch',
+            'grid gap-4 lg:gap-5 items-stretch',
             hasInstitutions && hasSponsors
               ? 'grid-cols-1 md:grid-cols-2'
               : 'grid-cols-1'
@@ -54,32 +54,34 @@ export function EventPartnersSection({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-              className="card-surface p-6 sm:p-8 flex flex-col h-full min-h-[280px]"
+              className="card-surface p-4 sm:p-5 flex flex-col h-full"
             >
-              <p className="label-micro text-brand mb-1">Impacto social</p>
-              <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-6">
+              <p className="label-micro text-brand mb-0.5">Impacto social</p>
+              <h2 className="text-lg sm:text-xl font-black text-gray-900 mb-3">
                 Instituições Beneficiadas
               </h2>
-              <ul className="space-y-4 flex-1">
+              <ul className="space-y-2.5 flex-1">
                 {institutions.map((inst) => (
                   <li
                     key={inst.id}
-                    className="flex items-start gap-4 p-3 sm:p-4 rounded-2xl bg-gray-50/80 border border-gray-100"
+                    className="flex items-start gap-3 p-2.5 sm:p-3 rounded-xl bg-gray-50/80 border border-gray-100"
                   >
                     <img
                       src={inst.logo}
                       alt=""
-                      className="w-14 h-14 rounded-xl object-contain bg-white border border-gray-100 shrink-0"
+                      className="w-11 h-11 rounded-lg object-contain bg-white border border-gray-100 shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-black text-gray-900 leading-snug">{inst.nome}</h3>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                      <h3 className="font-black text-gray-900 leading-snug text-sm sm:text-base">
+                        {inst.nome}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
                         {inst.descricaoCurta}
                       </p>
                       <Button
                         type="button"
                         variant="secondary"
-                        className="mt-3 rounded-xl h-9 text-xs"
+                        className="mt-2 rounded-xl h-8 text-xs"
                         onClick={() => setSelectedInstitution(inst)}
                       >
                         Conheça a Instituição
@@ -101,13 +103,13 @@ export function EventPartnersSection({
                 ease: THEME.motion.ease,
                 delay: 0.05,
               }}
-              className="card-surface p-6 sm:p-8 flex flex-col h-full min-h-[280px]"
+              className="card-surface p-4 sm:p-5 flex flex-col h-full"
             >
-              <p className="label-micro text-brand mb-1">Parceiros</p>
-              <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-6">
+              <p className="label-micro text-brand mb-0.5">Parceiros</p>
+              <h2 className="text-lg sm:text-xl font-black text-gray-900 mb-3">
                 Patrocinadores
               </h2>
-              <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 flex-1 content-start">
+              <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 flex-1 content-start">
                 {sponsors.map((sponsor) => (
                   <li key={sponsor.id}>
                     <button
@@ -119,14 +121,14 @@ export function EventPartnersSection({
                           setSelectedSponsor(sponsor);
                         }
                       }}
-                      className="w-full aspect-[4/3] rounded-2xl bg-gray-50 border border-gray-100 hover:border-brand/25 hover:shadow-sm transition-all flex items-center justify-center p-4 focus-visible:ring-2 focus-visible:ring-brand/30"
+                      className="w-full aspect-[5/3] rounded-xl bg-gray-50 border border-gray-100 hover:border-brand/25 hover:shadow-sm transition-all flex items-center justify-center p-3 focus-visible:ring-2 focus-visible:ring-brand/30"
                       aria-label={sponsor.nome}
                       title={sponsor.nome}
                     >
                       <img
                         src={sponsor.logo}
                         alt={sponsor.nome}
-                        className="max-h-14 sm:max-h-16 w-auto max-w-full object-contain grayscale hover:grayscale-0 transition-all"
+                        className="max-h-10 sm:max-h-12 w-auto max-w-full object-contain grayscale hover:grayscale-0 transition-all"
                         loading="lazy"
                       />
                     </button>

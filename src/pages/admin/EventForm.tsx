@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Save,
@@ -8,7 +8,6 @@ import {
   Handshake,
   HeartHandshake,
   Settings2,
-  Cloud,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { sponsorService } from '../../services/sponsor.service';
@@ -46,10 +45,6 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'config', label: 'Configurações', icon: Settings2 },
 ];
 
-function draftKey(id?: string) {
-  return `@Delphos:event-draft:${id || 'new'}`;
-}
-
 export default function EventForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -58,12 +53,10 @@ export default function EventForm() {
   const [loading, setLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
   const [formData, setFormData] = useState<EventFormData>(createEmptyEventForm());
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
-  const hydrated = useRef(false);
 
   useEffect(() => {
     async function loadCatalogs() {
@@ -77,6 +70,7 @@ export default function EventForm() {
         setInstitutions(inst);
       } catch (err) {
         console.error(err);
+        setError('Não foi possível carregar patrocinadores/instituições.');
       } finally {
         setCatalogLoading(false);
       }
@@ -86,48 +80,29 @@ export default function EventForm() {
 
   useEffect(() => {
     async function load() {
-      const key = draftKey(id);
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       try {
-        if (id) {
-          setLoading(true);
-          const data = await eventService.getById(id);
-          if (data) {
-            const normalized = normalizeEvent(data);
-            const { id: _i, createdAt: _c, updatedAt: _u, ...rest } = normalized;
-            setFormData(rest);
-          }
+        setLoading(true);
+        const data = await eventService.getById(id);
+        if (data) {
+          const normalized = normalizeEvent(data);
+          const { id: _i, createdAt: _c, updatedAt: _u, ...rest } = normalized;
+          setFormData(rest);
         } else {
-          const saved = localStorage.getItem(key);
-          if (saved) {
-            const parsed = JSON.parse(saved) as EventFormData;
-            setFormData(syncDerivedEventFields({ ...createEmptyEventForm(), ...parsed }));
-            setDraftSavedAt(new Date());
-          }
+          setError('Evento não encontrado.');
         }
       } catch (err) {
         console.error(err);
         setError('Não foi possível carregar o evento.');
       } finally {
         setLoading(false);
-        hydrated.current = true;
       }
     }
     void load();
   }, [id]);
-
-  // Auto-save draft
-  useEffect(() => {
-    if (!hydrated.current || loading) return;
-    const timer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(id), JSON.stringify(formData));
-        setDraftSavedAt(new Date());
-      } catch {
-        /* quota exceeded — ignore */
-      }
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [formData, id, loading]);
 
   const update = useCallback(<K extends keyof EventFormData>(key: K, value: EventFormData[K]) => {
     setFormData((prev) => syncDerivedEventFields({ ...prev, [key]: value }));
@@ -184,7 +159,6 @@ export default function EventForm() {
       } else {
         await eventService.create(payload);
       }
-      localStorage.removeItem(draftKey(id));
       navigate(ROUTES.ADMIN.EVENTS);
     } catch {
       setError('Erro ao salvar evento. Verifique os campos e tente novamente.');
@@ -208,18 +182,6 @@ export default function EventForm() {
         subtitle="Gerencie todas as informações do evento em um só lugar."
         backTo={ROUTES.ADMIN.EVENTS}
         backLabel="Voltar para listagem"
-        actions={
-          draftSavedAt ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-400">
-              <Cloud size={14} />
-              Rascunho salvo{' '}
-              {draftSavedAt.toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          ) : null
-        }
       />
 
       {error && (

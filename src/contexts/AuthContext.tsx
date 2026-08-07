@@ -1,12 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/auth';
 import { User } from '../types/models/user';
+import { usuariosService } from '../services/firebase/usuarios';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (user: User) => void;
-  logout: () => void;
+  login: (usernameOrEmail: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,26 +19,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simular verificação de sessão persistente
-    const savedUser = localStorage.getItem('@EventosSociais:user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      try {
+        if (fbUser) {
+          const profile = await usuariosService.getCurrentProfile();
+          setUser(profile);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('[AuthProvider]', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    });
+    return () => unsub();
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('@EventosSociais:user', JSON.stringify(userData));
-  };
+  const login = useCallback(async (usernameOrEmail: string, password: string) => {
+    const profile = await usuariosService.login(usernameOrEmail, password);
+    setUser(profile);
+    return profile;
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    await usuariosService.logout();
     setUser(null);
-    localStorage.removeItem('@EventosSociais:user');
-  };
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated: Boolean(user), isLoading, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

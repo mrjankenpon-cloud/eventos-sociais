@@ -37,8 +37,8 @@ export default function AdminLayout() {
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate(ROUTES.ADMIN.LOGIN);
   };
 

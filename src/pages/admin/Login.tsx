@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { authService } from '../../services/auth.service';
 import { Input, Button, Alert } from '../../components/ui';
 import { ROUTES, APP_CONFIG } from '../../config';
 import { THEME } from '../../theme';
@@ -31,8 +30,7 @@ export default function Login() {
     setError('');
 
     try {
-      const user = await authService.login(username.trim(), password);
-      login(user);
+      await login(username.trim(), password);
       navigate(from, { replace: true });
     } catch (err: unknown) {
       const message =
@@ -40,8 +38,9 @@ export default function Login() {
       setError(
         message.toLowerCase().includes('credencial') ||
           message.toLowerCase().includes('senha') ||
-          message.toLowerCase().includes('usuário')
-          ? message
+          message.toLowerCase().includes('usuário') ||
+          message.toLowerCase().includes('invalid')
+          ? 'Credenciais inválidas. Verifique seu usuário e senha.'
           : 'Não foi possível entrar. Verifique suas credenciais ou tente mais tarde.'
       );
       setIsLoading(false);
@@ -72,11 +71,11 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-5">
             <Input
               ref={userRef}
-              label="Usuário"
+              label="E-mail ou usuário"
               icon={<User size={18} />}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admincontrole"
+              placeholder="admin@seudominio.com"
               autoComplete="username"
               required
             />

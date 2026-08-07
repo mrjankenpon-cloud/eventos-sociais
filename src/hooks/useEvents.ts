@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Event } from '../types';
 import { eventService } from '../services/event.service';
-import { DB_KEYS, subscribeDb } from '../lib/persist';
 
-/** Hook bound to the same persisted event store as the rest of the app. */
+/** Hook bound to Firestore via eventService. */
 export function useEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -13,6 +12,9 @@ export function useEvents() {
     try {
       const data = await eventService.getAll();
       setEvents(data);
+    } catch (error) {
+      console.error('[useEvents]', error);
+      setEvents([]);
     } finally {
       setIsLoading(false);
     }
@@ -20,9 +22,6 @@ export function useEvents() {
 
   useEffect(() => {
     void refresh();
-    return subscribeDb(DB_KEYS.events, () => {
-      void refresh();
-    });
   }, [refresh]);
 
   const addEvent = async (event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {

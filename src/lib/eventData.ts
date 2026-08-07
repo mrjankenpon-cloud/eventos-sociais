@@ -13,12 +13,22 @@ export function getTicketTypeById(
   return (event.tiposIngresso ?? []).find((t) => t.id === ticketTypeId);
 }
 
+/** Quantidade ainda disponível para compra */
+export function getTicketAvailableQty(type: TicketType): number {
+  if (typeof type.quantidadeDisponivel === 'number') {
+    return Math.max(0, type.quantidadeDisponivel);
+  }
+  return Math.max(0, type.quantidade);
+}
+
 export function getTicketStatus(type: TicketType): {
   label: string;
   available: boolean;
 } {
   if (!type.ativo) return { label: 'Inativo', available: false };
-  if (type.quantidade <= 0) return { label: 'Esgotado', available: false };
+  if (getTicketAvailableQty(type) <= 0) {
+    return { label: 'ESGOTADO', available: false };
+  }
   return { label: 'Disponível', available: true };
 }
 

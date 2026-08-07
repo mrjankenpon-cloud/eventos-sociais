@@ -61,7 +61,7 @@ export default function CheckIn() {
 
   const handleCheckin = async (ticketId: string) => {
     try {
-      await ticketService.performCheckin(ticketId, 'Operador Admin');
+      await ticketService.performCheckin(ticketId, 'Operador Admin', id);
       setTickets((prev) =>
         prev.map((t) =>
           t.id === ticketId

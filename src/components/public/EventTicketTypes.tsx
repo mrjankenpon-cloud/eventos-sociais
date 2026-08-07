@@ -3,6 +3,7 @@ import type { Event } from '../../types';
 import {
   formatTicketValue,
   getActiveTicketTypes,
+  getTicketAvailableQty,
   getTicketStatus,
 } from '../../lib/eventData';
 import { cn } from '../../lib/utils';
@@ -26,9 +27,9 @@ export function EventTicketTypes({
   if (types.length === 0) return null;
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-2', className)}>
       <p className="label-micro">Ingressos</p>
-      <ul className="space-y-3">
+      <ul className="space-y-2">
         {types.map((type) => {
           const status = getTicketStatus(type);
           const descricao = type.descricao?.trim();
@@ -36,30 +37,32 @@ export function EventTicketTypes({
           return (
             <li
               key={type.id}
-              className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4"
+              className="rounded-xl border border-gray-100 bg-gray-50/80 p-3"
             >
-              <div className="flex items-start gap-3">
-                <div className="shrink-0 mt-0.5 p-2 rounded-xl bg-white text-brand border border-gray-100">
-                  <Ticket size={16} aria-hidden="true" />
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 mt-0.5 p-1.5 rounded-lg bg-white text-brand border border-gray-100">
+                  <Ticket size={14} aria-hidden="true" />
                 </div>
-                <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="font-black text-gray-900 leading-snug">
+                    <h3 className="font-black text-gray-900 leading-snug text-sm">
                       {type.nome}
                     </h3>
-                    <p className="text-base font-black text-brand tabular-nums shrink-0">
+                    <p className="text-sm font-black text-brand tabular-nums shrink-0">
                       {formatTicketValue(type)}
                     </p>
                   </div>
 
                   {descricao ? (
-                    <p className="text-sm text-gray-500 leading-relaxed">{descricao}</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">{descricao}</p>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     <span>
                       Qtd.{' '}
-                      <span className="text-gray-700 tabular-nums">{type.quantidade}</span>
+                      <span className="text-gray-700 tabular-nums">
+                        {getTicketAvailableQty(type)}
+                      </span>
                     </span>
                     <span
                       className={cn(

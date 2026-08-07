@@ -1,0 +1,129 @@
+rules_version = '2';
+
+/**
+ * DELPHOS — Firestore Security Rules (RBAC)
+ *
+ * Perfis em usuarios/{uid}.role:
+ *   admin     → Administrador (tudo)
+ *   editor    → Editor (conteúdo + pedidos; sem gerir usuários)
+ *   operador  → Operador (check-in + leitura operacional)
+ *   viewer    → Visitante autenticado (somente leitura admin)
+ *
+ * Público (sem auth): leitura de conteúdo publicado + criação de pedidos.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function hasRole(roles) {
+      return signedIn()
+        && userDoc().data.ativo == true
+        && userDoc().data.role in roles;
+    }
+
+    function isAdmin() {
+      return hasRole(['admin']);
+    }
+
+    function isEditor() {
+      return hasRole(['admin', 'editor']);
+    }
+
+    function isOperador() {
+      return hasRole(['admin', 'editor', 'operador']);
+    }
+
+    function isStaff() {
+      return hasRole(['admin', 'editor', 'operador', 'viewer']);
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- usuarios ----
+    match /usuarios/{userId} {
+      allow read: if isSelf(userId) || isStaff();
+      allow create: if isAdmin() || (isSelf(userId) && request.resource.data.role == 'viewer');
+      allow update: if isAdmin() || (isSelf(userId)
+        && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // ---- eventos ----
+    match /eventos/{eventoId} {
+      allow read: if resource.data.status == 'publicado'
+        || resource.data.publicado == true
+        || isStaff();
+      allow create, update, delete: if isEditor();
+    }
+
+    // ---- banners ----
+    match /banners/{id} {
+      allow read: if resource.data.ativo == true || isStaff();
+      allow write: if isEditor();
+    }
+
+    // ---- patrocinadores / instituicoes ----
+    match /patrocinadores/{id} {
+      allow read: if resource.data.ativo == true || isStaff();
+      allow write: if isEditor();
+    }
+
+    match /instituicoes/{id} {
+      allow read: if resource.data.ativo == true || isStaff();
+      allow write: if isEditor();
+    }
+
+    // ---- ingressos (tipos) ----
+    match /ingressos/{id} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // ---- pedidos ----
+    match /pedidos/{id} {
+      allow read: if isOperador();
+      allow create: if true
+        && request.resource.data.keys().hasAll([
+          'nomeComprador', 'eventoId', 'quantidade', 'valorTotal', 'status'
+        ]);
+      allow update: if isEditor() || isOperador();
+      allow delete: if isAdmin();
+    }
+
+    // ---- tickets emitidos ----
+    match /tickets/{id} {
+      allow read: if isOperador();
+      allow create: if true;
+      allow update: if isOperador();
+      allow delete: if isAdmin();
+    }
+
+    // ---- checkins ----
+    match /checkins/{id} {
+      allow read: if isOperador();
+      allow create, update: if isOperador();
+      allow delete: if isAdmin();
+    }
+
+    // ---- configuracoes ----
+    match /configuracoes/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- logs ----
+    match /logs/{id} {
+      allow read: if isAdmin() || hasRole(['editor']);
+      allow create: if signedIn() || true; // clients also write audit logs
+      allow update, delete: if isAdmin();
+    }
+  }
+}

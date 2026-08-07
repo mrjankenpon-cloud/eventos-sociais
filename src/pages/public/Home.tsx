@@ -8,7 +8,6 @@ import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
 import { eventService } from '../../services/event.service';
 import { Event } from '../../types';
-import { DB_KEYS, subscribeDb } from '../../lib/persist';
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -23,6 +22,7 @@ export default function Home() {
     } catch (err) {
       console.error('Erro ao carregar eventos:', err);
       setError('Não foi possível carregar os eventos. Tente novamente em instantes.');
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -31,12 +31,6 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     void loadEvents();
-  }, [loadEvents]);
-
-  useEffect(() => {
-    return subscribeDb(DB_KEYS.events, () => {
-      void loadEvents();
-    });
   }, [loadEvents]);
 
   const featured = events.filter((e) => e.eventoDestaque);

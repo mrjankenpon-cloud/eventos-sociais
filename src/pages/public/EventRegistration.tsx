@@ -21,9 +21,9 @@ import { formatCurrency, formatEventDate, cn } from '../../lib/utils';
 import {
   formatTicketValue,
   getActiveTicketTypes,
+  getTicketAvailableQty,
   getTicketStatus,
 } from '../../lib/eventData';
-import { DB_KEYS, subscribeDb } from '../../lib/persist';
 import { THEME } from '../../theme';
 
 export default function EventRegistration() {
@@ -71,6 +71,7 @@ export default function EventRegistration() {
       }
     } catch (error) {
       console.error('Erro ao carregar evento:', error);
+      setEvent(null);
     } finally {
       setLoading(false);
     }
@@ -79,12 +80,6 @@ export default function EventRegistration() {
   useEffect(() => {
     setLoading(true);
     void loadEvent();
-  }, [loadEvent]);
-
-  useEffect(() => {
-    return subscribeDb(DB_KEYS.events, () => {
-      void loadEvent();
-    });
   }, [loadEvent]);
 
   const activeTickets = useMemo(
@@ -118,7 +113,7 @@ export default function EventRegistration() {
   }, [selectedTicket, formData.quantidadeIngressos]);
 
   const maxQty = selectedTicket
-    ? Math.min(10, Math.max(1, selectedTicket.quantidade))
+    ? Math.min(10, Math.max(1, getTicketAvailableQty(selectedTicket)))
     : 1;
 
   const handleSubmit = async (e: React.FormEvent) => {
