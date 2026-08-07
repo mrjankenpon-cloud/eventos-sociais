@@ -25,6 +25,7 @@ export const ROUTES = {
     PURCHASE_DETAILS: '/controle/compras/:id',
     SPONSORS: '/controle/patrocinadores',
     INSTITUTIONS: '/controle/instituicoes',
+    PERMISSIONS: '/controle/permissoes',
     HEALTH: '/controle/health',
   }
 };

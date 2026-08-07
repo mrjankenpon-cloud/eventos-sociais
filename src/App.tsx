@@ -22,6 +22,7 @@ const CheckIn = lazy(() => import('./pages/admin/CheckIn'));
 const PurchaseDetails = lazy(() => import('./pages/admin/PurchaseDetails'));
 const Sponsors = lazy(() => import('./pages/admin/Sponsors'));
 const Institutions = lazy(() => import('./pages/admin/Institutions'));
+const Permissions = lazy(() => import('./pages/admin/Permissions'));
 const Health = lazy(() => import('./pages/admin/Health'));
 
 const LoadingFallback = () => (
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="compras/:id" element={<PurchaseDetails />} />
               <Route path="patrocinadores" element={<Sponsors />} />
               <Route path="instituicoes" element={<Institutions />} />
+              <Route path="permissoes" element={<Permissions />} />
               <Route path="health" element={<Health />} />
             </Route>
 

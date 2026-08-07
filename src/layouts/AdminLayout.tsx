@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Handshake,
   HeartHandshake,
+  Shield,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +36,7 @@ export default function AdminLayout() {
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
+    { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
   ];
 
   const handleLogout = async () => {
@@ -167,7 +169,15 @@ export default function AdminLayout() {
           <div className="flex items-center gap-3 min-w-0">
             <div className="text-right hidden sm:block min-w-0">
               <p className="text-sm font-bold truncate">{displayName}</p>
-              <p className="text-xs text-gray-400">Administrador</p>
+              <p className="text-xs text-gray-400">
+                {user?.role === 'admin'
+                  ? 'Administrador'
+                  : user?.role === 'editor'
+                    ? 'Editor'
+                    : user?.role === 'operador'
+                      ? 'Operador'
+                      : 'Acesso'}
+              </p>
             </div>
             <div
               className="w-10 h-10 rounded-full bg-brand-muted flex items-center justify-center text-brand border border-brand/10 shrink-0"
