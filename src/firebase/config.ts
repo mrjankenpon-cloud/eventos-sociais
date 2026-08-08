@@ -5,21 +5,35 @@ function readEnv(name: keyof ImportMetaEnv): string {
   return String(import.meta.env[name] ?? '').trim();
 }
 
+/**
+ * Config do projeto eventosociais-c057d.
+ * Chaves web do Firebase são públicas no cliente; restrições reais vêm de
+ * Auth domains + Firestore/Storage rules. Env VITE_* sobrescreve se existir.
+ */
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyD57NyAmfJwJyjwfUqstOcQKinXQCZ_WnE',
+  authDomain: 'eventosociais-c057d.firebaseapp.com',
+  projectId: 'eventosociais-c057d',
+  storageBucket: 'eventosociais-c057d.firebasestorage.app',
+  messagingSenderId: '878802346786',
+  appId: '1:878802346786:web:1089188a3b4cd893b8bb7b',
+} as const;
+
 const firebaseConfig = {
-  apiKey: readEnv('VITE_FIREBASE_API_KEY') || 'demo-api-key',
-  authDomain: readEnv('VITE_FIREBASE_AUTH_DOMAIN') || 'demo.firebaseapp.com',
-  projectId: readEnv('VITE_FIREBASE_PROJECT_ID') || 'demo-project',
-  storageBucket: readEnv('VITE_FIREBASE_STORAGE_BUCKET') || 'demo.appspot.com',
-  messagingSenderId: readEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || '0',
-  appId: readEnv('VITE_FIREBASE_APP_ID') || 'demo-app',
+  apiKey: readEnv('VITE_FIREBASE_API_KEY') || DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain:
+    readEnv('VITE_FIREBASE_AUTH_DOMAIN') || DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId:
+    readEnv('VITE_FIREBASE_PROJECT_ID') || DEFAULT_FIREBASE_CONFIG.projectId,
+  storageBucket:
+    readEnv('VITE_FIREBASE_STORAGE_BUCKET') ||
+    DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId:
+    readEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') ||
+    DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  appId: readEnv('VITE_FIREBASE_APP_ID') || DEFAULT_FIREBASE_CONFIG.appId,
   measurementId: readEnv('VITE_FIREBASE_MEASUREMENT_ID') || undefined,
 };
-
-if (!readEnv('VITE_FIREBASE_API_KEY') && import.meta.env.DEV) {
-  console.warn(
-    '[Firebase] Variáveis VITE_FIREBASE_* ausentes. Configure .env.local com as credenciais do projeto.'
-  );
-}
 
 export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 
