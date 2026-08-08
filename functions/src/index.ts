@@ -13,6 +13,7 @@ export { confirmPayment } from './confirmPayment';
 export { sendEmail } from './sendEmail';
 export { generateTickets } from './generateTickets';
 export { cancelOrder } from './cancelOrder';
+export { syncUserClaims } from './syncUserClaims';
 
 /** Health ping da runtime de Functions */
 export const ping = functions.https.onRequest((_req, res) => {

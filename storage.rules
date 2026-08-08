@@ -2,7 +2,7 @@ rules_version = '2';
 
 /**
  * DELPHOS — Firebase Storage Rules
- * Leitura pública | Escrita somente administradores/editores autenticados
+ * Leitura pública | Escrita staff (claims primeiro; fallback usuarios/{uid})
  */
 service firebase.storage {
   match /b/{bucket}/o {
@@ -10,10 +10,30 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function isMaster() {
+      return signedIn() && (
+        request.auth.token.master == true
+        || request.auth.uid == 'dNnYanNjrgWA5CXUfJjEZKCIJhm2'
+      );
+    }
+
     function isStaffWriter() {
-      return signedIn()
-        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.ativo == true
-        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.role in ['admin', 'editor'];
+      return isMaster()
+        || (
+          signedIn()
+          && request.auth.token.keys().hasAny(['role'])
+          && request.auth.token.role in ['admin', 'editor']
+          && (
+            !request.auth.token.keys().hasAny(['ativo'])
+            || request.auth.token.ativo == true
+          )
+        )
+        || (
+          signedIn()
+          && !request.auth.token.keys().hasAny(['role'])
+          && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.ativo == true
+          && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.role in ['admin', 'editor']
+        );
     }
 
     function isImage() {

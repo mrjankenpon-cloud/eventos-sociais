@@ -1,6 +1,9 @@
 /**
  * Administrador master do Delphos.
  * Este UID tem acesso irrestrito e não pode ser removido/desativado pela UI.
+ *
+ * Nas regras Firestore/Storage, master também é reconhecido via
+ * custom claim `request.auth.token.master == true` (ver functions/syncUserClaims).
  */
 export const MASTER_ADMIN_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
 

@@ -3,13 +3,14 @@ rules_version = '2';
 /**
  * DELPHOS — Firestore Security Rules (RBAC)
  *
- * Perfis em usuarios/{uid}.role:
- *   admin     → Administrador (tudo)
- *   editor    → Editor (conteúdo + pedidos; sem gerir usuários)
- *   operador  → Operador (check-in + leitura operacional)
- *   viewer    → Visitante autenticado (somente leitura admin)
+ * Claims (preferidos, 0 leituras extras):
+ *   request.auth.token.role   → 'admin' | 'editor' | 'operador' | 'viewer'
+ *   request.auth.token.ativo  → true/false
+ *   request.auth.token.master → true
  *
- * Público (sem auth): leitura de conteúdo publicado + criação de pedidos.
+ * Fallback: leitura única de usuarios/{uid} (cacheada por avaliação de regra).
+ *
+ * Público: inscrição (pedido + tickets derivados) com validação de schema.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,20 +22,41 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
     }
 
-    // UID do administrador master (não pode ser removido/rebaixado)
-    function isMasterUid(uid) {
-      return uid == 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
+    function isMaster() {
+      return signedIn() && (
+        request.auth.token.master == true
+        || request.auth.uid == 'dNnYanNjrgWA5CXUfJjEZKCIJhm2'
+      );
     }
 
-    function hasRole(roles) {
+    function hasTokenRole() {
+      return signedIn() && request.auth.token.keys().hasAny(['role']);
+    }
+
+    function tokenRoleOk(roles) {
+      return hasTokenRole()
+        && request.auth.token.role in roles
+        && (
+          !request.auth.token.keys().hasAny(['ativo'])
+          || request.auth.token.ativo == true
+        );
+    }
+
+    function docRoleOk(roles) {
       return signedIn()
         && userDoc().data.ativo == true
         && userDoc().data.role in roles;
     }
 
+    /** Prefer claims; só faz get() se o token ainda não tiver role. */
+    function hasRole(roles) {
+      return isMaster()
+        || tokenRoleOk(roles)
+        || (!hasTokenRole() && docRoleOk(roles));
+    }
+
     function isAdmin() {
-      return (signedIn() && isMasterUid(request.auth.uid))
-        || hasRole(['admin']);
+      return isMaster() || hasRole(['admin']);
     }
 
     function isEditor() {
@@ -54,7 +76,7 @@ service cloud.firestore {
     }
 
     function preservesMaster(userId) {
-      return !isMasterUid(userId)
+      return userId != 'dNnYanNjrgWA5CXUfJjEZKCIJhm2'
         || (
           request.resource.data.role == 'admin'
           && request.resource.data.ativo == true
@@ -62,30 +84,87 @@ service cloud.firestore {
         );
     }
 
+    function stringInRange(value, minLen, maxLen) {
+      return value is string
+        && value.size() >= minLen
+        && value.size() <= maxLen;
+    }
+
+    /** Inscrição pública: schema rígido + status inicial pendente. */
+    function isValidPedidoCreate() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+          'nomeComprador', 'eventoId', 'quantidade', 'valorTotal', 'status', 'cpf', 'email'
+        ])
+        && stringInRange(d.nomeComprador, 2, 120)
+        && stringInRange(d.eventoId, 1, 128)
+        && stringInRange(d.cpf, 11, 14)
+        && stringInRange(d.email, 5, 200)
+        && d.quantidade is number
+        && d.quantidade >= 1
+        && d.quantidade <= 20
+        && d.quantidade == int(d.quantidade)
+        && d.valorTotal is number
+        && d.valorTotal >= 0
+        && d.valorTotal <= 100000
+        && d.status == 'pendente'
+        && (!('ativo' in d) || d.ativo == true)
+        && (!('estoqueReservado' in d) || d.estoqueReservado is bool);
+    }
+
+    /** Tickets só no estado inicial (check-in ainda não feito). */
+    function isValidTicketCreate() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+          'codigo', 'hash', 'eventoId', 'compraId', 'status', 'checkinRealizado'
+        ])
+        && stringInRange(d.codigo, 6, 80)
+        && stringInRange(d.hash, 16, 128)
+        && stringInRange(d.eventoId, 1, 128)
+        && stringInRange(d.compraId, 1, 128)
+        && d.status == 'Disponível'
+        && d.checkinRealizado == false
+        && (!('ativo' in d) || d.ativo == true)
+        && (!('ordem' in d) || (d.ordem is number && d.ordem >= 1 && d.ordem <= 20 && d.ordem == int(d.ordem)));
+    }
+
+    function isValidLogCreate() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['acao', 'colecao', 'documentoId', 'descricao'])
+        && stringInRange(d.acao, 1, 40)
+        && stringInRange(d.colecao, 1, 40)
+        && stringInRange(d.documentoId, 1, 128)
+        && stringInRange(d.descricao, 1, 500)
+        && (
+          signedIn()
+          || (d.acao == 'create' && d.colecao == 'pedidos')
+        );
+    }
+
     // ---- usuarios ----
     match /usuarios/{userId} {
-      // Perfil próprio, convite pelo e-mail (doc id = e-mail) ou staff
       allow get: if signedIn() && (
         isSelf(userId)
         || userId == request.auth.token.email
         || (resource != null && resource.data.email == request.auth.token.email)
         || isStaff()
-        || isMasterUid(request.auth.uid)
       );
-      allow list: if isStaff() || isMasterUid(request.auth.uid);
+      allow list: if isStaff();
       allow create: if isAdmin()
-        || (isMasterUid(request.auth.uid) && isSelf(userId))
+        || (isMaster() && isSelf(userId))
         || (signedIn()
           && request.resource.data.email == request.auth.token.email
-          && request.resource.data.ativo == true);
+          && request.resource.data.ativo == true
+          && request.resource.data.role in ['admin', 'editor', 'operador', 'viewer']);
       allow update: if preservesMaster(userId) && (
         isAdmin()
-        || isMasterUid(request.auth.uid)
         || (isSelf(userId)
           && request.resource.data.role == resource.data.role
-          && request.resource.data.email == resource.data.email)
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.get('master', false)
+            == resource.data.get('master', false))
       );
-      allow delete: if isAdmin() && !isMasterUid(userId);
+      allow delete: if isAdmin() && userId != 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
     }
 
     // ---- eventos ----
@@ -93,7 +172,20 @@ service cloud.firestore {
       allow read: if resource.data.status == 'publicado'
         || resource.data.publicado == true
         || isStaff();
-      allow create, update, delete: if isEditor();
+      allow create, delete: if isEditor();
+      allow update: if isEditor()
+        || (
+          // Inscrição pública: só ajusta contador de vagas (não aumenta)
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['quantidadeRestante', 'updatedAt'])
+          && request.resource.data.quantidadeRestante is number
+          && request.resource.data.quantidadeRestante >= 0
+          && (
+            !('quantidadeRestante' in resource.data)
+            || request.resource.data.quantidadeRestante
+              <= resource.data.quantidadeRestante
+          )
+        );
     }
 
     // ---- banners ----
@@ -116,16 +208,22 @@ service cloud.firestore {
     // ---- ingressos (tipos) ----
     match /ingressos/{id} {
       allow read: if true;
-      allow write: if isEditor();
+      allow create, delete: if isEditor();
+      // Público pode só decrementar estoque na inscrição (via transaction do cliente)
+      allow update: if isEditor()
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['quantidadeVendida', 'quantidadeDisponivel', 'updatedAt'])
+          && request.resource.data.quantidadeVendida is number
+          && request.resource.data.quantidadeVendida >= resource.data.quantidadeVendida
+          && request.resource.data.quantidadeVendida <= resource.data.quantidade
+        );
     }
 
     // ---- pedidos ----
     match /pedidos/{id} {
       allow read: if isOperador();
-      allow create: if true
-        && request.resource.data.keys().hasAll([
-          'nomeComprador', 'eventoId', 'quantidade', 'valorTotal', 'status'
-        ]);
+      allow create: if isValidPedidoCreate();
       allow update: if isEditor() || isOperador();
       allow delete: if isAdmin();
     }
@@ -133,7 +231,7 @@ service cloud.firestore {
     // ---- tickets emitidos ----
     match /tickets/{id} {
       allow read: if isOperador();
-      allow create: if true;
+      allow create: if isValidTicketCreate();
       allow update: if isOperador();
       allow delete: if isAdmin();
     }
@@ -154,7 +252,7 @@ service cloud.firestore {
     // ---- logs ----
     match /logs/{id} {
       allow read: if isAdmin() || hasRole(['editor']);
-      allow create: if signedIn() || true; // clients also write audit logs
+      allow create: if isValidLogCreate();
       allow update, delete: if isAdmin();
     }
   }
