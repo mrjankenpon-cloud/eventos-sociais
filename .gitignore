@@ -10,3 +10,10 @@ coverage/
 .env.local
 .env.*
 !.env.example
+
+.vercel
+
+# Local secrets (never commit)
+.secrets/
+*-firebase-adminsdk-*.json
+

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { EventCard } from '../../components/public/EventCard';
 import BannerList from '../../components/public/BannerList';
-import { Collaborators } from '../../components/public/Collaborators';
+import { InstitutionsStrip } from '../../components/public/InstitutionsStrip';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
@@ -38,7 +38,7 @@ export default function Home() {
 
   return (
     <div className="pb-16 sm:pb-20 min-h-[60vh] bg-surface-muted">
-      {!loading && <Collaborators />}
+      <InstitutionsStrip />
 
       <div className="page-container pt-6 sm:pt-10 space-y-10 sm:space-y-14">
         {error && (

@@ -15,6 +15,9 @@ interface ModalProps {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
+const INITIAL_FIELD =
+  'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])';
+
 export function Modal({
   isOpen,
   onClose,
@@ -26,6 +29,8 @@ export function Modal({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const widths = {
     sm: 'max-w-sm',
@@ -36,6 +41,8 @@ export function Modal({
     '4xl': 'max-w-4xl',
   };
 
+  // Só na abertura do modal — não reexecutar quando onClose muda de identidade
+  // (senão cada tecla no formulário rouba o foco de volta ao botão X).
   useEffect(() => {
     if (!isOpen) return;
 
@@ -44,13 +51,14 @@ export function Modal({
     document.body.style.overflow = 'hidden';
 
     const panel = panelRef.current;
+    const firstField = panel?.querySelector<HTMLElement>(INITIAL_FIELD);
     const focusables = panel?.querySelectorAll<HTMLElement>(FOCUSABLE);
-    focusables?.[0]?.focus();
+    (firstField ?? focusables?.[0])?.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !panel) return;
@@ -73,7 +81,7 @@ export function Modal({
       document.removeEventListener('keydown', onKeyDown);
       previousFocus.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -84,7 +92,7 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={() => onCloseRef.current()}
             aria-hidden="true"
           />
           <motion.div
@@ -112,7 +120,7 @@ export function Modal({
               )}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => onCloseRef.current()}
                 aria-label="Fechar"
                 className="shrink-0 p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-brand/40"
               >
