@@ -222,9 +222,20 @@ export const instituicoesService = {
   async getByIds(ids: string[]): Promise<Institution[]> {
     try {
       if (ids.length === 0) return [];
-      const all = await this.getAll();
-      const set = new Set(ids);
-      return all.filter((i) => set.has(i.id));
+      // getDoc por id (não listar a coleção): anônimos só leem docs com ativo==true.
+      const results = await Promise.all(
+        [...new Set(ids)].map(async (id) => {
+          try {
+            const snap = await getDoc(docRef(COLLECTIONS.instituicoes, id));
+            return snap.exists()
+              ? instituicaoToInstitution(mapDoc<Instituicao>(snap))
+              : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      return results.filter((i): i is Institution => Boolean(i));
     } catch (error) {
       wrapError('instituicoes.getByIds', error);
     }

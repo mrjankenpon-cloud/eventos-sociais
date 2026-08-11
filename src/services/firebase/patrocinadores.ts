@@ -182,9 +182,20 @@ export const patrocinadoresService = {
   async getByIds(ids: string[]): Promise<Sponsor[]> {
     try {
       if (ids.length === 0) return [];
-      const all = await this.getAll();
-      const set = new Set(ids);
-      return all.filter((s) => set.has(s.id));
+      // getDoc por id (não listar a coleção): anônimos só leem docs com ativo==true.
+      const results = await Promise.all(
+        [...new Set(ids)].map(async (id) => {
+          try {
+            const snap = await getDoc(docRef(COLLECTIONS.patrocinadores, id));
+            return snap.exists()
+              ? patrocinadorToSponsor(mapDoc<Patrocinador>(snap))
+              : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      return results.filter((s): s is Sponsor => Boolean(s));
     } catch (error) {
       wrapError('patrocinadores.getByIds', error);
     }

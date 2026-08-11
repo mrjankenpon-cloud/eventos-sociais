@@ -44,26 +44,33 @@ export default function EventDetails() {
         .sort((a, b) => a.ordem - b.ordem)
         .map((l) => l.id);
 
-      const [spAll, instAll] = await Promise.all([
-        sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
-        institutionIds.length
-          ? institutionService.getByIds(institutionIds)
-          : Promise.resolve([]),
-      ]);
+      try {
+        const [spAll, instAll] = await Promise.all([
+          sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
+          institutionIds.length
+            ? institutionService.getByIds(institutionIds)
+            : Promise.resolve([]),
+        ]);
 
-      const spMap = new Map(spAll.map((s) => [s.id, s]));
-      const instMap = new Map(instAll.map((i) => [i.id, i]));
+        const spMap = new Map(spAll.map((s) => [s.id, s]));
+        const instMap = new Map(instAll.map((i) => [i.id, i]));
 
-      setSponsors(
-        sponsorIds
-          .map((sid) => spMap.get(sid))
-          .filter((s): s is Sponsor => Boolean(s?.ativo))
-      );
-      setInstitutions(
-        institutionIds
-          .map((iid) => instMap.get(iid))
-          .filter((i): i is Institution => Boolean(i?.ativo))
-      );
+        setSponsors(
+          sponsorIds
+            .map((sid) => spMap.get(sid))
+            .filter((s): s is Sponsor => Boolean(s?.ativo))
+        );
+        setInstitutions(
+          institutionIds
+            .map((iid) => instMap.get(iid))
+            .filter((i): i is Institution => Boolean(i?.ativo))
+        );
+      } catch (partnersError) {
+        // Evento já carregou; parceiros não devem bloquear a página pública.
+        console.warn('Erro ao carregar parceiros do evento:', partnersError);
+        setSponsors([]);
+        setInstitutions([]);
+      }
     } catch (error) {
       console.error('Erro ao carregar evento:', error);
       setEvent(null);
