@@ -19,17 +19,38 @@ export default function Header() {
           : 'h-[115px]'
       } bg-gradient-to-r from-brand from-0% via-brand via-[28%] via-brand-dark via-[50%] via-brand-deeper via-[75%] to-[#050505]`}
     >
-      <div className="page-container relative h-full flex items-center justify-center sm:justify-start">
+      <div className="page-container relative h-full flex items-center justify-between gap-4 sm:gap-6">
         <Link
           to="/"
-          className="group flex items-center shrink-0 focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg transition-opacity hover:opacity-90"
+          className="group min-w-0 flex flex-col justify-center focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg py-1"
           aria-label={`${APP_CONFIG.name} — início`}
+        >
+          <span
+            className={`text-white/90 font-medium tracking-[0.12em] uppercase transition-all duration-500 group-hover:text-white ${
+              isScrolled ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'
+            }`}
+          >
+            Instituto
+          </span>
+          <span
+            className={`text-white font-bold tracking-[0.22em] sm:tracking-[0.28em] uppercase leading-tight transition-all duration-500 group-hover:opacity-90 ${
+              isScrolled ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
+            }`}
+          >
+            DELPHOS
+          </span>
+        </Link>
+
+        <Link
+          to="/"
+          className="shrink-0 flex items-center justify-end focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg"
+          aria-label={`${APP_CONFIG.name} — logotipo`}
         >
           <img
             src="/delphos-logo.png"
-            alt={APP_CONFIG.name}
-            className={`w-auto object-contain drop-shadow-lg transition-all duration-500 ${
-              isScrolled ? 'h-16 sm:h-[4.5rem]' : 'h-20 sm:h-28'
+            alt=""
+            className={`w-auto object-contain drop-shadow-md transition-all duration-500 ${
+              isScrolled ? 'h-12 sm:h-14' : 'h-14 sm:h-[4.25rem]'
             }`}
           />
         </Link>
