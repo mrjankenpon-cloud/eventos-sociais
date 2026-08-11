@@ -20,6 +20,27 @@ export function getAppUrl(): string {
   ).replace(/\/$/, '');
 }
 
+export function isMercadoPagoSandbox(): boolean {
+  return (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox';
+}
+
+/**
+ * Em sandbox o payer do Checkout Pro deve ser o TESTUSER comprador.
+ * E-mail real no formulário DELPHOS continua no pedido Firestore.
+ */
+export function getSandboxPayerEmail(fallbackEmail: string): string {
+  if (!isMercadoPagoSandbox()) return fallbackEmail;
+  const fromEnv = String(process.env.MP_TEST_BUYER_EMAIL || '').trim().toLowerCase();
+  if (fromEnv.includes('@')) return fromEnv;
+  const user = String(process.env.MP_TEST_BUYER_USERNAME || '').trim();
+  // TESTUSER7715... → test_user_7715...@testuser.com
+  if (user.toUpperCase().startsWith('TESTUSER')) {
+    const digits = user.replace(/^TESTUSER/i, '');
+    if (digits) return `test_user_${digits}@testuser.com`;
+  }
+  return fallbackEmail;
+}
+
 export function randomToken(bytes = 24): string {
   return randomBytes(bytes).toString('hex');
 }

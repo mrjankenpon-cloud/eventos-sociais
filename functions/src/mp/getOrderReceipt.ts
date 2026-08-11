@@ -97,6 +97,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
     res.json({
       ok: true,
       accessToken: String(pedido.accessToken || ''),
+      sandbox: (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox',
       pedido: {
         id: pedidoId,
         status: pedido.status,
@@ -115,6 +116,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         dataCompra: pedido.dataCompra,
         reservaExpiraEm: pedido.reservaExpiraEm || null,
         guestCheckout: pedido.guestCheckout !== false,
+        linkPagamento: pedido.linkPagamento || null,
       },
       tickets,
     });

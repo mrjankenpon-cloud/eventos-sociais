@@ -4,6 +4,8 @@ import {
   RESERVE_MINUTES,
   db,
   getAppUrl,
+  getSandboxPayerEmail,
+  isMercadoPagoSandbox,
   mpFetch,
   randomToken,
   roundMoney,
@@ -216,41 +218,57 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
+        // Preferência enxuta: campos extras (expires/binary_mode/parcelas forçadas)
+        // têm causado botão "Pagar" cinza no Checkout Pro sandbox.
+        const preferenceBody: Record<string, unknown> = {
+          items: [
+            {
+              id: ingressoId.slice(0, 64),
+              title: `${String(evento.titulo || 'Evento')} — ${String(ingresso.nome || 'Ingresso')}`.slice(
+                0,
+                256
+              ),
+              quantity: quantidade,
+              unit_price: valorUnitario,
+              currency_id: 'BRL',
+              category_id: 'tickets',
+            },
+          ],
+          payer: {
+            email: getSandboxPayerEmail(email),
+            ...(isMercadoPagoSandbox()
+              ? {}
+              : {
+                  name: nome,
+                  identification: { type: 'CPF', number: cpf },
+                }),
+          },
+          external_reference: pedidoRef.id,
+          metadata: {
+            pedidoId: pedidoRef.id,
+            eventoId,
+            ingressoId,
+            natureza,
+          },
+          back_urls: {
+            success: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
+            pending: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
+            failure: `${appUrl}/evento/${eventoId}/inscricao`,
+          },
+          auto_return: 'approved',
+          notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
+          statement_descriptor: 'DELPHOS',
+          payment_methods: {
+            excluded_payment_methods: [],
+            excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
+            installments: 1,
+            default_installments: 1,
+          },
+        };
+
         preference = await mpFetch('/checkout/preferences', {
           method: 'POST',
-          body: JSON.stringify({
-            items: [
-              {
-                id: ingressoId,
-                title: `${String(evento.titulo || 'Evento')} — ${String(ingresso.nome || 'Ingresso')}`,
-                quantity: quantidade,
-                unit_price: valorUnitario,
-                currency_id: 'BRL',
-              },
-            ],
-            payer: {
-              name: nome,
-              email,
-              identification: { type: 'CPF', number: cpf },
-            },
-            external_reference: pedidoRef.id,
-            metadata: {
-              pedidoId: pedidoRef.id,
-              eventoId,
-              ingressoId,
-              natureza,
-            },
-            back_urls: {
-              success: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
-              pending: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
-              failure: `${appUrl}/evento/${eventoId}/inscricao`,
-            },
-            auto_return: 'approved',
-            notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
-            expires: true,
-            expiration_date_from: agora.toISOString(),
-            expiration_date_to: reservaExpiraEm.toISOString(),
-          }),
+          body: JSON.stringify(preferenceBody),
         });
       } catch (mpError) {
         await releaseStock(ingressoId, quantidade);
@@ -259,7 +277,7 @@ export const createCheckoutSession = functions.https.onRequest(
       }
 
       const initPoint =
-        (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox'
+        isMercadoPagoSandbox()
           ? preference.sandbox_init_point || preference.init_point || ''
           : preference.init_point || preference.sandbox_init_point || '';
 

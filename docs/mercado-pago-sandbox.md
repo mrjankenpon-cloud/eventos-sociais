@@ -1,19 +1,23 @@
-# Teste Mercado Pago (sandbox) — sem secrets
+# Teste Mercado Pago (sandbox)
 
-## Arquivos locais (gitignored)
-- `functions/.env` — Access Token + Public Key + MODE=sandbox
-- `.env.local` — Public Key no frontend (opcional; Checkout Pro não exige)
-- `.secrets/mp-sandbox-buyer.env` — usuário comprador de teste do MP
+## Botão Pagar cinza no Checkout Pro
 
-## Como testar o checkout
-1. Deploy das Functions **ou** emulador com `functions/.env` carregado.
-2. Abrir inscrição de um evento publicado.
-3. No Checkout Pro, entrar com o **usuário de teste** do MP (não é login DELPHOS).
-4. Pagar com cartão de teste do Mercado Pago.
-5. Webhook em sandbox: com `MERCADOPAGO_MODE=sandbox` a assinatura é flexível se o secret ainda não existir.
-6. Preferir `sandbox_init_point` automaticamente em mode sandbox.
+Causas comuns:
+1. Conta **compradora** de teste sem **aplicação** no painel Developers (crie uma app logado como comprador).
+2. Preferência antiga com parcelas 10x — inicie compra **nova**.
+3. Titular do cartão sem `APRO` + CPF `12345678909` no formulário do cartão.
 
-## Segurança
-- Nunca commitar Access Token, senha do usuário de teste ou Webhook Secret.
-- Credenciais coladas em chat devem ser consideradas expostas; regenere no painel MP se houver risco.
-- Resend permanece desativado.
+### Contingência no site
+Na página `/pedido/:id/sucesso` (sandbox), use **Simular pagamento aprovado** se o MP travar. Emite ingressos e grava pagamento simulado.
+
+### Fluxo recomendado
+1. Login em mercadopago.com.br com comprador `TESTUSER7715292078519435099`.
+2. (Uma vez) Developers → criar aplicação na conta compradora.
+3. Aba anônima → site → inscrição → pagar.
+4. Cartão: `5480 8328 0103 3311` / CVV `123` / `11/30` / nome `APRO` / CPF `12345678909` / **1x**.
+
+## Contas
+| Papel | User ID | Usuário |
+|-------|---------|---------|
+| Vendedor (token) | 3605511635 | TESTUSER8245542334017809908 |
+| Comprador (login) | 3608384184 | TESTUSER7715292078519435099 |

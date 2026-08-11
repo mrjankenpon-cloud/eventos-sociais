@@ -58,6 +58,7 @@ export type CheckoutSessionResult = {
 export type OrderReceiptResult = {
   ok: boolean;
   accessToken?: string;
+  sandbox?: boolean;
   pedido: {
     id: string;
     status: string;
@@ -76,6 +77,7 @@ export type OrderReceiptResult = {
     dataCompra?: string;
     reservaExpiraEm?: string | null;
     guestCheckout?: boolean;
+    linkPagamento?: string | null;
   };
   tickets: Array<{
     id: string;
@@ -138,6 +140,14 @@ export const checkoutApi = {
 
   getGuestTickets(token: string): Promise<GuestTicketsResult> {
     return postJson<GuestTicketsResult>('getGuestTickets', { token });
+  },
+
+  /** Somente sandbox: aprova pedido sem webhook do Mercado Pago. */
+  sandboxApprove(
+    pedidoId: string,
+    token: string
+  ): Promise<{ ok: boolean; tickets?: number; simulated?: boolean }> {
+    return postJson('sandboxApproveOrder', { pedidoId, token });
   },
 
   refund(pedidoId: string): Promise<{ ok: boolean; pedidoId: string }> {

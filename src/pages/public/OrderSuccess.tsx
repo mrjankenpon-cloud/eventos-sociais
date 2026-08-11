@@ -30,6 +30,8 @@ export default function OrderSuccess() {
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<OrderReceiptResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [sandboxApproving, setSandboxApproving] = useState(false);
+  const [sandboxError, setSandboxError] = useState<string | null>(null);
 
   const resolveToken = useCallback(() => {
     if (tokenFromUrl) return tokenFromUrl;
@@ -92,6 +94,24 @@ export default function OrderSuccess() {
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       /* ignore */
+    }
+  };
+
+  const handleSandboxApprove = async () => {
+    if (!id) return;
+    const token = resolveToken();
+    if (!token) return;
+    setSandboxApproving(true);
+    setSandboxError(null);
+    try {
+      await checkoutApi.sandboxApprove(id, token);
+      await load();
+    } catch (err) {
+      setSandboxError(
+        err instanceof Error ? err.message : 'Falha ao simular aprovação.'
+      );
+    } finally {
+      setSandboxApproving(false);
     }
   };
 
@@ -220,6 +240,34 @@ export default function OrderSuccess() {
               Após a confirmação do Mercado Pago, você também receberá um e-mail
               com link seguro para os ingressos (quando o Resend estiver ativo).
             </Alert>
+          )}
+
+          {isPending && receipt.sandbox && (
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-900 font-medium">
+                Modo sandbox: se o botão Pagar do Mercado Pago ficar cinza, use
+                a simulação abaixo para concluir o pedido e emitir ingressos.
+              </p>
+              {sandboxError && (
+                <Alert variant="error">{sandboxError}</Alert>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {pedido.linkPagamento ? (
+                  <a href={pedido.linkPagamento} className="flex-1">
+                    <Button variant="secondary" className="w-full rounded-2xl">
+                      Reabrir Mercado Pago
+                    </Button>
+                  </a>
+                ) : null}
+                <Button
+                  className="flex-1 rounded-2xl"
+                  isLoading={sandboxApproving}
+                  onClick={() => void handleSandboxApprove()}
+                >
+                  Simular pagamento aprovado
+                </Button>
+              </div>
+            </div>
           )}
 
           {isFailed && (

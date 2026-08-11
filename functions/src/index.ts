@@ -53,6 +53,7 @@ export {
 } from './mp/expirePendingOrders';
 export { getOrderReceipt } from './mp/getOrderReceipt';
 export { refundPayment } from './mp/refundPayment';
+export { sandboxApproveOrder } from './mp/sandboxApproveOrder';
 export {
   requestGuestTicketsEmail,
   getGuestTickets,
