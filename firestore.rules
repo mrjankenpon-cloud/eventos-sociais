@@ -3,14 +3,8 @@ rules_version = '2';
 /**
  * DELPHOS — Firestore Security Rules (RBAC)
  *
- * Claims (preferidos, 0 leituras extras):
- *   request.auth.token.role   → 'admin' | 'editor' | 'operador' | 'viewer'
- *   request.auth.token.ativo  → true/false
- *   request.auth.token.master → true
- *
- * Fallback: leitura única de usuarios/{uid} (cacheada por avaliação de regra).
- *
- * Público: inscrição (pedido + tickets derivados) com validação de schema.
+ * Checkout / tickets / estoque de pagamento: somente Admin SDK (Cloud Functions).
+ * Público não cria pedidos nem tickets diretamente.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -90,44 +84,6 @@ service cloud.firestore {
         && value.size() <= maxLen;
     }
 
-    /** Inscrição pública: schema rígido + status inicial pendente. */
-    function isValidPedidoCreate() {
-      let d = request.resource.data;
-      return d.keys().hasAll([
-          'nomeComprador', 'eventoId', 'quantidade', 'valorTotal', 'status', 'cpf', 'email'
-        ])
-        && stringInRange(d.nomeComprador, 2, 120)
-        && stringInRange(d.eventoId, 1, 128)
-        && stringInRange(d.cpf, 11, 14)
-        && stringInRange(d.email, 5, 200)
-        && d.quantidade is number
-        && d.quantidade >= 1
-        && d.quantidade <= 20
-        && d.quantidade == int(d.quantidade)
-        && d.valorTotal is number
-        && d.valorTotal >= 0
-        && d.valorTotal <= 100000
-        && d.status == 'pendente'
-        && (!('ativo' in d) || d.ativo == true)
-        && (!('estoqueReservado' in d) || d.estoqueReservado is bool);
-    }
-
-    /** Tickets só no estado inicial (check-in ainda não feito). */
-    function isValidTicketCreate() {
-      let d = request.resource.data;
-      return d.keys().hasAll([
-          'codigo', 'hash', 'eventoId', 'compraId', 'status', 'checkinRealizado'
-        ])
-        && stringInRange(d.codigo, 6, 80)
-        && stringInRange(d.hash, 16, 128)
-        && stringInRange(d.eventoId, 1, 128)
-        && stringInRange(d.compraId, 1, 128)
-        && d.status == 'Disponível'
-        && d.checkinRealizado == false
-        && (!('ativo' in d) || d.ativo == true)
-        && (!('ordem' in d) || (d.ordem is number && d.ordem >= 1 && d.ordem <= 20 && d.ordem == int(d.ordem)));
-    }
-
     function isValidLogCreate() {
       let d = request.resource.data;
       return d.keys().hasAll(['acao', 'colecao', 'documentoId', 'descricao'])
@@ -138,7 +94,19 @@ service cloud.firestore {
         && (
           signedIn()
           || (d.acao == 'create' && d.colecao == 'pedidos')
+          || d.acao == 'email_queued'
         );
+    }
+
+    /**
+     * Evento visível no site público.
+     * Soft-delete grava status='arquivado' e publicado=false — sai desta regra.
+     * Importante: NÃO adicionar filtros extras (ex.: arquivado!=true) que a
+     * query pública não replica — o Firestore rejeitaria o list inteiro.
+     */
+    function eventoPublico() {
+      return resource.data.status == 'publicado'
+        || resource.data.publicado == true;
     }
 
     // ---- usuarios ----
@@ -169,23 +137,11 @@ service cloud.firestore {
 
     // ---- eventos ----
     match /eventos/{eventoId} {
-      allow read: if resource.data.status == 'publicado'
-        || resource.data.publicado == true
-        || isStaff();
-      allow create, delete: if isEditor();
-      allow update: if isEditor()
-        || (
-          // Inscrição pública: só ajusta contador de vagas (não aumenta)
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['quantidadeRestante', 'updatedAt'])
-          && request.resource.data.quantidadeRestante is number
-          && request.resource.data.quantidadeRestante >= 0
-          && (
-            !('quantidadeRestante' in resource.data)
-            || request.resource.data.quantidadeRestante
-              <= resource.data.quantidadeRestante
-          )
-        );
+      allow read: if eventoPublico() || isStaff();
+      allow create: if isEditor();
+      // Soft-delete preferido; hard delete só admin
+      allow delete: if isAdmin();
+      allow update: if isEditor();
     }
 
     // ---- imagens (logos instituições/parceiros + banners) ----
@@ -221,34 +177,45 @@ service cloud.firestore {
       allow write: if isEditor();
     }
 
-    // ---- ingressos (tipos) ----
+    // ---- ingressos (tipos) — estoque só via Admin SDK ----
     match /ingressos/{id} {
       allow read: if true;
-      allow create, delete: if isEditor();
-      // Público pode só decrementar estoque na inscrição (via transaction do cliente)
-      allow update: if isEditor()
-        || (
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['quantidadeVendida', 'quantidadeDisponivel', 'updatedAt'])
-          && request.resource.data.quantidadeVendida is number
-          && request.resource.data.quantidadeVendida >= resource.data.quantidadeVendida
-          && request.resource.data.quantidadeVendida <= resource.data.quantidade
-        );
+      allow create, update, delete: if isEditor();
     }
 
-    // ---- pedidos ----
+    // ---- pedidos — create/update financeiro só Admin SDK ----
     match /pedidos/{id} {
       allow read: if isOperador();
-      allow create: if isValidPedidoCreate();
-      allow update: if isEditor() || isOperador();
+      allow create, update: if false;
       allow delete: if isAdmin();
     }
 
-    // ---- tickets emitidos ----
+    // ---- pagamentos (histórico MP) — só Admin SDK escreve ----
+    match /pagamentos/{id} {
+      allow read: if isOperador();
+      allow create, update, delete: if false;
+    }
+
+    // ---- tickets emitidos — create só Admin SDK ----
+    // Operador só pode marcar check-in / retirada (não financeiro).
     match /tickets/{id} {
       allow read: if isOperador();
-      allow create: if isValidTicketCreate();
-      allow update: if isOperador();
+      allow create: if false;
+      allow update: if isOperador()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'status',
+            'checkinRealizado',
+            'checkinEm',
+            'retiradaRealizada',
+            'retiradaEm',
+            'operador',
+            'updatedAt'
+          ])
+        && request.resource.data.eventoId == resource.data.eventoId
+        && request.resource.data.compraId == resource.data.compraId
+        && request.resource.data.codigo == resource.data.codigo
+        && request.resource.data.hash == resource.data.hash;
       allow delete: if isAdmin();
     }
 
@@ -257,6 +224,11 @@ service cloud.firestore {
       allow read: if isOperador();
       allow create, update: if isOperador();
       allow delete: if isAdmin();
+    }
+
+    // ---- guest access tokens (só Admin SDK) ----
+    match /guestAccessTokens/{id} {
+      allow read, write: if false;
     }
 
     // ---- configuracoes ----

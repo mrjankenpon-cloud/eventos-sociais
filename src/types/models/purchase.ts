@@ -9,8 +9,22 @@ export interface Purchase {
   compradorEmail: string;
   quantidadeIngressos: number;
   valorTotal: number;
-  statusPagamento: 'pendente' | 'confirmado' | 'cancelado';
+  valorUnitario?: number;
+  statusPagamento:
+    | 'pendente'
+    | 'confirmado'
+    | 'cancelado'
+    | 'expirado'
+    | 'reembolsado';
   linkPagamento?: string;
+  accessToken?: string;
+  mpPreferenceId?: string;
+  mpPaymentId?: string;
+  mpStatus?: string;
+  mpTransactionAmount?: number;
+  mpFeeAmount?: number;
+  mpNetReceivedAmount?: number;
+  natureza?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,4 +1,5 @@
 import type { BaseDocument, CreateInput, UpdateInput } from './base';
+import type { CheckinModo, IngressoNatureza } from './ingressoNatureza';
 
 export interface Ingresso extends BaseDocument {
   nome: string;
@@ -10,6 +11,10 @@ export interface Ingresso extends BaseDocument {
   quantidadeDisponivel: number;
   limitePorCompra: number;
   eventoId: string;
+  ativo: boolean;
+  natureza?: IngressoNatureza;
+  exigeComprovacao?: boolean;
+  checkinModo?: CheckinModo;
 }
 
 export type IngressoCreate = CreateInput<Ingresso>;

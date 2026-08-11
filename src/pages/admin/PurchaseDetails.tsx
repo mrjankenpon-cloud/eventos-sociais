@@ -9,6 +9,7 @@ import {
   UserCheck,
   CheckCircle,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { purchaseService } from '../../services/purchase.service';
 import { ticketService } from '../../services/ticket.service';
@@ -27,6 +28,7 @@ export default function PurchaseDetails() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refunding, setRefunding] = useState(false);
   const { message, show, clear } = useFlashMessage();
 
   useEffect(() => {
@@ -72,6 +74,30 @@ export default function PurchaseDetails() {
       const msg =
         error instanceof Error ? error.message : 'Erro ao realizar check-in.';
       show('error', msg);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!purchase) return;
+    const ok = window.confirm(
+      'Confirmar reembolso integral via Mercado Pago? Esta ação cancela os ingressos e devolve o estoque.'
+    );
+    if (!ok) return;
+    setRefunding(true);
+    try {
+      await purchaseService.refund(purchase.id);
+      const refreshed = await purchaseService.getById(purchase.id);
+      if (refreshed) setPurchase(refreshed);
+      const tks = await ticketService.getByPurchaseId(purchase.id);
+      setTickets(tks.sort((a, b) => a.ordem - b.ordem));
+      show('success', 'Reembolso processado.');
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Falha no reembolso.'
+      );
+    } finally {
+      setRefunding(false);
     }
   };
 
@@ -203,7 +229,9 @@ export default function PurchaseDetails() {
                 variant={
                   purchase.statusPagamento === 'confirmado'
                     ? 'success'
-                    : purchase.statusPagamento === 'cancelado'
+                    : purchase.statusPagamento === 'cancelado' ||
+                        purchase.statusPagamento === 'expirado' ||
+                        purchase.statusPagamento === 'reembolsado'
                       ? 'danger'
                       : 'warning'
                 }
@@ -213,8 +241,61 @@ export default function PurchaseDetails() {
                   ? 'Confirmado'
                   : purchase.statusPagamento === 'cancelado'
                     ? 'Cancelado'
-                    : 'Pendente'}
+                    : purchase.statusPagamento === 'expirado'
+                      ? 'Expirado'
+                      : purchase.statusPagamento === 'reembolsado'
+                        ? 'Reembolsado'
+                        : 'Pendente'}
               </Badge>
+              {purchase.mpPaymentId ? (
+                <p className="text-[10px] font-mono text-gray-400 mt-2 break-all">
+                  MP: {purchase.mpPaymentId}
+                </p>
+              ) : null}
+              {typeof purchase.mpTransactionAmount === 'number' ||
+              typeof purchase.mpFeeAmount === 'number' ||
+              typeof purchase.mpNetReceivedAmount === 'number' ? (
+                <div className="mt-3 text-left sm:text-right text-xs text-gray-500 space-y-0.5">
+                  {typeof purchase.mpTransactionAmount === 'number' ? (
+                    <p>
+                      Bruto:{' '}
+                      <span className="font-bold tabular-nums">
+                        {formatCurrency(purchase.mpTransactionAmount)}
+                      </span>
+                    </p>
+                  ) : null}
+                  {typeof purchase.mpFeeAmount === 'number' ? (
+                    <p>
+                      Taxas MP:{' '}
+                      <span className="font-bold tabular-nums">
+                        {formatCurrency(purchase.mpFeeAmount)}
+                      </span>
+                    </p>
+                  ) : null}
+                  {typeof purchase.mpNetReceivedAmount === 'number' ? (
+                    <p>
+                      Líquido:{' '}
+                      <span className="font-bold tabular-nums text-brand">
+                        {formatCurrency(purchase.mpNetReceivedAmount)}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {purchase.statusPagamento === 'confirmado' &&
+              purchase.mpPaymentId &&
+              purchase.valorTotal > 0 ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3 rounded-xl"
+                  isLoading={refunding}
+                  onClick={() => void handleRefund()}
+                >
+                  <RefreshCw size={14} aria-hidden="true" />
+                  Reembolsar
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

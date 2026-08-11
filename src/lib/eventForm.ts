@@ -7,11 +7,15 @@ import type {
   TicketType,
 } from '../types/models/event';
 import { createId } from './utils';
+import {
+  defaultCheckinModo,
+  defaultNaturezaForKey,
+} from '../types/ingressoNatureza';
 
 export { createId };
 
 export function defaultTicketTypes(): TicketType[] {
-  return [
+  const base = [
     {
       id: createId('tt'),
       key: 'inteira',
@@ -25,21 +29,33 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'meia',
       nome: 'Meia-Entrada',
-      descricao: '',
+      descricao: 'Validação de documentação na porta do evento',
       ativo: false,
       valor: 0,
       quantidade: 0,
+      exigeComprovacao: true,
     },
     {
       id: createId('tt'),
       key: 'retirada',
       nome: 'Retirada',
-      descricao: '',
+      descricao: 'Produto/comida para retirada',
       ativo: false,
       valor: 0,
       quantidade: 0,
     },
-  ];
+  ] as const;
+
+  return base.map((t) => {
+    const natureza = defaultNaturezaForKey(t.key);
+    return {
+      ...t,
+      natureza,
+      exigeComprovacao: 'exigeComprovacao' in t ? t.exigeComprovacao : false,
+      checkinModo: defaultCheckinModo(natureza),
+      limitePorCompra: undefined,
+    };
+  });
 }
 
 export function createEmptyEventForm(): EventFormData {
@@ -80,6 +96,9 @@ export function createEmptyEventForm(): EventFormData {
     exibirGaleria: true,
     textoBotao: 'Garantir minha vaga',
     linkPagamento: '',
+    limitePorCompra: 10,
+    vendasEncerramEm: undefined,
+    arquivado: false,
   };
 }
 

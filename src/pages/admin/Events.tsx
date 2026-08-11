@@ -54,10 +54,21 @@ export default function Events() {
     setDeleting(true);
     try {
       await eventService.delete(deleteId);
-      setEvents((prev) => prev.filter((ev) => ev.id !== deleteId));
+      setEvents((prev) =>
+        prev.map((ev) =>
+          ev.id === deleteId
+            ? {
+                ...ev,
+                status: 'arquivado',
+                arquivado: true,
+                publicado: false,
+              }
+            : ev
+        )
+      );
       setDeleteId(null);
     } catch {
-      setError('Erro ao excluir evento.');
+      setError('Erro ao arquivar evento.');
     } finally {
       setDeleting(false);
     }
@@ -68,10 +79,11 @@ export default function Events() {
       const matchesSearch =
         e.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.local.toLowerCase().includes(searchTerm.toLowerCase());
+      const archived = e.status === 'arquivado' || Boolean(e.arquivado);
       const matchesStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'published' && e.publicado) ||
-        (statusFilter === 'draft' && !e.publicado);
+        (statusFilter === 'published' && e.publicado && !archived) ||
+        (statusFilter === 'draft' && !e.publicado && !archived);
       return matchesSearch && matchesStatus;
     });
   }, [events, searchTerm, statusFilter]);
@@ -123,11 +135,18 @@ export default function Events() {
     {
       key: 'status',
       header: 'Status',
-      render: (event) => (
-        <Badge variant={event.publicado ? 'published' : 'draft'}>
-          {event.publicado ? 'Publicado' : 'Rascunho'}
-        </Badge>
-      ),
+      render: (event) => {
+        const archived = event.status === 'arquivado' || Boolean(event.arquivado);
+        return (
+          <Badge
+            variant={
+              archived ? 'danger' : event.publicado ? 'published' : 'draft'
+            }
+          >
+            {archived ? 'Arquivado' : event.publicado ? 'Publicado' : 'Rascunho'}
+          </Badge>
+        );
+      },
     },
     {
       key: 'acoes',
@@ -248,9 +267,9 @@ export default function Events() {
         isOpen={Boolean(deleteId)}
         onClose={() => setDeleteId(null)}
         onConfirm={handleConfirmDelete}
-        title="Excluir evento"
-        description="Deseja realmente excluir este evento? Esta ação não pode ser desfeita."
-        confirmLabel="Excluir"
+        title="Arquivar evento"
+        description="O evento será arquivado (soft-delete). Pedidos, pagamentos, ingressos e o histórico financeiro são preservados. Novas vendas serão bloqueadas."
+        confirmLabel="Arquivar"
         isLoading={deleting}
       />
     </div>

@@ -1,3 +1,5 @@
+import type { CheckinModo, IngressoNatureza } from '../ingressoNatureza';
+
 export interface TicketType {
   id: string;
   /** Stable machine key — allows custom types later */
@@ -9,10 +11,17 @@ export interface TicketType {
   valor: number;
   /** Capacidade total */
   quantidade: number;
-  /** Vendidos (Firestore) */
+  /** Vendidos (Firestore) — inclui reservados + pagos */
   quantidadeVendida?: number;
   /** Disponíveis restantes (Firestore) */
   quantidadeDisponivel?: number;
+  /** Limite por compra deste tipo (sobrescreve o do evento se definido) */
+  limitePorCompra?: number;
+  /** Natureza operacional (entrada, retirada, etc.) */
+  natureza?: IngressoNatureza;
+  /** Futuro: exige comprovação (meia na porta — não valida na compra) */
+  exigeComprovacao?: boolean;
+  checkinModo?: CheckinModo;
 }
 
 export interface GalleryImage {
@@ -82,7 +91,17 @@ export interface Event {
   exibirMapa: boolean;
   exibirGaleria: boolean;
   textoBotao: string;
+  /** @deprecated Prefer Checkout Pro; mantido para docs legados */
   linkPagamento: string;
+  /** Limite padrão de itens por compra (sobrescrito por tipo se houver) */
+  limitePorCompra?: number;
+  /** Encerramento de vendas (ISO). Vendas param no primeiro entre isto e estoque zero. */
+  vendasEncerramEm?: string;
+  /** Soft-delete: arquivado não aparece no público nem aceita novas vendas */
+  arquivado?: boolean;
+  arquivadoEm?: string;
+  /** Status Firestore canônico quando usado */
+  status?: 'rascunho' | 'publicado' | 'oculto' | 'encerrado' | 'arquivado';
   createdAt: string;
   updatedAt: string;
 }

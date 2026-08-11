@@ -9,11 +9,18 @@ export interface Ticket {
   qrPayload: string;
   eventoId: string;
   compraId: string;
+  pedidoId?: string;
   ingressoId?: string;
+  ingressoKey?: string;
+  ingressoNome?: string;
+  natureza?: string;
   status: TicketStatus;
   ordem: number;
   checkinRealizado: boolean;
   checkinEm?: string;
+  /** Controle operacional de retirada de produto (independente do financeiro) */
+  retiradaRealizada?: boolean;
+  retiradaEm?: string;
   operador?: string;
   ativo?: boolean;
   createdAt: string;

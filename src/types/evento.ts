@@ -1,6 +1,11 @@
 import type { BaseDocument, CreateInput, UpdateInput } from './base';
 
-export type EventoStatus = 'rascunho' | 'publicado' | 'oculto' | 'encerrado';
+export type EventoStatus =
+  | 'rascunho'
+  | 'publicado'
+  | 'oculto'
+  | 'encerrado'
+  | 'arquivado';
 
 export interface EventoGaleriaItem {
   id: string;

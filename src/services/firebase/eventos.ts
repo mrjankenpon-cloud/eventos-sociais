@@ -164,11 +164,40 @@ export const eventosService = {
     }
   },
 
+  /**
+   * Soft-delete: arquiva o evento preservando ingressos, pedidos,
+   * pagamentos, tickets e histórico financeiro.
+   */
   async delete(id: string): Promise<void> {
     try {
       const current = await this.getById(id);
-      const tipos = await ingressosService.getByEvento(id);
-      await Promise.all(tipos.map((t) => ingressosService.delete(t.id)));
+      if (!current) throw new Error('Evento não encontrado');
+
+      await updateDoc(docRef(COLLECTIONS.eventos, id), {
+        status: 'arquivado',
+        arquivado: true,
+        arquivadoEm: new Date().toISOString(),
+        publicado: false,
+        ...touchUpdated(),
+      });
+
+      await logsService.record({
+        acao: 'archive',
+        colecao: COLLECTIONS.eventos,
+        documentoId: id,
+        descricao: `Evento arquivado: ${current.titulo}`,
+        before: { status: current.status, publicado: current.publicado },
+        after: { status: 'arquivado', publicado: false },
+      });
+    } catch (error) {
+      wrapError('eventos.delete', error);
+    }
+  },
+
+  /** Hard delete — somente uso excepcional (admin); não remove pedidos. */
+  async hardDelete(id: string): Promise<void> {
+    try {
+      const current = await this.getById(id);
       await deleteDoc(docRef(COLLECTIONS.eventos, id));
       if (current?.banner) await deleteImage(current.banner);
       for (const img of current?.imagens ?? []) {
@@ -178,10 +207,10 @@ export const eventosService = {
         acao: 'delete',
         colecao: COLLECTIONS.eventos,
         documentoId: id,
-        descricao: 'Evento removido',
+        descricao: 'Evento removido permanentemente (hard delete)',
       });
     } catch (error) {
-      wrapError('eventos.delete', error);
+      wrapError('eventos.hardDelete', error);
     }
   },
 
@@ -196,20 +225,43 @@ export const eventosService = {
 
   async getPublished(): Promise<Event[]> {
     try {
+      // Sem orderBy no servidor: evita índice composto obrigatório (status+data).
+      // Ordenação fica no cliente.
       const q = query(
         col(COLLECTIONS.eventos),
-        where('status', '==', 'publicado'),
-        orderBy('data', 'asc')
+        where('status', '==', 'publicado')
       );
       const snap = await getDocs(q);
-      return Promise.all(
+      const list = await Promise.all(
         snap.docs.map((d) =>
           hydrateEvent(mapDoc<Evento & Record<string, unknown>>(d))
         )
       );
-    } catch {
-      const all = await this.getAll();
-      return all.filter((e) => e.publicado);
+      return list.sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
+    } catch (primaryError) {
+      console.warn(
+        '[eventos.getPublished] query status falhou, tentando publicado==true',
+        primaryError
+      );
+      try {
+        const q2 = query(
+          col(COLLECTIONS.eventos),
+          where('publicado', '==', true)
+        );
+        const snap2 = await getDocs(q2);
+        const list = await Promise.all(
+          snap2.docs
+            .map((d) => mapDoc<Evento & Record<string, unknown>>(d))
+            .filter((e) => e.status !== 'arquivado' && !Boolean(e.arquivado))
+            .map((raw) => hydrateEvent(raw))
+        );
+        return list.sort((a, b) =>
+          String(a.data || '').localeCompare(String(b.data || ''))
+        );
+      } catch (fallbackError) {
+        console.error('[eventos.getPublished] fallback falhou', fallbackError);
+        return [];
+      }
     }
   },
 

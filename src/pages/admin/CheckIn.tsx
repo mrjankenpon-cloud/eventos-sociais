@@ -61,32 +61,29 @@ export default function CheckIn() {
 
   const handleCheckin = async (ticketId: string) => {
     try {
+      const before = tickets.find((x) => x.id === ticketId);
+      const isRetirada = before?.natureza === 'retirada';
       await ticketService.performCheckin(ticketId, 'Operador Admin', id);
+      const patch = isRetirada
+        ? {
+            retiradaRealizada: true as const,
+            retiradaEm: new Date().toISOString(),
+          }
+        : {
+            status: 'Utilizado' as const,
+            checkinRealizado: true,
+            checkinEm: new Date().toISOString(),
+          };
       setTickets((prev) =>
-        prev.map((t) =>
-          t.id === ticketId
-            ? {
-                ...t,
-                status: 'Utilizado',
-                checkinRealizado: true,
-                checkinEm: new Date().toISOString(),
-              }
-            : t
-        )
+        prev.map((t) => (t.id === ticketId ? { ...t, ...patch } : t))
       );
       if (scannedTicket?.id === ticketId) {
-        setScannedTicket((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: 'Utilizado',
-                checkinRealizado: true,
-                checkinEm: new Date().toISOString(),
-              }
-            : null
-        );
+        setScannedTicket((prev) => (prev ? { ...prev, ...patch } : null));
       }
-      show('success', 'Entrada confirmada!');
+      show(
+        'success',
+        isRetirada ? 'Retirada confirmada!' : 'Entrada confirmada!'
+      );
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Erro ao realizar check-in.';

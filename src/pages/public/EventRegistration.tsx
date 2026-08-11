@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  CheckCircle2,
-  ExternalLink,
   User,
   Mail,
   Hash,
@@ -13,6 +10,7 @@ import {
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
+import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
 import type { Event, TicketType } from '../../types';
 import { Input, CPFInput, PhoneInput, Button, Alert, PageLoader } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -24,14 +22,13 @@ import {
   getTicketAvailableQty,
   getTicketStatus,
 } from '../../lib/eventData';
-import { THEME } from '../../theme';
 
 export default function EventRegistration() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
   const [ticketTypeId, setTicketTypeId] = useState('');
@@ -59,6 +56,10 @@ export default function EventRegistration() {
     if (!id) return;
     try {
       const data = await eventService.getById(id);
+      if (data && (data.status === 'arquivado' || data.arquivado)) {
+        setEvent(null);
+        return;
+      }
       setEvent(data ?? null);
       if (data) {
         const active = getActiveTicketTypes(data).filter((t) => getTicketStatus(t).available);
@@ -123,7 +124,9 @@ export default function EventRegistration() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      await purchaseService.create({
+      // Guest checkout: formulário local não reserva estoque.
+      // Reserva ocorre só no backend ao criar o pedido.
+      const result = await purchaseService.create({
         eventId: event.id,
         ticketTypeId: selectedTicket.id,
         ticketTypeNome: selectedTicket.nome,
@@ -133,18 +136,24 @@ export default function EventRegistration() {
         compradorEmail: formData.email.trim(),
         quantidadeIngressos: formData.quantidadeIngressos,
         valorTotal: total,
-        linkPagamento: event.linkPagamento,
       });
 
-      setSubmitted(true);
+      persistGuestCheckoutSession(result.id, result.accessToken);
 
-      if (event.linkPagamento) {
-        window.setTimeout(() => {
-          window.location.href = event.linkPagamento;
-        }, 3000);
+      if (result.gratuito || !result.initPoint) {
+        navigate(
+          `/pedido/${result.id}/sucesso?token=${encodeURIComponent(result.accessToken)}`
+        );
+        return;
       }
-    } catch {
-      setSubmitError('Não foi possível concluir a inscrição. Tente novamente.');
+
+      window.location.href = result.initPoint;
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível concluir a inscrição. Tente novamente.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -170,53 +179,6 @@ export default function EventRegistration() {
             </Link>
           }
         />
-      </div>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <div className="py-16 sm:py-24 min-h-[60vh] bg-surface-muted flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-          className="card-surface p-8 sm:p-12 max-w-lg w-full text-center"
-        >
-          <div className="flex justify-center mb-6">
-            <div className="bg-green-100 p-4 rounded-full">
-              <CheckCircle2 className="w-14 h-14 text-green-500" aria-hidden="true" />
-            </div>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">
-            Inscrição realizada!
-          </h2>
-          <p className="text-gray-600 mb-8 leading-relaxed text-sm sm:text-base">
-            Seus dados foram registrados com sucesso.
-            {event.linkPagamento
-              ? ' Você será redirecionado para o pagamento em instantes.'
-              : ' Em breve você receberá um e-mail com as instruções.'}
-          </p>
-
-          {event.linkPagamento && (
-            <a
-              href={event.linkPagamento}
-              className="inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:bg-brand-dark transition-all"
-            >
-              Ir para Pagamento
-              <ExternalLink className="w-5 h-5" aria-hidden="true" />
-            </a>
-          )}
-
-          <div className="mt-8">
-            <Link
-              to="/"
-              className="text-gray-400 hover:text-brand font-bold transition-colors text-sm"
-            >
-              Voltar para a Home
-            </Link>
-          </div>
-        </motion.div>
       </div>
     );
   }

@@ -252,23 +252,52 @@ export const checkinsService = {
         if (!snap.exists()) throw new Error('Ticket não encontrado');
         const current = snap.data();
 
-        if (current.checkinRealizado === true || current.status === 'Utilizado') {
-          throw new Error('Check-in já realizado — duplicado bloqueado');
-        }
-        if (current.status !== 'Disponível') {
-          throw new Error(`Ticket indisponível (Status: ${current.status})`);
+        if (
+          current.status === 'Cancelado' ||
+          current.status === 'Reembolsado' ||
+          current.status === 'Bloqueado'
+        ) {
+          throw new Error(
+            `Ticket ${current.status} — check-in/retirada bloqueados`
+          );
         }
         if (expectedEventoId && current.eventoId !== expectedEventoId) {
           throw new Error('Ticket não pertence a este evento');
         }
 
-        tx.update(ticketRef, {
-          status: 'Utilizado',
-          checkinRealizado: true,
-          checkinEm: horario,
-          operador: operadorNome,
-          updatedAt: serverTimestamp(),
-        });
+        const isRetirada =
+          String(current.natureza || '') === 'retirada' ||
+          String(current.checkinModo || '') === 'retirada';
+
+        if (isRetirada) {
+          // Status financeiro é independente: só impede se ticket cancelado/reembolsado
+          if (current.retiradaRealizada === true) {
+            throw new Error('Retirada já realizada — duplicado bloqueado');
+          }
+          tx.update(ticketRef, {
+            retiradaRealizada: true,
+            retiradaEm: horario,
+            // Mantém status Disponível se entrada ainda não feita; senão Utilizado
+            status:
+              current.checkinRealizado === true ? 'Utilizado' : current.status,
+            operador: operadorNome,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          if (current.checkinRealizado === true || current.status === 'Utilizado') {
+            throw new Error('Check-in já realizado — duplicado bloqueado');
+          }
+          if (current.status !== 'Disponível') {
+            throw new Error(`Ticket indisponível (Status: ${current.status})`);
+          }
+          tx.update(ticketRef, {
+            status: 'Utilizado',
+            checkinRealizado: true,
+            checkinEm: horario,
+            operador: operadorNome,
+            updatedAt: serverTimestamp(),
+          });
+        }
 
         tx.set(checkinRef, {
           pedidoId: current.compraId || current.pedidoId || '',
@@ -281,26 +310,40 @@ export const checkinsService = {
           usuarioResponsavelNome: operadorNome,
           eventoId: current.eventoId,
           status: 'realizado',
-          observacao: 'Check-in via painel administrativo',
+          tipo: isRetirada ? 'retirada' : 'entrada',
+          observacao: isRetirada
+            ? 'Retirada de produto via painel'
+            : current.exigeComprovacao || current.ingressoKey === 'meia'
+              ? 'Check-in meia-entrada — validar documento presencialmente'
+              : 'Check-in via painel administrativo',
           ativo: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
       });
 
+      const isRetiradaTicket =
+        ticket.natureza === 'retirada' ||
+        (ticket as { checkinModo?: string }).checkinModo === 'retirada';
+
       await logsService.record({
-        acao: 'checkin',
+        acao: isRetiradaTicket ? 'retirada' : 'checkin',
         colecao: COLLECTIONS.tickets,
         documentoId: ticket.id,
-        descricao: `Check-in realizado por ${operadorNome}`,
-        alteracoes: [
-          { campo: 'status', de: 'Disponível', para: 'Utilizado' },
-          { campo: 'checkinRealizado', de: false, para: true },
-        ],
+        descricao: isRetiradaTicket
+          ? `Retirada realizada por ${operadorNome}`
+          : `Check-in realizado por ${operadorNome}`,
+        alteracoes: isRetiradaTicket
+          ? [{ campo: 'retiradaRealizada', de: false, para: true }]
+          : [
+              { campo: 'status', de: 'Disponível', para: 'Utilizado' },
+              { campo: 'checkinRealizado', de: false, para: true },
+            ],
         metadata: {
           eventoId: ticket.eventoId,
           horario,
           operador: operadorNome,
+          ingressoKey: ticket.ingressoKey,
         },
       });
 

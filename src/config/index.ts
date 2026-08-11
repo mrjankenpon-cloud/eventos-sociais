@@ -13,6 +13,9 @@ export const ROUTES = {
     HOME: '/',
     EVENT_DETAILS: '/evento/:id',
     EVENT_REGISTRATION: '/evento/:id/inscricao',
+    ORDER_SUCCESS: '/pedido/:id/sucesso',
+    ORDER_LOOKUP: '/pedido/consultar',
+    MY_TICKETS: '/meus-ingressos',
   },
   ADMIN: {
     LOGIN: '/controle/login',

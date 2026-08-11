@@ -8,7 +8,13 @@ export default function Footer() {
         <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
 
         <div className="flex flex-col items-center gap-8">
-          <nav aria-label="Rodapé">
+          <nav aria-label="Rodapé" className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+            <Link
+              to={ROUTES.PUBLIC.ORDER_LOOKUP}
+              className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+            >
+              Já comprou? Receber ingressos
+            </Link>
             <Link
               to={ROUTES.ADMIN.DASHBOARD}
               className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"

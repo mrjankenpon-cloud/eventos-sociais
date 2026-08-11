@@ -15,7 +15,13 @@ import type { Institution } from '../../types/models/institution';
 import type { Instituicao } from '../../types/instituicao';
 import { normalizeEvent, syncDerivedEventFields } from '../../lib/eventForm';
 
-function statusFromPublicado(publicado: boolean, oculto?: boolean, encerrado?: boolean): EventoStatus {
+function statusFromPublicado(
+  publicado: boolean,
+  oculto?: boolean,
+  encerrado?: boolean,
+  arquivado?: boolean
+): EventoStatus {
+  if (arquivado) return 'arquivado';
   if (encerrado) return 'encerrado';
   if (oculto) return 'oculto';
   return publicado ? 'publicado' : 'rascunho';
@@ -65,7 +71,14 @@ export function eventFormToEventoPayload(
     possuiInstituicao: Boolean(exibirInstituicoes),
     patrocinadores: patrocinadoresVinculados ?? [],
     instituicoes: instituicoesVinculadas ?? [],
-    status: statusFromPublicado(Boolean(publicado)),
+    status: statusFromPublicado(
+      Boolean(publicado),
+      false,
+      false,
+      Boolean(rest.arquivado)
+    ),
+    /** Espelha o status para queries/rules que usam o boolean */
+    publicado: Boolean(publicado) && !Boolean(rest.arquivado),
     eventoDestaque: Boolean(rest.eventoDestaque),
     permitirInscricao: Boolean(rest.permitirInscricao),
     permitirCompraOnline: Boolean(rest.permitirCompraOnline),
@@ -76,9 +89,13 @@ export function eventFormToEventoPayload(
     mostrarValor: Boolean(rest.mostrarValor),
     textoBotao: rest.textoBotao ?? '',
     linkPagamento: rest.linkPagamento ?? '',
+    limitePorCompra: Number(rest.limitePorCompra) || 10,
+    vendasEncerramEm: rest.vendasEncerramEm || null,
+    arquivado: Boolean(rest.arquivado),
+    arquivadoEm: rest.arquivadoEm || null,
     gratuito: Boolean(rest.gratuito),
     valor: Number(rest.valor) || 0,
-    ativo: true,
+    ativo: !Boolean(rest.arquivado),
   };
 }
 
@@ -135,6 +152,13 @@ export function eventoToUiEvent(
     exibirGaleria: raw.exibirGaleria,
     textoBotao: raw.textoBotao,
     linkPagamento: raw.linkPagamento,
+    limitePorCompra: (raw as { limitePorCompra?: number }).limitePorCompra ?? 10,
+    vendasEncerramEm: (raw as { vendasEncerramEm?: string }).vendasEncerramEm,
+    arquivado:
+      status === 'arquivado' ||
+      Boolean((raw as { arquivado?: boolean }).arquivado),
+    arquivadoEm: (raw as { arquivadoEm?: string }).arquivadoEm,
+    status: status as Event['status'],
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   });
@@ -159,6 +183,10 @@ export function ingressoToTicketType(ing: Ingresso): TicketType {
     quantidade: total,
     quantidadeVendida: vendida,
     quantidadeDisponivel: disponivel,
+    limitePorCompra: ing.limitePorCompra,
+    natureza: ing.natureza,
+    exigeComprovacao: ing.exigeComprovacao,
+    checkinModo: ing.checkinModo,
   };
 }
 
@@ -167,6 +195,13 @@ export function ticketTypeToIngressoPayload(
   eventoId: string
 ): Omit<Ingresso, 'id' | 'createdAt' | 'updatedAt'> {
   const vendida = 0;
+  const natureza =
+    tipo.natureza ??
+    (tipo.key === 'retirada'
+      ? 'retirada'
+      : tipo.key === 'meia'
+        ? 'entrada'
+        : 'entrada');
   return {
     nome: tipo.nome,
     key: tipo.key,
@@ -175,14 +210,28 @@ export function ticketTypeToIngressoPayload(
     quantidade: tipo.quantidade,
     quantidadeVendida: vendida,
     quantidadeDisponivel: Math.max(0, tipo.quantidade - vendida),
-    limitePorCompra: 10,
+    limitePorCompra: tipo.limitePorCompra ?? 10,
     eventoId,
     ativo: tipo.ativo,
+    natureza,
+    exigeComprovacao: tipo.exigeComprovacao ?? tipo.key === 'meia',
+    checkinModo:
+      tipo.checkinModo ?? (natureza === 'retirada' ? 'retirada' : 'entrada'),
   };
 }
 
 export function pedidoToPurchase(pedido: Pedido): Purchase {
   const first = pedido.itens?.[0];
+  const statusPagamento =
+    pedido.status === 'confirmado'
+      ? 'confirmado'
+      : pedido.status === 'cancelado'
+        ? 'cancelado'
+        : pedido.status === 'expirado'
+          ? 'expirado'
+          : pedido.status === 'reembolsado'
+            ? 'reembolsado'
+            : 'pendente';
   return {
     id: pedido.id,
     eventId: pedido.eventoId,
@@ -194,13 +243,17 @@ export function pedidoToPurchase(pedido: Pedido): Purchase {
     compradorEmail: pedido.email,
     quantidadeIngressos: pedido.quantidade,
     valorTotal: pedido.valorTotal,
-    statusPagamento:
-      pedido.status === 'confirmado'
-        ? 'confirmado'
-        : pedido.status === 'cancelado'
-          ? 'cancelado'
-          : 'pendente',
+    valorUnitario: pedido.valorUnitario ?? first?.valorUnitario,
+    statusPagamento,
     linkPagamento: pedido.linkPagamento,
+    accessToken: pedido.accessToken,
+    mpPreferenceId: pedido.mpPreferenceId,
+    mpPaymentId: pedido.mpPaymentId,
+    mpStatus: pedido.mpStatus,
+    mpTransactionAmount: pedido.mpTransactionAmount,
+    mpFeeAmount: pedido.mpFeeAmount,
+    mpNetReceivedAmount: pedido.mpNetReceivedAmount,
+    natureza: pedido.natureza,
     createdAt: pedido.createdAt,
     updatedAt: pedido.updatedAt,
   };
@@ -210,7 +263,8 @@ export function purchaseInputToPedidoPayload(
   data: Omit<Purchase, 'id' | 'createdAt' | 'updatedAt' | 'statusPagamento'>
 ): Omit<Pedido, 'id' | 'createdAt' | 'updatedAt'> {
   const qty = data.quantidadeIngressos;
-  const unit = qty > 0 ? data.valorTotal / qty : data.valorTotal;
+  const unit =
+    data.valorUnitario ?? (qty > 0 ? data.valorTotal / qty : data.valorTotal);
   return {
     nomeComprador: data.compradorNome,
     cpf: data.compradorCPF,
@@ -226,6 +280,7 @@ export function purchaseInputToPedidoPayload(
       },
     ],
     quantidade: qty,
+    valorUnitario: unit,
     valorTotal: data.valorTotal,
     status: 'pendente',
     qrCode: '',
@@ -234,6 +289,7 @@ export function purchaseInputToPedidoPayload(
     linkPagamento: data.linkPagamento,
     ingressoId: data.ticketTypeId,
     ingressoNome: data.ticketTypeNome,
+    natureza: data.natureza,
     ativo: true,
   };
 }

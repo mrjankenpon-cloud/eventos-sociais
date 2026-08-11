@@ -5,7 +5,7 @@
  * No cliente (após login): httpsCallable(functions, 'syncUserClaims')()
  * depois auth.currentUser.getIdToken(true)
  */
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Users, Ticket, Wallet, FileText } from 'lucide-react';
+import { Users, Ticket, Wallet, FileText, Percent } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { participantService } from '../../services/participant.service';
-import { Event, Participant } from '../../types';
+import { purchaseService } from '../../services/purchase.service';
+import { Event, Participant, Purchase } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
@@ -16,6 +17,7 @@ export default function EventReports() {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -23,12 +25,14 @@ export default function EventReports() {
     async function loadData() {
       if (!id) return;
       try {
-        const [eventData, participantsData] = await Promise.all([
+        const [eventData, participantsData, purchasesData] = await Promise.all([
           eventService.getById(id),
           participantService.getByEventId(id),
+          purchaseService.getByEventId(id),
         ]);
         if (eventData) setEvent(eventData);
         setParticipants(participantsData);
+        setPurchases(purchasesData);
       } catch (error) {
         console.error(error);
       } finally {
@@ -38,13 +42,45 @@ export default function EventReports() {
     loadData();
   }, [id]);
 
+  const confirmed = useMemo(
+    () => purchases.filter((p) => p.statusPagamento === 'confirmado'),
+    [purchases]
+  );
+
   const totalInscritos = participants.length;
-  const totalIngressos = participants.reduce(
+  const totalIngressos = confirmed.reduce(
     (acc, p) => acc + p.quantidadeIngressos,
     0
   );
-  const totalArrecadado =
-    event && !event.gratuito ? totalIngressos * event.valor : 0;
+
+  /** Valores efetivos do MP quando disponíveis; senão bruto congelado do pedido. */
+  const financeiro = useMemo(() => {
+    let bruto = 0;
+    let taxas = 0;
+    let liquido = 0;
+    let comDadosMp = 0;
+
+    for (const p of confirmed) {
+      if (
+        typeof p.mpTransactionAmount === 'number' &&
+        p.mpTransactionAmount >= 0
+      ) {
+        bruto += p.mpTransactionAmount;
+        taxas += Number(p.mpFeeAmount) || 0;
+        liquido +=
+          typeof p.mpNetReceivedAmount === 'number'
+            ? p.mpNetReceivedAmount
+            : p.mpTransactionAmount - (Number(p.mpFeeAmount) || 0);
+        comDadosMp += 1;
+      } else {
+        bruto += p.valorTotal;
+        liquido += p.valorTotal;
+      }
+    }
+
+    return { bruto, taxas, liquido, comDadosMp, totalConfirmados: confirmed.length };
+  }, [confirmed]);
+
   const totalCheckin = participants.filter((p) => p.checkinRealizado).length;
 
   const filtered = useMemo(() => {
@@ -119,10 +155,10 @@ export default function EventReports() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Inscritos" value={totalInscritos} icon={Users} />
-        <StatCard title="Ingressos" value={totalIngressos} icon={Ticket} />
+        <StatCard title="Ingressos confirmados" value={totalIngressos} icon={Ticket} />
         <StatCard
-          title="Arrecadação"
-          value={event.gratuito ? 'Gratuito' : formatCurrency(totalArrecadado)}
+          title="Bruto (MP / pedido)"
+          value={formatCurrency(financeiro.bruto)}
           icon={Wallet}
         />
         <StatCard
@@ -131,6 +167,30 @@ export default function EventReports() {
           icon={FileText}
         />
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title="Taxas Mercado Pago"
+          value={formatCurrency(financeiro.taxas)}
+          icon={Percent}
+        />
+        <StatCard
+          title="Líquido"
+          value={formatCurrency(financeiro.liquido)}
+          icon={Wallet}
+        />
+        <StatCard
+          title="Pedidos com dados MP"
+          value={`${financeiro.comDadosMp} / ${financeiro.totalConfirmados}`}
+          icon={FileText}
+        />
+      </div>
+
+      <p className="text-xs text-gray-400">
+        Taxas e líquido usam valores efetivos retornados pela API do Mercado Pago
+        quando disponíveis. Pedidos sem dados MP (ex.: gratuitos) entram pelo valor
+        congelado do pedido, sem taxa estimada.
+      </p>
 
       <DataTable
         columns={columns}

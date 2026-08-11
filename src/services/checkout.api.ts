@@ -1,0 +1,141 @@
+import { firebaseConfig } from '../firebase/config';
+import { auth } from '../firebase/auth';
+
+const PROJECT_ID = firebaseConfig.projectId || 'eventosociais-c057d';
+const REGION =
+  String(import.meta.env.VITE_FUNCTIONS_REGION || '').trim() || 'us-central1';
+
+function functionsBaseUrl(): string {
+  const override = String(import.meta.env.VITE_FUNCTIONS_URL || '').trim();
+  if (override) return override.replace(/\/$/, '');
+  return `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+}
+
+async function postJson<T>(
+  name: string,
+  body: unknown,
+  opts?: { auth?: boolean }
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (opts?.auth) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Autenticação obrigatória');
+    const token = await user.getIdToken();
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${functionsBaseUrl()}/${name}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `Falha em ${name} (${res.status})`);
+  }
+  return data;
+}
+
+export type CheckoutSessionResult = {
+  ok: boolean;
+  gratuito: boolean;
+  pedidoId: string;
+  accessToken: string;
+  preferenceId?: string;
+  initPoint?: string;
+  receiptUrl: string;
+};
+
+export type OrderReceiptResult = {
+  ok: boolean;
+  accessToken?: string;
+  pedido: {
+    id: string;
+    status: string;
+    nomeComprador: string;
+    email: string;
+    eventoId: string;
+    eventoTitulo: string;
+    ingressoNome?: string;
+    natureza?: string;
+    quantidade: number;
+    valorUnitario: number;
+    valorTotal: number;
+    formaPagamento?: string;
+    mpStatus?: string | null;
+    ticketsEmitidos: boolean;
+    dataCompra?: string;
+    reservaExpiraEm?: string | null;
+    guestCheckout?: boolean;
+  };
+  tickets: Array<{
+    id: string;
+    codigo: string;
+    qrPayload: string;
+    status: string;
+    ordem: number;
+    natureza?: string;
+    ingressoNome?: string;
+    checkinRealizado: boolean;
+    retiradaRealizada: boolean;
+  }>;
+};
+
+export type GuestTicketsResult = {
+  ok: boolean;
+  email: string;
+  readOnly: true;
+  orders: Array<{
+    id: string;
+    status: string;
+    eventoTitulo: string;
+    ingressoNome?: string;
+    quantidade: number;
+    valorTotal: number;
+    dataCompra?: string;
+    tickets: OrderReceiptResult['tickets'];
+  }>;
+};
+
+export const checkoutApi = {
+  createSession(input: {
+    eventoId: string;
+    ingressoId: string;
+    quantidade: number;
+    comprador: {
+      nome: string;
+      cpf: string;
+      telefone: string;
+      email: string;
+    };
+  }): Promise<CheckoutSessionResult> {
+    return postJson<CheckoutSessionResult>('createCheckoutSession', input);
+  },
+
+  getReceipt(
+    pedidoId: string,
+    opts: { token: string }
+  ): Promise<OrderReceiptResult> {
+    return postJson<OrderReceiptResult>('getOrderReceipt', {
+      pedidoId,
+      token: opts.token,
+    });
+  },
+
+  /** Solicita e-mail com link seguro (resposta sempre genérica). */
+  requestTicketsEmail(email: string): Promise<{ ok: boolean; message: string }> {
+    return postJson('requestGuestTicketsEmail', { email });
+  },
+
+  getGuestTickets(token: string): Promise<GuestTicketsResult> {
+    return postJson<GuestTicketsResult>('getGuestTickets', { token });
+  },
+
+  refund(pedidoId: string): Promise<{ ok: boolean; pedidoId: string }> {
+    return postJson('refundPayment', { pedidoId }, { auth: true });
+  },
+};

@@ -20,6 +20,8 @@ export const COLLECTIONS = {
   imagens: 'imagens',
   ingressos: 'ingressos',
   pedidos: 'pedidos',
+  /** Histórico de notificações / reembolsos Mercado Pago */
+  pagamentos: 'pagamentos',
   /** Tickets emitidos (QR / check-in) — derivados de pedidos */
   tickets: 'tickets',
   checkins: 'checkins',
