@@ -144,8 +144,20 @@ export const patrocinadoresService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => patrocinadorToSponsor(mapDoc<Patrocinador>(d)));
     } catch {
-      const all = await this.getAll();
-      return all.filter((s) => s.ativo);
+      // Sem getAll(): listagem sem filtro quebra regras para anônimos.
+      try {
+        const q2 = query(
+          col(COLLECTIONS.patrocinadores),
+          where('ativo', '==', true)
+        );
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) => patrocinadorToSponsor(mapDoc<Patrocinador>(d)))
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      } catch (error) {
+        console.warn('[patrocinadores.getActive] falhou', error);
+        return [];
+      }
     }
   },
 

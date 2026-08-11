@@ -177,10 +177,29 @@ export const instituicoesService = {
 
   async getActive(): Promise<Institution[]> {
     try {
-      const all = await this.getAll();
-      return all.filter((i) => i.ativo);
-    } catch (error) {
-      wrapError('instituicoes.getActive', error);
+      // Query alinhada às rules (ativo==true). Sem fallback getAll — listagem
+      // sem filtro é negada para anônimos.
+      const q = query(
+        col(COLLECTIONS.instituicoes),
+        where('ativo', '==', true),
+        orderBy('nome', 'asc')
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => instituicaoToInstitution(mapDoc<Instituicao>(d)));
+    } catch {
+      try {
+        const q2 = query(
+          col(COLLECTIONS.instituicoes),
+          where('ativo', '==', true)
+        );
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) => instituicaoToInstitution(mapDoc<Instituicao>(d)))
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      } catch (error) {
+        console.warn('[instituicoes.getActive] falhou', error);
+        return [];
+      }
     }
   },
 

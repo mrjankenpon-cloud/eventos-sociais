@@ -165,8 +165,19 @@ export const ingressosService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => mapDoc<Ingresso>(d));
     } catch {
-      const all = await this.getAll();
-      return all.filter((i) => i.eventoId === eventoId);
+      try {
+        const q2 = query(
+          col(COLLECTIONS.ingressos),
+          where('eventoId', '==', eventoId)
+        );
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) => mapDoc<Ingresso>(d))
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      } catch (error) {
+        console.warn('[ingressos.getByEvento] falhou', error);
+        return [];
+      }
     }
   },
 

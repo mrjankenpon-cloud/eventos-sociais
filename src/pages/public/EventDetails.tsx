@@ -37,14 +37,14 @@ export default function EventDetails() {
 
       setEvent(data);
 
-      const sponsorIds = [...data.patrocinadoresVinculados]
-        .sort((a, b) => a.ordem - b.ordem)
-        .map((l) => l.id);
-      const institutionIds = [...data.instituicoesVinculadas]
-        .sort((a, b) => a.ordem - b.ordem)
-        .map((l) => l.id);
-
       try {
+        const sponsorIds = [...(data.patrocinadoresVinculados ?? [])]
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((l) => l.id);
+        const institutionIds = [...(data.instituicoesVinculadas ?? [])]
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((l) => l.id);
+
         const [spAll, instAll] = await Promise.all([
           sponsorIds.length ? sponsorService.getByIds(sponsorIds) : Promise.resolve([]),
           institutionIds.length

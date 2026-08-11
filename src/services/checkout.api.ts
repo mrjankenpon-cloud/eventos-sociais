@@ -35,6 +35,11 @@ async function postJson<T>(
 
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        'Checkout indisponível no momento (servidor de pagamento não publicado). Contate o administrador.'
+      );
+    }
     throw new Error(data.error || `Falha em ${name} (${res.status})`);
   }
   return data;

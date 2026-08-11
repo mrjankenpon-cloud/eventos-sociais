@@ -133,10 +133,28 @@ export const bannersService = {
 
   async getActive(): Promise<Banner[]> {
     try {
-      const all = await this.getAll();
-      return all.filter((b) => b.ativo);
-    } catch (error) {
-      wrapError('banners.getActive', error);
+      const q = query(
+        col(COLLECTIONS.banners),
+        where('ativo', '==', true),
+        orderBy('ordem', 'asc')
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) =>
+        fsBannerToUi(mapDoc<FsBanner & { eventId?: string; imagem?: string }>(d))
+      );
+    } catch {
+      try {
+        const q2 = query(col(COLLECTIONS.banners), where('ativo', '==', true));
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) =>
+            fsBannerToUi(mapDoc<FsBanner & { eventId?: string; imagem?: string }>(d))
+          )
+          .sort((a, b) => a.ordem - b.ordem);
+      } catch (error) {
+        console.warn('[banners.getActive] falhou', error);
+        return [];
+      }
     }
   },
 
@@ -149,6 +167,7 @@ export const bannersService = {
       const q = query(
         col(COLLECTIONS.banners),
         where('eventoId', '==', eventId),
+        where('ativo', '==', true),
         orderBy('ordem', 'asc')
       );
       const snap = await getDocs(q);
@@ -156,8 +175,22 @@ export const bannersService = {
         fsBannerToUi(mapDoc<FsBanner & { eventId?: string; imagem?: string }>(d))
       );
     } catch {
-      const all = await this.getAll();
-      return all.filter((b) => b.eventId === eventId);
+      try {
+        const q2 = query(
+          col(COLLECTIONS.banners),
+          where('eventoId', '==', eventId),
+          where('ativo', '==', true)
+        );
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) =>
+            fsBannerToUi(mapDoc<FsBanner & { eventId?: string; imagem?: string }>(d))
+          )
+          .sort((a, b) => a.ordem - b.ordem);
+      } catch (error) {
+        console.warn('[banners.getByEventId] falhou', error);
+        return [];
+      }
     }
   },
 
