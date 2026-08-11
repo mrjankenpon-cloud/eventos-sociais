@@ -73,6 +73,17 @@ async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
     ? mapDoc<User>(existing as Parameters<typeof mapDoc>[0])
     : null;
 
+  // Já existe perfil master ativo → só lê (evita write a cada refresh/navegação)
+  if (base && base.ativo !== false && (base.master || base.role === 'admin')) {
+    return withMasterFlags({
+      ...base,
+      id: MASTER_ADMIN_UID,
+      email: email || base.email,
+      name: base.name || fbUser.displayName || 'Administrador Master',
+      avatar: fbUser.photoURL || base.avatar,
+    });
+  }
+
   const profile: Omit<User, 'id'> = {
     name: base?.name || fbUser.displayName || 'Administrador Master',
     email: email || base?.email || 'master@delphos.local',
@@ -86,16 +97,50 @@ async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
     updatedAt: new Date().toISOString(),
   };
 
-  await setDoc(
-    docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID),
-    {
-      ...stripUndefined(profile as unknown as Record<string, unknown>),
-      ...timestamps(),
-    },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID),
+      {
+        ...stripUndefined(profile as unknown as Record<string, unknown>),
+        ...timestamps(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    // Se não conseguir gravar, ainda autentica em memória (sessão Auth válida)
+    console.error('[usuarios.ensureMasterProfile] write', error);
+  }
 
   return { id: MASTER_ADMIN_UID, ...profile };
+}
+
+function isAccessDeniedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    msg.includes('desativado') ||
+    msg.includes('permissão') ||
+    msg.includes('sem e-mail') ||
+    msg.includes('não tem permissão')
+  );
+}
+
+function softProfileFromAuth(fbUser: FirebaseUser): User | null {
+  if (isMasterAdminUid(fbUser.uid)) {
+    return {
+      id: MASTER_ADMIN_UID,
+      name: fbUser.displayName || 'Administrador Master',
+      email: normalizeEmail(fbUser.email || 'master@delphos.local'),
+      role: 'admin',
+      avatar: fbUser.photoURL || undefined,
+      ativo: true,
+      master: true,
+      pending: false,
+      authProvider: 'google',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return null;
 }
 
 function withMasterFlags(profile: User): User {
@@ -490,13 +535,44 @@ export const usuariosService = {
       if (!fbUser) return null;
       try {
         return await claimInviteForAuth(fbUser);
-      } catch {
-        // Sessão Auth válida mas sem permissão → encerra
+      } catch (error) {
+        if (isAccessDeniedError(error)) {
+          await signOut(auth).catch(() => undefined);
+          return null;
+        }
+
+        // Erro transitório (rede/rules): tenta leitura do perfil sem encerrar sessão
+        console.error('[usuarios.getCurrentProfile] transient', error);
+        try {
+          const snap = await getDoc(docRef(COLLECTIONS.usuarios, fbUser.uid));
+          if (snap.exists()) {
+            const profile = withMasterFlags(
+              mapDoc<User>(snap as Parameters<typeof mapDoc>[0])
+            );
+            if (profile.ativo || isMasterAdminUid(profile.id)) {
+              return profile;
+            }
+          }
+        } catch (readError) {
+          console.error('[usuarios.getCurrentProfile] fallback read', readError);
+        }
+
+        const soft = softProfileFromAuth(fbUser);
+        if (soft) return soft;
+
+        // Mantém sessão Auth; caller decide se reusa user em memória
+        throw error instanceof Error
+          ? error
+          : new Error('Falha ao carregar perfil');
+      }
+    } catch (error) {
+      if (isAccessDeniedError(error)) {
         await signOut(auth).catch(() => undefined);
         return null;
       }
-    } catch (error) {
-      wrapError('usuarios.getCurrentProfile', error);
+      throw error instanceof Error
+        ? error
+        : new Error('Falha ao carregar perfil');
     }
   },
 

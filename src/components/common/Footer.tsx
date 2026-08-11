@@ -10,7 +10,7 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-8">
           <nav aria-label="Rodapé">
             <Link
-              to={ROUTES.ADMIN.LOGIN}
+              to={ROUTES.ADMIN.DASHBOARD}
               className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
             >
               Área Restrita

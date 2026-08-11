@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase/auth';
 import { User } from '../types/models/user';
@@ -18,19 +18,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       try {
         if (fbUser) {
-          const profile = await usuariosService.getCurrentProfile();
-          setUser(profile);
+          try {
+            const profile = await usuariosService.getCurrentProfile();
+            setUser(profile);
+          } catch (error) {
+            // Erro transitório: preserva usuário já logado em memória
+            console.error('[AuthProvider] profile restore', error);
+            if (!userRef.current) {
+              setUser(null);
+            }
+          }
         } else {
           setUser(null);
         }
       } catch (error) {
         console.error('[AuthProvider]', error);
-        setUser(null);
+        if (!auth.currentUser) {
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }

@@ -17,12 +17,19 @@ export default function Login() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, isLoading: authLoading } =
+    useAuth();
   const userRef = useRef<HTMLInputElement>(null);
 
   const from =
     (location.state as { from?: { pathname?: string } })?.from?.pathname ||
     ROUTES.ADMIN.DASHBOARD;
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, from, navigate]);
 
   useEffect(() => {
     if (showPasswordForm) userRef.current?.focus();
@@ -66,6 +73,14 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  if (authLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-surface-admin flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-black/10 border-t-black rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface-admin flex items-center justify-center p-4 sm:p-6 overflow-x-hidden">
