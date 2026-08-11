@@ -21,6 +21,8 @@ export interface PedidoItem {
   nome: string;
   quantidade: number;
   valorUnitario: number;
+  key?: string;
+  natureza?: string;
 }
 
 export interface Pedido extends BaseDocument {

@@ -13,16 +13,35 @@ import {
 import { emitTicketsForPedido, releaseStock, reserveStock } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 
-type CheckoutBody = {
-  eventoId?: string;
+type CheckoutItemInput = {
   ingressoId?: string;
   quantidade?: number;
+};
+
+type CheckoutBody = {
+  eventoId?: string;
+  /** Legado: um único tipo */
+  ingressoId?: string;
+  quantidade?: number;
+  /** Carrinho: vários tipos no mesmo pagamento */
+  itens?: CheckoutItemInput[];
   comprador?: {
     nome?: string;
     cpf?: string;
     telefone?: string;
     email?: string;
   };
+};
+
+type ReservedLine = { ingressoId: string; quantidade: number };
+
+type ResolvedLine = {
+  ingressoId: string;
+  nome: string;
+  key: string;
+  natureza: string;
+  quantidade: number;
+  valorUnitario: number;
 };
 
 function cors(res: functions.Response) {
@@ -45,6 +64,44 @@ function vendasAbertas(evento: Record<string, unknown>): boolean {
   return true;
 }
 
+function parseRequestedItems(body: CheckoutBody): ReservedLine[] {
+  const fromArray = Array.isArray(body.itens) ? body.itens : [];
+  const merged = new Map<string, number>();
+
+  for (const raw of fromArray) {
+    const ingressoId = String(raw?.ingressoId || '').trim();
+    const quantidade = Math.floor(Number(raw?.quantidade) || 0);
+    if (!ingressoId || quantidade < 1) continue;
+    merged.set(ingressoId, (merged.get(ingressoId) || 0) + quantidade);
+  }
+
+  if (merged.size === 0) {
+    const ingressoId = String(body.ingressoId || '').trim();
+    const quantidade = Math.floor(Number(body.quantidade) || 0);
+    if (ingressoId && quantidade >= 1) {
+      merged.set(ingressoId, quantidade);
+    }
+  }
+
+  return [...merged.entries()].map(([ingressoId, quantidade]) => ({
+    ingressoId,
+    quantidade,
+  }));
+}
+
+async function releaseReserved(lines: ReservedLine[]): Promise<void> {
+  for (const line of lines) {
+    try {
+      await releaseStock(line.ingressoId, line.quantidade);
+    } catch (err) {
+      functions.logger.error('[createCheckoutSession] rollback estoque', {
+        ...line,
+        err,
+      });
+    }
+  }
+}
+
 export const createCheckoutSession = functions.https.onRequest(
   async (req, res) => {
     cors(res);
@@ -57,14 +114,12 @@ export const createCheckoutSession = functions.https.onRequest(
       return;
     }
 
-    let reservedQty = 0;
-    let reservedIngressoId = '';
+    const reserved: ReservedLine[] = [];
 
     try {
       const body = (req.body || {}) as CheckoutBody;
       const eventoId = String(body.eventoId || '').trim();
-      const ingressoId = String(body.ingressoId || '').trim();
-      const quantidade = Math.floor(Number(body.quantidade) || 0);
+      const requested = parseRequestedItems(body);
       const comprador = body.comprador || {};
 
       const nome = String(comprador.nome || '').trim();
@@ -72,12 +127,14 @@ export const createCheckoutSession = functions.https.onRequest(
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
 
-      if (!eventoId || !ingressoId) {
-        res.status(400).json({ error: 'eventoId e ingressoId obrigatórios' });
+      if (!eventoId) {
+        res.status(400).json({ error: 'eventoId obrigatório' });
         return;
       }
-      if (quantidade < 1) {
-        res.status(400).json({ error: 'Quantidade inválida' });
+      if (requested.length < 1) {
+        res.status(400).json({
+          error: 'Selecione a quantidade de pelo menos um tipo de ingresso',
+        });
         return;
       }
       if (nome.length < 4 || cpf.length < 11 || !email.includes('@')) {
@@ -96,50 +153,87 @@ export const createCheckoutSession = functions.https.onRequest(
         return;
       }
 
-      const ingressoSnap = await db()
-        .collection('ingressos')
-        .doc(ingressoId)
-        .get();
-      if (!ingressoSnap.exists) {
-        res.status(404).json({ error: 'Tipo de ingresso não encontrado' });
-        return;
-      }
-      const ingresso = (ingressoSnap.data() || {}) as Record<string, unknown>;
-      if (String(ingresso.eventoId) !== eventoId) {
-        res.status(400).json({ error: 'Ingresso não pertence a este evento' });
-        return;
-      }
-      if (ingresso.ativo === false) {
-        res.status(400).json({ error: 'Tipo de ingresso inativo' });
+      const eventLimit =
+        Number(evento.limitePorCompra) > 0 ? Number(evento.limitePorCompra) : 10;
+      const totalQtyRequested = requested.reduce((s, l) => s + l.quantidade, 0);
+      if (totalQtyRequested > eventLimit) {
+        res.status(400).json({
+          error: `Limite de ${eventLimit} ingresso(s) por compra`,
+        });
         return;
       }
 
-      const limite =
-        Number(ingresso.limitePorCompra) > 0
-          ? Number(ingresso.limitePorCompra)
-          : Number(evento.limitePorCompra) > 0
-            ? Number(evento.limitePorCompra)
-            : 10;
-      if (quantidade > limite) {
-        res
-          .status(400)
-          .json({ error: `Limite de ${limite} ingresso(s) por compra` });
-        return;
+      const resolved: ResolvedLine[] = [];
+      for (const line of requested) {
+        const ingressoSnap = await db()
+          .collection('ingressos')
+          .doc(line.ingressoId)
+          .get();
+        if (!ingressoSnap.exists) {
+          res.status(404).json({
+            error: `Tipo de ingresso não encontrado (${line.ingressoId})`,
+          });
+          return;
+        }
+        const ingresso = (ingressoSnap.data() || {}) as Record<string, unknown>;
+        if (String(ingresso.eventoId) !== eventoId) {
+          res
+            .status(400)
+            .json({ error: 'Ingresso não pertence a este evento' });
+          return;
+        }
+        if (ingresso.ativo === false) {
+          res.status(400).json({ error: 'Tipo de ingresso inativo' });
+          return;
+        }
+
+        const typeLimit =
+          Number(ingresso.limitePorCompra) > 0
+            ? Number(ingresso.limitePorCompra)
+            : eventLimit;
+        if (line.quantidade > typeLimit) {
+          res.status(400).json({
+            error: `Limite de ${typeLimit} para ${String(ingresso.nome || 'ingresso')}`,
+          });
+          return;
+        }
+
+        resolved.push({
+          ingressoId: line.ingressoId,
+          nome: String(ingresso.nome || 'Ingresso'),
+          key: String(ingresso.key || ''),
+          natureza: String(ingresso.natureza || 'entrada'),
+          quantidade: line.quantidade,
+          valorUnitario: roundMoney(Number(ingresso.valor) || 0),
+        });
       }
 
-      // Preço oficial — nunca confiar no frontend
-      const valorUnitario = roundMoney(Number(ingresso.valor) || 0);
-      const valorTotal = roundMoney(valorUnitario * quantidade);
-      const natureza = String(ingresso.natureza || 'entrada');
+      const quantidade = resolved.reduce((s, l) => s + l.quantidade, 0);
+      const valorTotal = roundMoney(
+        resolved.reduce((s, l) => s + l.valorUnitario * l.quantidade, 0)
+      );
+      const primary = resolved[0];
+      const valorUnitario =
+        quantidade > 0 ? roundMoney(valorTotal / quantidade) : 0;
+      const ingressoNomeResumo = resolved
+        .map((l) =>
+          l.quantidade > 1 ? `${l.nome} ×${l.quantidade}` : l.nome
+        )
+        .join(' · ');
+
       const accessToken = randomToken(32);
       const agora = new Date();
       const reservaExpiraEm = new Date(
         agora.getTime() + RESERVE_MINUTES * 60 * 1000
       );
 
-      await reserveStock(ingressoId, quantidade);
-      reservedQty = quantidade;
-      reservedIngressoId = ingressoId;
+      for (const line of resolved) {
+        await reserveStock(line.ingressoId, line.quantidade);
+        reserved.push({
+          ingressoId: line.ingressoId,
+          quantidade: line.quantidade,
+        });
+      }
 
       const pedidoRef = db().collection('pedidos').doc();
       const basePedido: Record<string, unknown> = {
@@ -148,18 +242,18 @@ export const createCheckoutSession = functions.https.onRequest(
         telefone,
         email,
         eventoId,
-        ingressoId,
-        ingressoKey: String(ingresso.key || ''),
-        ingressoNome: String(ingresso.nome || 'Ingresso'),
-        natureza,
-        itens: [
-          {
-            ingressoId,
-            nome: String(ingresso.nome || 'Ingresso'),
-            quantidade,
-            valorUnitario,
-          },
-        ],
+        ingressoId: primary.ingressoId,
+        ingressoKey: primary.key,
+        ingressoNome: ingressoNomeResumo,
+        natureza: primary.natureza,
+        itens: resolved.map((l) => ({
+          ingressoId: l.ingressoId,
+          nome: l.nome,
+          key: l.key,
+          natureza: l.natureza,
+          quantidade: l.quantidade,
+          valorUnitario: l.valorUnitario,
+        })),
         quantidade,
         valorUnitario,
         valorTotal,
@@ -171,7 +265,6 @@ export const createCheckoutSession = functions.https.onRequest(
         reservaExpiraEm: reservaExpiraEm.toISOString(),
         ticketsEmitidos: false,
         accessToken,
-        /** Guest checkout: sem userId / Auth de comprador */
         guestCheckout: true,
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -180,7 +273,7 @@ export const createCheckoutSession = functions.https.onRequest(
 
       if (valorTotal === 0) {
         await pedidoRef.set(basePedido);
-        reservedQty = 0;
+        reserved.length = 0;
         const emit = await emitTicketsForPedido(pedidoRef.id, {
           ...basePedido,
           ticketsEmitidos: false,
@@ -188,6 +281,7 @@ export const createCheckoutSession = functions.https.onRequest(
         functions.logger.info('[createCheckoutSession] gratuito', {
           pedidoId: pedidoRef.id,
           tickets: emit.count,
+          tipos: resolved.length,
         });
 
         await sendOrderConfirmationEmail({
@@ -218,22 +312,18 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
-        // Preferência enxuta: campos extras (expires/binary_mode/parcelas forçadas)
-        // têm causado botão "Pagar" cinza no Checkout Pro sandbox.
         const preferenceBody: Record<string, unknown> = {
-          items: [
-            {
-              id: ingressoId.slice(0, 64),
-              title: `${String(evento.titulo || 'Evento')} — ${String(ingresso.nome || 'Ingresso')}`.slice(
-                0,
-                256
-              ),
-              quantity: quantidade,
-              unit_price: valorUnitario,
-              currency_id: 'BRL',
-              category_id: 'tickets',
-            },
-          ],
+          items: resolved.map((l) => ({
+            id: l.ingressoId.slice(0, 64),
+            title: `${String(evento.titulo || 'Evento')} — ${l.nome}`.slice(
+              0,
+              256
+            ),
+            quantity: l.quantidade,
+            unit_price: l.valorUnitario,
+            currency_id: 'BRL',
+            category_id: 'tickets',
+          })),
           payer: {
             email: getSandboxPayerEmail(email),
             ...(isMercadoPagoSandbox()
@@ -247,8 +337,9 @@ export const createCheckoutSession = functions.https.onRequest(
           metadata: {
             pedidoId: pedidoRef.id,
             eventoId,
-            ingressoId,
-            natureza,
+            ingressoId: primary.ingressoId,
+            natureza: primary.natureza,
+            tipos: resolved.length,
           },
           back_urls: {
             success: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
@@ -271,8 +362,8 @@ export const createCheckoutSession = functions.https.onRequest(
           body: JSON.stringify(preferenceBody),
         });
       } catch (mpError) {
-        await releaseStock(ingressoId, quantidade);
-        reservedQty = 0;
+        await releaseReserved(reserved);
+        reserved.length = 0;
         throw mpError;
       }
 
@@ -286,7 +377,7 @@ export const createCheckoutSession = functions.https.onRequest(
         mpPreferenceId: preference.id,
         linkPagamento: initPoint,
       });
-      reservedQty = 0;
+      reserved.length = 0;
 
       res.json({
         ok: true,
@@ -298,15 +389,8 @@ export const createCheckoutSession = functions.https.onRequest(
         receiptUrl: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
       });
     } catch (error) {
-      if (reservedQty > 0 && reservedIngressoId) {
-        try {
-          await releaseStock(reservedIngressoId, reservedQty);
-        } catch (releaseErr) {
-          functions.logger.error(
-            '[createCheckoutSession] falha ao liberar estoque',
-            releaseErr
-          );
-        }
+      if (reserved.length > 0) {
+        await releaseReserved(reserved);
       }
       functions.logger.error('[createCheckoutSession]', error);
       res.status(500).json({

@@ -10,7 +10,9 @@ export const purchaseService = {
    * @deprecated Use checkoutApi.createSession — preço/estoque só no backend.
    */
   create: async (
-    data: Parameters<typeof pedidosService.create>[0]
+    data: Parameters<typeof pedidosService.create>[0] & {
+      itens?: Array<{ ingressoId: string; quantidade: number }>;
+    }
   ): Promise<{
     id: string;
     accessToken: string;
@@ -18,10 +20,20 @@ export const purchaseService = {
     gratuito: boolean;
     receiptUrl: string;
   }> => {
+    const itens =
+      data.itens && data.itens.length > 0
+        ? data.itens.filter((i) => i.quantidade > 0)
+        : data.ticketTypeId
+          ? [
+              {
+                ingressoId: data.ticketTypeId,
+                quantidade: data.quantidadeIngressos,
+              },
+            ]
+          : [];
     const result = await checkoutApi.createSession({
       eventoId: data.eventId,
-      ingressoId: data.ticketTypeId || '',
-      quantidade: data.quantidadeIngressos,
+      itens,
       comprador: {
         nome: data.compradorNome,
         cpf: data.compradorCPF,

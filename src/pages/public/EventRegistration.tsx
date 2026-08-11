@@ -6,7 +6,8 @@ import {
   Mail,
   Hash,
   Phone,
-  Ticket,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -23,6 +24,15 @@ import {
   getTicketStatus,
 } from '../../lib/eventData';
 
+function maxQtyForType(type: TicketType, eventLimit: number): number {
+  const available = getTicketAvailableQty(type);
+  const typeLimit =
+    typeof type.limitePorCompra === 'number' && type.limitePorCompra > 0
+      ? type.limitePorCompra
+      : eventLimit;
+  return Math.max(0, Math.min(available, typeLimit, eventLimit));
+}
+
 export default function EventRegistration() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,14 +41,14 @@ export default function EventRegistration() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
-  const [ticketTypeId, setTicketTypeId] = useState('');
+  /** Quantidade por tipo de ingresso (começa em 0). */
+  const [qtyByType, setQtyByType] = useState<Record<string, number>>({});
 
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
     telefone: '',
     email: '',
-    quantidadeIngressos: 1,
     termosAceitos: false,
   });
 
@@ -47,9 +57,7 @@ export default function EventRegistration() {
     cpf: false,
     telefone: false,
     email: false,
-    quantidadeIngressos: true,
     termosAceitos: false,
-    ticketType: false,
   });
 
   const loadEvent = useCallback(async () => {
@@ -62,11 +70,12 @@ export default function EventRegistration() {
       }
       setEvent(data ?? null);
       if (data) {
-        const active = getActiveTicketTypes(data).filter((t) => getTicketStatus(t).available);
-        setTicketTypeId((prev) => {
-          if (prev && active.some((t) => t.id === prev)) return prev;
-          const next = active[0]?.id ?? '';
-          setFieldValidity((v) => ({ ...v, ticketType: Boolean(next) }));
+        const active = getActiveTicketTypes(data);
+        setQtyByType((prev) => {
+          const next: Record<string, number> = {};
+          for (const t of active) {
+            next[t.id] = typeof prev[t.id] === 'number' ? prev[t.id] : 0;
+          }
           return next;
         });
       }
@@ -88,54 +97,99 @@ export default function EventRegistration() {
     [event]
   );
 
-  const selectedTicket: TicketType | undefined = useMemo(
-    () => activeTickets.find((t) => t.id === ticketTypeId),
-    [activeTickets, ticketTypeId]
+  const eventLimit = useMemo(() => {
+    if (!event) return 10;
+    return event.limitePorCompra && event.limitePorCompra > 0
+      ? event.limitePorCompra
+      : 10;
+  }, [event]);
+
+  const cartLines = useMemo(() => {
+    return activeTickets
+      .map((type) => ({
+        type,
+        quantidade: Math.max(0, Math.floor(qtyByType[type.id] || 0)),
+      }))
+      .filter((line) => line.quantidade > 0);
+  }, [activeTickets, qtyByType]);
+
+  const totalQty = useMemo(
+    () => cartLines.reduce((s, l) => s + l.quantidade, 0),
+    [cartLines]
   );
 
+  const total = useMemo(
+    () =>
+      cartLines.reduce((s, l) => s + l.type.valor * l.quantidade, 0),
+    [cartLines]
+  );
+
+  const hasTickets = totalQty >= 1;
+  const qtyWithinEventLimit = totalQty <= eventLimit;
+
   const isFormValid =
-    Object.values(fieldValidity).every(Boolean) && Boolean(selectedTicket);
+    Object.values(fieldValidity).every(Boolean) &&
+    hasTickets &&
+    qtyWithinEventLimit &&
+    activeTickets.length > 0;
 
   const missingHints = useMemo(() => {
     const hints: string[] = [];
-    if (!fieldValidity.ticketType) hints.push('tipo de ingresso');
+    if (!hasTickets) hints.push('quantidade de ingresso (ao menos 1)');
+    if (hasTickets && !qtyWithinEventLimit) {
+      hints.push(`máximo de ${eventLimit} ingressos por compra`);
+    }
     if (!fieldValidity.nome) hints.push('nome completo');
     if (!fieldValidity.cpf) hints.push('CPF válido');
     if (!fieldValidity.telefone) hints.push('telefone');
     if (!fieldValidity.email) hints.push('e-mail');
-    if (!fieldValidity.quantidadeIngressos) hints.push('quantidade');
     if (!fieldValidity.termosAceitos) hints.push('aceite dos termos');
     return hints;
-  }, [fieldValidity]);
+  }, [fieldValidity, hasTickets, qtyWithinEventLimit, eventLimit]);
 
-  const total = useMemo(() => {
-    if (!selectedTicket) return 0;
-    return selectedTicket.valor * formData.quantidadeIngressos;
-  }, [selectedTicket, formData.quantidadeIngressos]);
+  const setTypeQty = (typeId: string, next: number) => {
+    const type = activeTickets.find((t) => t.id === typeId);
+    if (!type) return;
+    const max = maxQtyForType(type, eventLimit);
+    const clamped = Math.max(0, Math.min(max, Math.floor(next)));
 
-  const maxQty = selectedTicket
-    ? Math.min(10, Math.max(1, getTicketAvailableQty(selectedTicket)))
-    : 1;
+    setQtyByType((prev) => {
+      const draft = { ...prev, [typeId]: clamped };
+      const sumOthers = activeTickets
+        .filter((t) => t.id !== typeId)
+        .reduce((s, t) => s + Math.max(0, draft[t.id] || 0), 0);
+      const room = Math.max(0, eventLimit - sumOthers);
+      draft[typeId] = Math.min(clamped, room, max);
+      return draft;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!event || !isFormValid || !selectedTicket) return;
+    if (!event || !isFormValid || cartLines.length === 0) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      // Guest checkout: formulário local não reserva estoque.
-      // Reserva ocorre só no backend ao criar o pedido.
+      const itens = cartLines.map((l) => ({
+        ingressoId: l.type.id,
+        quantidade: l.quantidade,
+      }));
       const result = await purchaseService.create({
         eventId: event.id,
-        ticketTypeId: selectedTicket.id,
-        ticketTypeNome: selectedTicket.nome,
+        ticketTypeId: itens[0].ingressoId,
+        ticketTypeNome: cartLines
+          .map((l) =>
+            l.quantidade > 1 ? `${l.type.nome} ×${l.quantidade}` : l.type.nome
+          )
+          .join(' · '),
         compradorNome: formData.nome.trim(),
         compradorCPF: formData.cpf,
         compradorTelefone: formData.telefone,
         compradorEmail: formData.email.trim(),
-        quantidadeIngressos: formData.quantidadeIngressos,
+        quantidadeIngressos: totalQty,
         valorTotal: total,
+        itens,
       });
 
       persistGuestCheckoutSession(result.id, result.accessToken);
@@ -214,7 +268,12 @@ export default function EventRegistration() {
             )}
 
             <div className="space-y-3">
-              <p className="label-micro">Tipo de ingresso</p>
+              <div className="flex items-end justify-between gap-3">
+                <p className="label-micro">Ingressos</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  Até {eventLimit} no total
+                </p>
+              </div>
               {activeTickets.length === 0 ? (
                 <Alert variant="error">
                   Nenhum tipo de ingresso disponível para este evento.
@@ -224,28 +283,21 @@ export default function EventRegistration() {
                   {activeTickets.map((type) => {
                     const status = getTicketStatus(type);
                     const descricao = type.descricao?.trim();
-                    const selected = ticketTypeId === type.id;
+                    const qty = qtyByType[type.id] || 0;
+                    const max = maxQtyForType(type, eventLimit);
+                    const selected = qty > 0;
+                    const canIncrease =
+                      status.available && qty < max && totalQty < eventLimit;
+
                     return (
                       <li key={type.id}>
-                        <button
-                          type="button"
-                          disabled={!status.available}
-                          onClick={() => {
-                            setTicketTypeId(type.id);
-                            setFieldValidity((prev) => ({ ...prev, ticketType: true }));
-                            if (formData.quantidadeIngressos > type.quantidade) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                quantidadeIngressos: Math.max(1, type.quantidade),
-                              }));
-                            }
-                          }}
+                        <div
                           className={cn(
-                            'w-full text-left rounded-2xl border p-4 transition-all',
+                            'w-full rounded-2xl border p-4 transition-all',
                             selected
                               ? 'border-brand bg-brand-muted/40 ring-2 ring-brand/20'
-                              : 'border-gray-100 bg-white hover:border-brand/30',
-                            !status.available && 'opacity-50 cursor-not-allowed'
+                              : 'border-gray-100 bg-white',
+                            !status.available && 'opacity-50'
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -255,14 +307,47 @@ export default function EventRegistration() {
                                 <p className="text-sm text-gray-500 mt-1">{descricao}</p>
                               ) : null}
                               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-2">
-                                {status.label} · {type.quantidade} disponíveis
+                                {status.label} · {getTicketAvailableQty(type)}{' '}
+                                disponíveis
                               </p>
                             </div>
                             <p className="font-black text-brand tabular-nums shrink-0">
                               {formatTicketValue(type)}
                             </p>
                           </div>
-                        </button>
+
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                              Quantidade
+                            </span>
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                aria-label={`Diminuir ${type.nome}`}
+                                disabled={!status.available || qty <= 0}
+                                onClick={() => setTypeQty(type.id, qty - 1)}
+                                className="w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none hover:border-brand hover:text-brand transition-colors"
+                              >
+                                <Minus className="w-4 h-4" aria-hidden="true" />
+                              </button>
+                              <span
+                                className="w-10 text-center text-lg font-black tabular-nums text-gray-900"
+                                aria-live="polite"
+                              >
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Aumentar ${type.nome}`}
+                                disabled={!canIncrease}
+                                onClick={() => setTypeQty(type.id, qty + 1)}
+                                className="w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none hover:border-brand hover:text-brand transition-colors"
+                              >
+                                <Plus className="w-4 h-4" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </li>
                     );
                   })}
@@ -334,35 +419,24 @@ export default function EventRegistration() {
                 }}
                 autoComplete="email"
               />
-
-              <Input
-                label="Quantidade de Ingressos"
-                type="number"
-                min={1}
-                max={maxQty}
-                icon={<Ticket size={18} />}
-                value={formData.quantidadeIngressos}
-                isValid={fieldValidity.quantidadeIngressos}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setFormData((prev) => ({ ...prev, quantidadeIngressos: val }));
-                  setFieldValidity((prev) => ({
-                    ...prev,
-                    quantidadeIngressos: val >= 1 && val <= maxQty,
-                  }));
-                }}
-              />
             </div>
 
-            {selectedTicket && (
+            {cartLines.length > 0 && (
               <div className="rounded-2xl bg-brand-muted/60 border border-brand/10 px-5 py-4 space-y-2">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-bold text-gray-600">{selectedTicket.nome}</span>
-                  <span className="text-sm text-gray-500 tabular-nums">
-                    {formatTicketValue(selectedTicket)} × {formData.quantidadeIngressos}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
+                {cartLines.map((line) => (
+                  <div
+                    key={line.type.id}
+                    className="flex items-center justify-between gap-4"
+                  >
+                    <span className="text-sm font-bold text-gray-600">
+                      {line.type.nome}
+                    </span>
+                    <span className="text-sm text-gray-500 tabular-nums">
+                      {formatTicketValue(line.type)} × {line.quantidade}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-4 pt-1 border-t border-brand/10">
                   <span className="label-micro text-brand">Total</span>
                   <span className="text-xl font-black text-brand tabular-nums">
                     {total === 0 ? 'Gratuito' : formatCurrency(total)}

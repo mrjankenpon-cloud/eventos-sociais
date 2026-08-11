@@ -55,6 +55,11 @@ export type CheckoutSessionResult = {
   receiptUrl: string;
 };
 
+export type CheckoutCartItem = {
+  ingressoId: string;
+  quantidade: number;
+};
+
 export type OrderReceiptResult = {
   ok: boolean;
   accessToken?: string;
@@ -78,6 +83,13 @@ export type OrderReceiptResult = {
     reservaExpiraEm?: string | null;
     guestCheckout?: boolean;
     linkPagamento?: string | null;
+    itens?: Array<{
+      ingressoId: string;
+      nome: string;
+      quantidade: number;
+      valorUnitario: number;
+      natureza?: string;
+    }>;
   };
   tickets: Array<{
     id: string;
@@ -111,8 +123,7 @@ export type GuestTicketsResult = {
 export const checkoutApi = {
   createSession(input: {
     eventoId: string;
-    ingressoId: string;
-    quantidade: number;
+    itens: CheckoutCartItem[];
     comprador: {
       nome: string;
       cpf: string;

@@ -10,9 +10,55 @@ import {
 
 type Tx = admin.firestore.Transaction;
 
+type PedidoItemLine = {
+  ingressoId: string;
+  nome?: string;
+  key?: string;
+  natureza?: string;
+  quantidade: number;
+  valorUnitario?: number;
+};
+
+function normalizePedidoItems(
+  pedido: Record<string, unknown>
+): PedidoItemLine[] {
+  const raw = Array.isArray(pedido.itens) ? pedido.itens : [];
+  const fromItens: PedidoItemLine[] = [];
+  for (const row of raw) {
+    const item = (row || {}) as Record<string, unknown>;
+    const ingressoId = String(item.ingressoId || '').trim();
+    const quantidade = Math.floor(Number(item.quantidade) || 0);
+    if (!ingressoId || quantidade < 1) continue;
+    fromItens.push({
+      ingressoId,
+      nome: String(item.nome || pedido.ingressoNome || 'Ingresso'),
+      key: String(item.key || pedido.ingressoKey || ''),
+      natureza: String(item.natureza || pedido.natureza || 'entrada'),
+      quantidade,
+      valorUnitario: Number(item.valorUnitario) || undefined,
+    });
+  }
+  if (fromItens.length > 0) return fromItens;
+
+  const ingressoId = String(pedido.ingressoId || '').trim();
+  const quantidade = Math.floor(Number(pedido.quantidade) || 0);
+  if (!ingressoId || quantidade < 1) return [];
+  return [
+    {
+      ingressoId,
+      nome: String(pedido.ingressoNome || 'Ingresso'),
+      key: String(pedido.ingressoKey || ''),
+      natureza: String(pedido.natureza || 'entrada'),
+      quantidade,
+      valorUnitario: Number(pedido.valorUnitario) || undefined,
+    },
+  ];
+}
+
 /**
  * Emite tickets de forma atômica: só um caller vence o claim de `ticketsEmitidos`.
  * Impede duplicação sob webhooks concorrentes.
+ * Suporta vários tipos de ingresso no mesmo pedido (`itens[]`).
  */
 export async function emitTicketsForPedido(
   pedidoId: string,
@@ -42,7 +88,8 @@ export async function emitTicketsForPedido(
       throw new Error(`Pedido ${status} não pode emitir tickets`);
     }
 
-    const qty = Number(pedido.quantidade) || 0;
+    const lines = normalizePedidoItems(pedido);
+    const qty = lines.reduce((s, l) => s + l.quantidade, 0);
     if (qty < 1) {
       tx.update(pedidoRef, {
         ticketsEmitidos: true,
@@ -52,43 +99,47 @@ export async function emitTicketsForPedido(
     }
 
     let firstQr = '';
+    let ordem = 0;
     const now = admin.firestore.FieldValue.serverTimestamp();
     const createdAtIso = new Date().toISOString();
 
-    for (let ordem = 1; ordem <= qty; ordem++) {
-      const ticketRef = db().collection('tickets').doc();
-      const codigo = generateCodigo();
-      const hash = sha256(
-        `${ticketRef.id}|${codigo}|${randomToken(8)}|${createdAtIso}`
-      );
-      const qrPayload = buildQrPayload({
-        ticketId: ticketRef.id,
-        codigo,
-        hash,
-        status: 'Disponível',
-        createdAt: createdAtIso,
-      });
-      if (ordem === 1) firstQr = qrPayload;
+    for (const line of lines) {
+      for (let i = 0; i < line.quantidade; i++) {
+        ordem += 1;
+        const ticketRef = db().collection('tickets').doc();
+        const codigo = generateCodigo();
+        const hash = sha256(
+          `${ticketRef.id}|${codigo}|${randomToken(8)}|${createdAtIso}`
+        );
+        const qrPayload = buildQrPayload({
+          ticketId: ticketRef.id,
+          codigo,
+          hash,
+          status: 'Disponível',
+          createdAt: createdAtIso,
+        });
+        if (ordem === 1) firstQr = qrPayload;
 
-      tx.set(ticketRef, {
-        codigo,
-        hash,
-        qrPayload,
-        eventoId: pedido.eventoId,
-        compraId: pedidoId,
-        pedidoId,
-        ingressoId: pedido.ingressoId || null,
-        ingressoKey: pedido.ingressoKey || null,
-        ingressoNome: pedido.ingressoNome || null,
-        natureza: pedido.natureza || 'entrada',
-        status: 'Disponível',
-        ordem,
-        checkinRealizado: false,
-        retiradaRealizada: false,
-        ativo: true,
-        createdAt: now,
-        updatedAt: now,
-      });
+        tx.set(ticketRef, {
+          codigo,
+          hash,
+          qrPayload,
+          eventoId: pedido.eventoId,
+          compraId: pedidoId,
+          pedidoId,
+          ingressoId: line.ingressoId || null,
+          ingressoKey: line.key || null,
+          ingressoNome: line.nome || null,
+          natureza: line.natureza || 'entrada',
+          status: 'Disponível',
+          ordem,
+          checkinRealizado: false,
+          retiradaRealizada: false,
+          ativo: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
 
     tx.update(pedidoRef, {
@@ -158,6 +209,7 @@ export async function reserveStock(
 /**
  * Transição de status + liberação de estoque atômica.
  * Só libera se `estoqueReservado` ainda for true no momento do commit.
+ * Libera todos os tipos em `itens[]` quando presentes.
  */
 export async function transitionPedidoReleaseStock(input: {
   pedidoId: string;
@@ -178,8 +230,20 @@ export async function transitionPedidoReleaseStock(input: {
     }
 
     const shouldRelease = Boolean(pedido.estoqueReservado);
-    const ingressoId = String(pedido.ingressoId || '');
-    const qty = Number(pedido.quantidade) || 0;
+    const lines = normalizePedidoItems(pedido);
+    const ingressoSnaps: Array<{
+      ref: admin.firestore.DocumentReference;
+      snap: admin.firestore.DocumentSnapshot;
+      qty: number;
+    }> = [];
+
+    if (shouldRelease) {
+      for (const line of lines) {
+        const ref = db().collection('ingressos').doc(line.ingressoId);
+        const isnap = await tx.get(ref);
+        ingressoSnaps.push({ ref, snap: isnap, qty: line.quantidade });
+      }
+    }
 
     tx.update(pedidoRef, {
       status: input.toStatus,
@@ -188,11 +252,28 @@ export async function transitionPedidoReleaseStock(input: {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    if (shouldRelease && ingressoId && qty > 0) {
-      await releaseStock(ingressoId, qty, tx);
-      return { applied: true, released: true, qty };
+    let releasedQty = 0;
+    if (shouldRelease) {
+      for (const row of ingressoSnaps) {
+        if (!row.snap.exists || row.qty <= 0) continue;
+        const data = row.snap.data() || {};
+        const total = Number(data.quantidade) || 0;
+        const vendida = Math.max(
+          0,
+          (Number(data.quantidadeVendida) || 0) - row.qty
+        );
+        tx.update(row.ref, {
+          ...stockFields(total, vendida),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        releasedQty += row.qty;
+      }
     }
 
-    return { applied: true, released: false, qty: 0 };
+    return {
+      applied: true,
+      released: releasedQty > 0,
+      qty: releasedQty,
+    };
   });
 }

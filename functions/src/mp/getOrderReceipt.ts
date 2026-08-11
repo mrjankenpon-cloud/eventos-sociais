@@ -110,6 +110,15 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         quantidade: pedido.quantidade,
         valorUnitario: pedido.valorUnitario,
         valorTotal: pedido.valorTotal,
+        itens: Array.isArray(pedido.itens)
+          ? (pedido.itens as Array<Record<string, unknown>>).map((row) => ({
+              ingressoId: String(row.ingressoId || ''),
+              nome: String(row.nome || ''),
+              quantidade: Number(row.quantidade) || 0,
+              valorUnitario: Number(row.valorUnitario) || 0,
+              natureza: row.natureza ? String(row.natureza) : undefined,
+            }))
+          : [],
         formaPagamento: pedido.formaPagamento,
         mpStatus: pedido.mpStatus || null,
         ticketsEmitidos: Boolean(pedido.ticketsEmitidos),

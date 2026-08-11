@@ -283,10 +283,27 @@ export default function OrderSuccess() {
               <span className="text-gray-600">Comprador</span>
               <span className="font-bold text-gray-900">{pedido.nomeComprador}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Quantidade</span>
-              <span className="font-bold tabular-nums">{pedido.quantidade}</span>
-            </div>
+            {pedido.itens && pedido.itens.length > 0
+              ? pedido.itens.map((item) => (
+                  <div
+                    key={`${item.ingressoId}-${item.nome}`}
+                    className="flex justify-between text-sm"
+                  >
+                    <span className="text-gray-600">{item.nome}</span>
+                    <span className="font-bold tabular-nums text-gray-900">
+                      {item.quantidade}×{' '}
+                      {item.valorUnitario === 0
+                        ? 'Gratuito'
+                        : formatCurrency(item.valorUnitario)}
+                    </span>
+                  </div>
+                ))
+              : (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Quantidade</span>
+                    <span className="font-bold tabular-nums">{pedido.quantidade}</span>
+                  </div>
+                )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Total</span>
               <span className="font-black text-brand tabular-nums">
