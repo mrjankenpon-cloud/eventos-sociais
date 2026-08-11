@@ -9,7 +9,12 @@ export async function persistEventMedia(
   const next = { ...data };
 
   if (typeof next.banner === 'string') {
-    next.banner = await ensureStoredImage(next.banner, 'eventos', previous?.banner);
+    next.banner = await ensureStoredImage(
+      next.banner,
+      'eventos',
+      previous?.banner,
+      'banner'
+    );
   }
 
   if (Array.isArray(next.imagens)) {
@@ -17,7 +22,7 @@ export async function persistEventMedia(
     next.imagens = await Promise.all(
       next.imagens.map(async (img: GalleryImage) => {
         const old = prevById.get(img.id)?.url;
-        const url = await ensureStoredImage(img.url, 'eventos/galeria', old);
+        const url = await ensureStoredImage(img.url, 'eventos/galeria', old, 'gallery');
         return { ...img, url };
       })
     );
@@ -33,7 +38,7 @@ export async function persistEventMedia(
   if (Array.isArray(next.galeria)) {
     next.galeria = await Promise.all(
       next.galeria.map((url, index) =>
-        ensureStoredImage(url, 'eventos/galeria', previous?.galeria?.[index])
+        ensureStoredImage(url, 'eventos/galeria', previous?.galeria?.[index], 'gallery')
       )
     );
   }

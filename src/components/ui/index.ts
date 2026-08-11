@@ -9,3 +9,4 @@ export { Spinner, Skeleton, PageLoader } from './Spinner';
 export { Toast } from './Toast';
 export { CPFInput } from './CPFInput';
 export { PhoneInput } from './PhoneInput';
+export { AppImage } from './AppImage';

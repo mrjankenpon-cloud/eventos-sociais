@@ -3,6 +3,7 @@ import { GripVertical, Plus, Search, Trash2, X } from 'lucide-react';
 import type { EventEntityLink } from '../../../types/models/event';
 import { cn } from '../../../lib/utils';
 import { Button } from '../../ui';
+import { AppImage } from '../../ui/AppImage';
 
 export interface LinkableEntity {
   id: string;
@@ -130,7 +131,7 @@ export function EntityLinkPicker({
                     onClick={() => add(item.id)}
                     className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-white border border-gray-100 hover:border-brand/30 hover:shadow-sm transition-all text-left"
                   >
-                    <img
+                    <AppImage
                       src={item.logo}
                       alt=""
                       className="w-10 h-10 rounded-lg object-contain bg-gray-50 border border-gray-100"
@@ -174,7 +175,7 @@ export function EntityLinkPicker({
               >
                 <GripVertical size={18} />
               </span>
-              <img
+              <AppImage
                 src={entity!.logo}
                 alt=""
                 className="w-11 h-11 rounded-xl object-contain bg-gray-50 border border-gray-100 shrink-0"

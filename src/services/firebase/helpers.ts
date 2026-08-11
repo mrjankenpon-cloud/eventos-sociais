@@ -16,6 +16,8 @@ export const COLLECTIONS = {
   banners: 'banners',
   patrocinadores: 'patrocinadores',
   instituicoes: 'instituicoes',
+  /** Banco de imagens (logos, banners) — usado quando Storage não está disponível */
+  imagens: 'imagens',
   ingressos: 'ingressos',
   pedidos: 'pedidos',
   /** Tickets emitidos (QR / check-in) — derivados de pedidos */

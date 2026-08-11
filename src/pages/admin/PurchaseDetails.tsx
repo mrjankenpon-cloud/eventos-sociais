@@ -16,7 +16,7 @@ import { eventService } from '../../services/event.service';
 import { Purchase, Ticket, Event } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
-import { Badge, Button, PageLoader, EmptyState, Toast } from '../../components/ui';
+import { Badge, Button, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 
@@ -118,7 +118,7 @@ export default function PurchaseDetails() {
         <section className="card-surface p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 min-w-0">
             {event.banner ? (
-              <img
+              <AppImage
                 src={event.banner}
                 alt=""
                 className="w-full sm:w-28 h-36 sm:h-20 rounded-2xl object-cover shrink-0"

@@ -68,10 +68,16 @@ function resolveLoginEmail(usernameOrEmail: string): string {
 /** Garante perfil master no Firestore para o UID fixo. */
 async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
   const email = normalizeEmail(fbUser.email || 'master@delphos.local');
-  const existing = await getDoc(docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID));
-  const base = existing.exists()
-    ? mapDoc<User>(existing as Parameters<typeof mapDoc>[0])
-    : null;
+  let base: User | null = null;
+
+  try {
+    const existing = await getDoc(docRef(COLLECTIONS.usuarios, MASTER_ADMIN_UID));
+    base = existing.exists()
+      ? mapDoc<User>(existing as Parameters<typeof mapDoc>[0])
+      : null;
+  } catch (error) {
+    console.error('[usuarios.ensureMasterProfile] read', error);
+  }
 
   // Já existe perfil master ativo → só lê (evita write a cada refresh/navegação)
   if (base && base.ativo !== false && (base.master || base.role === 'admin')) {
@@ -116,11 +122,13 @@ async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
 
 function isAccessDeniedError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message.toLowerCase() : '';
+  // Só erros de negócio (PT). NÃO tratar "Missing or insufficient permissions"
+  // do Firestore como logout — isso é falha transitória de rules/rede.
   return (
     msg.includes('desativado') ||
-    msg.includes('permissão') ||
     msg.includes('sem e-mail') ||
-    msg.includes('não tem permissão')
+    msg.includes('não tem permissão') ||
+    msg.includes('nao tem permissao')
   );
 }
 
@@ -170,10 +178,11 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
     const profile = withMasterFlags(
       mapDoc<User>(byUid as Parameters<typeof mapDoc>[0])
     );
-    if (!profile.ativo) {
+    // Ausência de `ativo` = ativo (só desativa com false explícito)
+    if (profile.ativo === false) {
       throw new Error('Seu acesso está desativado. Contate um administrador.');
     }
-    return profile;
+    return { ...profile, ativo: true };
   }
 
   const inviteId = inviteDocId(email);
@@ -185,7 +194,7 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
   }
 
   const invite = mapDoc<User>(inviteSnap as Parameters<typeof mapDoc>[0]);
-  if (!invite.ativo) {
+  if (invite.ativo === false) {
     throw new Error('Seu acesso está desativado. Contate um administrador.');
   }
 
@@ -489,14 +498,19 @@ export const usuariosService = {
     try {
       const cred = await signInWithPopup(auth, googleProvider);
       const profile = await claimInviteForAuth(cred.user);
-      await logsService.record({
-        acao: 'login',
-        colecao: COLLECTIONS.usuarios,
-        documentoId: profile.id,
-        descricao: `Login Google: ${profile.email}`,
-        usuarioId: profile.id,
-        usuarioNome: profile.name,
-      });
+      try {
+        await logsService.record({
+          acao: 'login',
+          colecao: COLLECTIONS.usuarios,
+          documentoId: profile.id,
+          descricao: `Login Google: ${profile.email}`,
+          usuarioId: profile.id,
+          usuarioNome: profile.name,
+        });
+      } catch (logError) {
+        // Login ok — não derruba a sessão por falha de auditoria
+        console.error('[usuarios.loginWithGoogle] log', logError);
+      }
       return profile;
     } catch (error) {
       console.error('[usuarios.loginWithGoogle]', error);
@@ -537,6 +551,11 @@ export const usuariosService = {
         return await claimInviteForAuth(fbUser);
       } catch (error) {
         if (isAccessDeniedError(error)) {
+          // Master nunca é deslogado por regra de negócio do perfil
+          if (isMasterAdminUid(fbUser.uid)) {
+            const soft = softProfileFromAuth(fbUser);
+            if (soft) return soft;
+          }
           await signOut(auth).catch(() => undefined);
           return null;
         }
@@ -549,8 +568,8 @@ export const usuariosService = {
             const profile = withMasterFlags(
               mapDoc<User>(snap as Parameters<typeof mapDoc>[0])
             );
-            if (profile.ativo || isMasterAdminUid(profile.id)) {
-              return profile;
+            if (profile.ativo !== false || isMasterAdminUid(profile.id)) {
+              return { ...profile, ativo: true };
             }
           }
         } catch (readError) {
@@ -567,6 +586,10 @@ export const usuariosService = {
       }
     } catch (error) {
       if (isAccessDeniedError(error)) {
+        if (auth.currentUser && isMasterAdminUid(auth.currentUser.uid)) {
+          const soft = softProfileFromAuth(auth.currentUser);
+          if (soft) return soft;
+        }
         await signOut(auth).catch(() => undefined);
         return null;
       }

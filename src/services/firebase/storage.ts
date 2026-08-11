@@ -6,20 +6,35 @@ import {
   uploadString,
 } from 'firebase/storage';
 import { storage } from '../../firebase/storage';
+import {
+  compressImage,
+  dataUrlByteLength,
+} from '../../lib/imageCompress';
+import {
+  folderToImageKind,
+  isImageRef,
+  type ImageFolder,
+  type ImageKind,
+} from '../../types/imagem';
+import { imagensService } from './imagens';
 
-export type StorageFolder =
-  | 'banners'
-  | 'patrocinadores'
-  | 'instituicoes'
-  | 'eventos'
-  | 'eventos/galeria'
-  | 'configuracoes'
-  | 'misc';
+export type StorageFolder = ImageFolder;
 
-function uniqueName(originalName?: string): string {
+const UPLOAD_TIMEOUT_MS = 5_000;
+
+/** null = ainda não testado; false = Storage indisponível neste ambiente */
+let storageWritable: boolean | null = null;
+
+function uniqueName(originalName?: string, contentType?: string): string {
+  const fromType =
+    contentType === 'image/webp'
+      ? 'webp'
+      : contentType === 'image/png'
+        ? 'png'
+        : 'jpg';
   const ext =
     originalName?.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ||
-    'jpg';
+    fromType;
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -43,6 +58,27 @@ function isFirebaseStorageUrl(value: string): boolean {
   );
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+function kindForFolder(folder: StorageFolder, explicit?: ImageKind): ImageKind {
+  if (explicit) return explicit;
+  return folderToImageKind(folder);
+}
+
 /** Extrai path do Storage a partir da URL pública (quando possível). */
 export function storagePathFromUrl(url: string): string | null {
   try {
@@ -64,26 +100,38 @@ export async function uploadImage(
   fileName?: string
 ): Promise<string> {
   try {
-    const name = fileName || uniqueName(file instanceof File ? file.name : undefined);
+    const name =
+      fileName ||
+      uniqueName(
+        file instanceof File ? file.name : undefined,
+        typeof file === 'string' ? contentTypeFromDataUrl(file) : file.type
+      );
     const path = `${folder}/${name}`;
     const storageRef = ref(storage, path);
 
-    if (typeof file === 'string') {
-      if (!isDataUrl(file)) {
-        throw new Error('uploadImage: string deve ser data URL');
+    const upload = async () => {
+      if (typeof file === 'string') {
+        if (!isDataUrl(file)) {
+          throw new Error('uploadImage: string deve ser data URL');
+        }
+        await uploadString(storageRef, file, 'data_url', {
+          contentType: contentTypeFromDataUrl(file),
+          cacheControl: 'public,max-age=31536000',
+        });
+      } else {
+        await uploadBytes(storageRef, file, {
+          contentType: file.type || 'image/jpeg',
+          cacheControl: 'public,max-age=31536000',
+        });
       }
-      await uploadString(storageRef, file, 'data_url', {
-        contentType: contentTypeFromDataUrl(file),
-        cacheControl: 'public,max-age=31536000',
-      });
-    } else {
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || 'image/jpeg',
-        cacheControl: 'public,max-age=31536000',
-      });
-    }
+      return getDownloadURL(storageRef);
+    };
 
-    return await getDownloadURL(storageRef);
+    return await withTimeout(
+      upload(),
+      UPLOAD_TIMEOUT_MS,
+      'Upload de imagem demorou demais (Firebase Storage).'
+    );
   } catch (error) {
     console.error('[storage.uploadImage]', error);
     throw new Error(
@@ -95,6 +143,11 @@ export async function uploadImage(
 export async function deleteImage(urlOrPath: string): Promise<void> {
   try {
     if (!urlOrPath) return;
+    if (isDataUrl(urlOrPath)) return;
+    if (isImageRef(urlOrPath)) {
+      await imagensService.deleteByRef(urlOrPath);
+      return;
+    }
     const path = isFirebaseStorageUrl(urlOrPath)
       ? storagePathFromUrl(urlOrPath)
       : urlOrPath.includes('/')
@@ -103,7 +156,6 @@ export async function deleteImage(urlOrPath: string): Promise<void> {
     if (!path) return;
     await deleteObject(ref(storage, path));
   } catch (error) {
-    // Objeto inexistente não deve quebrar o fluxo
     console.error('[storage.deleteImage]', error);
   }
 }
@@ -116,7 +168,7 @@ export async function replaceImage(
 ): Promise<string> {
   try {
     const url = await uploadImage(newFile, folder, fileName);
-    if (oldUrl && oldUrl !== url && isFirebaseStorageUrl(oldUrl)) {
+    if (oldUrl && oldUrl !== url) {
       await deleteImage(oldUrl);
     }
     return url;
@@ -129,23 +181,62 @@ export async function replaceImage(
 }
 
 /**
- * Se o valor for data URL, faz upload e retorna URL pública.
- * Se for URL remota, mantém (e opcionalmente substitui a antiga).
+ * Pipeline de mídia:
+ * 1) Comprime com preset de qualidade (logo/banner/…)
+ * 2) Tenta Firebase Storage (se billing/bucket existir)
+ * 3) Senão grava na coleção Firestore `imagens` e devolve `img:{id}`
  */
 export async function ensureStoredImage(
   value: string | undefined | null,
   folder: StorageFolder,
-  oldUrl?: string | null
+  oldUrl?: string | null,
+  kind?: ImageKind
 ): Promise<string> {
   if (!value) return '';
-  if (isDataUrl(value)) {
-    return replaceImage(value, folder, oldUrl);
+
+  // Já é referência persistida — mantém
+  if (isImageRef(value)) {
+    if (oldUrl && oldUrl !== value) await deleteImage(oldUrl);
+    return value;
   }
-  if (oldUrl && value !== oldUrl && isFirebaseStorageUrl(oldUrl)) {
-    // URL nova externa/diferente: remove antiga do Storage
-    await deleteImage(oldUrl);
+
+  if (!isDataUrl(value)) {
+    if (oldUrl && value !== oldUrl) await deleteImage(oldUrl);
+    return value;
   }
-  return value;
+
+  const imageKind = kindForFolder(folder, kind);
+  const compressed = await compressImage(value, imageKind);
+
+  // Storage disponível e funcionando
+  if (storageWritable !== false) {
+    try {
+      const url = await replaceImage(compressed.dataUrl, folder, oldUrl);
+      storageWritable = true;
+      return url;
+    } catch (error) {
+      storageWritable = false;
+      console.warn(
+        '[storage.ensureStoredImage] Storage indisponível — usando coleção imagens',
+        error
+      );
+    }
+  }
+
+  // Banco Firestore `imagens` (logos, parceiros, banners)
+  if (dataUrlByteLength(compressed.dataUrl) > 900_000) {
+    throw new Error(
+      'Imagem grande demais para o banco de imagens. Use um arquivo menor.'
+    );
+  }
+
+  const refId = await imagensService.createFromCompressed(
+    compressed,
+    folder,
+    imageKind
+  );
+  if (oldUrl && oldUrl !== refId) await deleteImage(oldUrl);
+  return refId;
 }
 
 export const storageService = {

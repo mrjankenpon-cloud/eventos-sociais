@@ -28,6 +28,7 @@ import {
   Modal,
   PageLoader,
   Textarea,
+  AppImage,
 } from '../../components/ui';
 import { BRAZIL_STATES } from '../../lib/eventForm';
 import { THEME } from '../../theme';
@@ -183,8 +184,12 @@ export default function Institutions() {
       }
       closeModal();
       await load();
-    } catch {
-      setFormError('Erro ao salvar instituição.');
+    } catch (err) {
+      setFormError(
+        err instanceof Error && err.message
+          ? err.message.replace(/^\[[^\]]+\]\s*/, '')
+          : 'Erro ao salvar instituição.'
+      );
     } finally {
       setSaving(false);
     }
@@ -302,7 +307,7 @@ export default function Institutions() {
             >
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-                  <img
+                  <AppImage
                     src={inst.logo}
                     alt=""
                     className="max-w-full max-h-full object-contain p-2"
@@ -391,7 +396,7 @@ export default function Institutions() {
               <p className="text-sm font-bold text-gray-700">Logotipo *</p>
               {form.logo ? (
                 <div className="flex items-center gap-4 p-3 rounded-2xl border border-gray-100 bg-gray-50">
-                  <img
+                  <AppImage
                     src={form.logo}
                     alt=""
                     className="w-16 h-16 object-contain rounded-xl bg-white border"
@@ -408,8 +413,9 @@ export default function Institutions() {
               ) : (
                 <ImageUploadZone
                   label="Arraste o logotipo"
+                  imageKind="logo"
                   onFiles={async (files) => {
-                    const url = await readFileAsDataUrl(files[0]);
+                    const url = await readFileAsDataUrl(files[0], 'logo');
                     setForm((f) => ({ ...f, logo: url }));
                   }}
                 />
@@ -419,7 +425,7 @@ export default function Institutions() {
               <p className="text-sm font-bold text-gray-700">Imagem de destaque</p>
               {form.imagemDestaque ? (
                 <div className="flex items-center gap-4 p-3 rounded-2xl border border-gray-100 bg-gray-50">
-                  <img
+                  <AppImage
                     src={form.imagemDestaque}
                     alt=""
                     className="w-16 h-16 object-cover rounded-xl"
@@ -436,8 +442,9 @@ export default function Institutions() {
               ) : (
                 <ImageUploadZone
                   label="Arraste a imagem de destaque"
+                  imageKind="destaque"
                   onFiles={async (files) => {
-                    const url = await readFileAsDataUrl(files[0]);
+                    const url = await readFileAsDataUrl(files[0], 'destaque');
                     setForm((f) => ({ ...f, imagemDestaque: url }));
                   }}
                 />

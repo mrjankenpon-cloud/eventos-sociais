@@ -9,6 +9,7 @@ import type { Event, Institution, Sponsor } from '../../types';
 import { PageLoader } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
+import { AppImage } from '../../components/ui/AppImage';
 import { EventPartnersSection } from '../../components/public/EventPartnersSection';
 import { EventTicketTypes } from '../../components/public/EventTicketTypes';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
@@ -125,7 +126,7 @@ export default function EventDetails() {
   return (
     <div className="pb-12 sm:pb-16 min-h-screen bg-white">
       <div className="relative h-[36vh] min-h-[240px] sm:min-h-[280px] max-h-[420px] w-full -mt-[115px] pt-[115px]">
-        <img
+        <AppImage
           src={event.banner}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
@@ -191,7 +192,7 @@ export default function EventDetails() {
                     {(event.imagens?.filter((i) => !i.isCover).map((i) => i.url) ??
                       event.galeria
                     ).map((img, idx) => (
-                      <img
+                      <AppImage
                         key={idx}
                         src={img}
                         alt={`Foto ${idx + 1} do evento`}

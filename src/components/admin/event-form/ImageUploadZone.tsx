@@ -6,6 +6,7 @@ import {
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_SIZE_MB,
 } from '../../../lib/eventForm';
+import type { ImageKind } from '../../../types/imagem';
 
 interface ImageUploadZoneProps {
   onFiles: (files: File[]) => void | Promise<void>;
@@ -14,6 +15,8 @@ interface ImageUploadZoneProps {
   hint?: string;
   className?: string;
   disabled?: boolean;
+  /** Preset de compressão ao ler o arquivo (padrão: logo). */
+  imageKind?: ImageKind;
 }
 
 export function ImageUploadZone({
@@ -23,6 +26,7 @@ export function ImageUploadZone({
   hint = `JPG, PNG ou WEBP · até ${MAX_IMAGE_SIZE_MB}MB`,
   className,
   disabled,
+  imageKind = 'logo',
 }: ImageUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -136,11 +140,11 @@ export function ImageUploadZone({
   );
 }
 
-export function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+export function readFileAsDataUrl(
+  file: File,
+  kind: ImageKind = 'logo'
+): Promise<string> {
+  return import('../../../lib/imageCompress').then(({ compressImageToDataUrl }) =>
+    compressImageToDataUrl(file, kind)
+  );
 }

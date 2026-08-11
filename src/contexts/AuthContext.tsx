@@ -19,36 +19,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const userRef = useRef<User | null>(null);
+  const restoreGen = useRef(0);
+  const recoveryAttempted = useRef(false);
   userRef.current = user;
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      const gen = ++restoreGen.current;
+
       try {
-        if (fbUser) {
-          try {
-            const profile = await usuariosService.getCurrentProfile();
-            setUser(profile);
-          } catch (error) {
-            // Erro transitório: preserva usuário já logado em memória
-            console.error('[AuthProvider] profile restore', error);
-            if (!userRef.current) {
-              setUser(null);
-            }
+        if (!fbUser) {
+          recoveryAttempted.current = false;
+          // Só limpa se este callback ainda for o mais recente
+          if (gen === restoreGen.current) {
+            setUser(null);
           }
-        } else {
-          setUser(null);
+          return;
+        }
+
+        // Mesmo UID já em memória (ex.: refresh de token) — não revalida nem arrisca signOut
+        if (userRef.current?.id === fbUser.uid) {
+          return;
+        }
+
+        try {
+          const profile = await usuariosService.getCurrentProfile();
+          if (gen !== restoreGen.current) return;
+
+          if (profile) {
+            recoveryAttempted.current = false;
+            setUser(profile);
+            return;
+          }
+
+          // getCurrentProfile devolveu null: só aceita logout se Auth também perdeu a sessão
+          if (!auth.currentUser) {
+            setUser(null);
+            return;
+          }
+
+          // Auth ainda válida — preserva usuário em memória se houver
+          if (!userRef.current) {
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('[AuthProvider] profile restore', error);
+          if (gen !== restoreGen.current) return;
+
+          // Nunca zera sessão enquanto Firebase Auth ainda tem currentUser
+          if (!auth.currentUser) {
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error('[AuthProvider]', error);
-        if (!auth.currentUser) {
+        if (gen === restoreGen.current && !auth.currentUser) {
           setUser(null);
         }
       } finally {
-        setIsLoading(false);
+        if (gen === restoreGen.current) {
+          setIsLoading(false);
+        }
       }
     });
-    return () => unsub();
+
+    return () => {
+      restoreGen.current += 1;
+      unsub();
+    };
   }, []);
+
+  // Recuperação: Auth tem sessão, React perdeu o perfil (race / HMR / erro transitório)
+  useEffect(() => {
+    if (isLoading || user || !auth.currentUser || recoveryAttempted.current) return;
+
+    recoveryAttempted.current = true;
+    let cancelled = false;
+    const gen = ++restoreGen.current;
+
+    void (async () => {
+      try {
+        const profile = await usuariosService.getCurrentProfile();
+        if (cancelled || gen !== restoreGen.current) return;
+        if (profile) {
+          setUser(profile);
+          recoveryAttempted.current = false;
+        }
+      } catch (error) {
+        console.error('[AuthProvider] recovery', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, user]);
 
   const login = useCallback(async (usernameOrEmail: string, password: string) => {
     const profile = await usuariosService.login(usernameOrEmail, password);
@@ -63,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    restoreGen.current += 1;
     await usuariosService.logout();
     setUser(null);
   }, []);

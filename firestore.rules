@@ -188,6 +188,22 @@ service cloud.firestore {
         );
     }
 
+    // ---- imagens (logos instituições/parceiros + banners) ----
+    match /imagens/{id} {
+      allow read: if true;
+      allow create, update: if isEditor()
+        && request.resource.data.keys().hasAll([
+          'pasta', 'tipo', 'contentType', 'base64', 'width', 'height', 'bytes'
+        ])
+        && request.resource.data.base64 is string
+        && request.resource.data.base64.size() > 0
+        && request.resource.data.base64.size() < 1200000
+        && request.resource.data.bytes is number
+        && request.resource.data.bytes > 0
+        && request.resource.data.bytes < 900000;
+      allow delete: if isEditor();
+    }
+
     // ---- banners ----
     match /banners/{id} {
       allow read: if resource.data.ativo == true || isStaff();

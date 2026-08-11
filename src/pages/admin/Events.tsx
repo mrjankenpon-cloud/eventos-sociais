@@ -17,7 +17,7 @@ import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
-import { Button, Badge, Alert, PageLoader } from '../../components/ui';
+import { Button, Badge, Alert, PageLoader, AppImage } from '../../components/ui';
 import { formatEventDate } from '../../lib/utils';
 
 type StatusFilter = 'all' | 'published' | 'draft';
@@ -82,7 +82,7 @@ export default function Events() {
       header: 'Evento',
       render: (event) => (
         <div className="flex items-center gap-3 min-w-0">
-          <img
+          <AppImage
             src={event.banner}
             alt=""
             loading="lazy"

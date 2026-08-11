@@ -6,6 +6,7 @@ import { Event } from '../../types';
 import { parseEventDate } from '../../lib/utils';
 import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
+import { AppImage } from '../ui/AppImage';
 
 interface BannerProps {
   event: Event;
@@ -36,7 +37,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
 
       <div className="relative flex flex-col md:flex-row h-auto md:h-[400px] rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
         <div className="w-full md:w-2/3 h-[320px] sm:h-[400px] md:h-full relative overflow-hidden">
-          <img
+          <AppImage
             src={event.banner}
             alt=""
             loading="lazy"

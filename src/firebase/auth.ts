@@ -1,14 +1,26 @@
 import {
+  initializeAuth,
   getAuth,
-  setPersistence,
   browserLocalPersistence,
+  indexedDBLocalPersistence,
   type Auth,
 } from 'firebase/auth';
 import { firebaseApp } from './config';
 
-export const auth: Auth = getAuth(firebaseApp);
+/**
+ * Persistência local (IndexedDB → localStorage) na inicialização,
+ * antes de qualquer listener — sessão sobrevive a navegação e reload
+ * até logout explícito.
+ */
+function createAuth(): Auth {
+  try {
+    return initializeAuth(firebaseApp, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    });
+  } catch {
+    // HMR / reimport: Auth já inicializado
+    return getAuth(firebaseApp);
+  }
+}
 
-/** Mantém a sessão no browser até logout explícito. */
-void setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error('[firebase/auth] setPersistence', error);
-});
+export const auth: Auth = createAuth();

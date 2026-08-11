@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { institutionService } from '../../services/institution.service';
 import type { Institution } from '../../types';
 import { THEME } from '../../theme';
+import { AppImage } from '../ui/AppImage';
 
 function institutionHref(inst: Institution): string | undefined {
   const site = inst.site?.trim();
@@ -54,7 +55,7 @@ export function InstitutionsStrip() {
               const href = institutionHref(inst);
               const logo = (
                 <span className="inline-flex items-center justify-center h-28 sm:h-32 px-3 sm:px-4 rounded-xl bg-transparent transition-all hover:opacity-90">
-                  <img
+                  <AppImage
                     src={inst.logo}
                     alt={inst.nome}
                     loading="lazy"

@@ -31,7 +31,7 @@ import { ensureStoredImage, deleteImage } from './storage';
 export const bannersService = {
   async create(data: BannerFormData): Promise<Banner> {
     try {
-      const imagem = await ensureStoredImage(data.imagem, 'banners');
+      const imagem = await ensureStoredImage(data.imagem, 'banners', null, 'banner');
       const payload = uiBannerToFs({ ...data, imagem });
       const ref = await addDoc(col(COLLECTIONS.banners), {
         ...stripUndefined(payload),
@@ -86,7 +86,12 @@ export const bannersService = {
       const before = await this.getById(id);
       const patch = { ...data };
       if (typeof data.imagem === 'string') {
-        patch.imagem = await ensureStoredImage(data.imagem, 'banners', before?.imagem);
+        patch.imagem = await ensureStoredImage(
+          data.imagem,
+          'banners',
+          before?.imagem,
+          'banner'
+        );
       }
       await updateDoc(docRef(COLLECTIONS.banners, id), {
         ...stripUndefined(uiBannerToFs(patch)),

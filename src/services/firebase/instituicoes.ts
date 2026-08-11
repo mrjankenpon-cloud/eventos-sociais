@@ -31,9 +31,9 @@ import { ensureStoredImage, deleteImage } from './storage';
 export const instituicoesService = {
   async create(data: InstitutionFormData): Promise<Institution> {
     try {
-      const logo = await ensureStoredImage(data.logo, 'instituicoes');
+      const logo = await ensureStoredImage(data.logo, 'instituicoes', null, 'logo');
       const imagemDestaque = data.imagemDestaque
-        ? await ensureStoredImage(data.imagemDestaque, 'instituicoes')
+        ? await ensureStoredImage(data.imagemDestaque, 'instituicoes', null, 'destaque')
         : data.imagemDestaque;
       const payload = institutionFormToFs({ ...data, logo, imagemDestaque });
       const ref = await addDoc(col(COLLECTIONS.instituicoes), {
@@ -43,13 +43,17 @@ export const instituicoesService = {
       const created = await this.getById(ref.id);
       if (!created) throw new Error('Falha ao ler instituição criada');
 
-      await logsService.record({
-        acao: 'create',
-        colecao: COLLECTIONS.instituicoes,
-        documentoId: created.id,
-        descricao: `Instituição criada: ${created.nome}`,
-        after: { nome: created.nome },
-      });
+      try {
+        await logsService.record({
+          acao: 'create',
+          colecao: COLLECTIONS.instituicoes,
+          documentoId: created.id,
+          descricao: `Instituição criada: ${created.nome}`,
+          after: { nome: created.nome },
+        });
+      } catch (logError) {
+        console.error('[instituicoes.create] log', logError);
+      }
 
       return created;
     } catch (error) {
@@ -113,13 +117,19 @@ export const instituicoesService = {
       const before = await this.getById(id);
       const patch = { ...data };
       if (typeof data.logo === 'string') {
-        patch.logo = await ensureStoredImage(data.logo, 'instituicoes', before?.logo);
+        patch.logo = await ensureStoredImage(
+          data.logo,
+          'instituicoes',
+          before?.logo,
+          'logo'
+        );
       }
       if (typeof data.imagemDestaque === 'string') {
         patch.imagemDestaque = await ensureStoredImage(
           data.imagemDestaque,
           'instituicoes',
-          before?.imagemDestaque
+          before?.imagemDestaque,
+          'destaque'
         );
       }
       await updateDoc(docRef(COLLECTIONS.instituicoes, id), {
@@ -129,14 +139,18 @@ export const instituicoesService = {
       const updated = await this.getById(id);
       if (!updated) throw new Error('Instituição não encontrada');
 
-      await logsService.record({
-        acao: 'update',
-        colecao: COLLECTIONS.instituicoes,
-        documentoId: id,
-        descricao: `Instituição atualizada: ${updated.nome}`,
-        before: before as unknown as Record<string, unknown>,
-        after: updated as unknown as Record<string, unknown>,
-      });
+      try {
+        await logsService.record({
+          acao: 'update',
+          colecao: COLLECTIONS.instituicoes,
+          documentoId: id,
+          descricao: `Instituição atualizada: ${updated.nome}`,
+          before: before as unknown as Record<string, unknown>,
+          after: updated as unknown as Record<string, unknown>,
+        });
+      } catch (logError) {
+        console.error('[instituicoes.update] log', logError);
+      }
 
       return updated;
     } catch (error) {

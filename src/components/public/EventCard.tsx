@@ -7,6 +7,7 @@ import { Badge } from '../ui/Badge';
 import { formatEventDate } from '../../lib/utils';
 import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
+import { AppImage } from '../ui/AppImage';
 
 interface EventCardProps {
   event: Event;
@@ -23,7 +24,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
     >
       <Link to={`/evento/${event.id}`} className="flex flex-col h-full focus-visible:outline-none">
         <div className="relative h-[60%] overflow-hidden shrink-0">
-          <img
+          <AppImage
             src={event.banner}
             alt=""
             loading="lazy"

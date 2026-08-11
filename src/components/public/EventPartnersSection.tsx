@@ -12,7 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { Institution, Sponsor } from '../../types';
-import { Button, Modal } from '../ui';
+import { Button, Modal, AppImage } from '../ui';
 import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
 
@@ -66,7 +66,7 @@ export function EventPartnersSection({
                     key={inst.id}
                     className="flex items-start gap-3 p-2.5 sm:p-3 rounded-xl bg-gray-50/80 border border-gray-100"
                   >
-                    <img
+                    <AppImage
                       src={inst.logo}
                       alt=""
                       className="w-11 h-11 rounded-lg object-contain bg-white border border-gray-100 shrink-0"
@@ -125,7 +125,7 @@ export function EventPartnersSection({
                       aria-label={sponsor.nome}
                       title={sponsor.nome}
                     >
-                      <img
+                      <AppImage
                         src={sponsor.logo}
                         alt={sponsor.nome}
                         className="max-h-10 sm:max-h-12 w-auto max-w-full object-contain grayscale hover:grayscale-0 transition-all"
@@ -221,14 +221,14 @@ function InstitutionModal({
       {institution && (
         <div className="space-y-5 max-h-[70vh] overflow-y-auto">
           {institution.imagemDestaque && (
-            <img
+            <AppImage
               src={institution.imagemDestaque}
               alt=""
               className="w-full h-44 sm:h-56 object-cover rounded-2xl"
             />
           )}
           <div className="flex items-center gap-4">
-            <img
+            <AppImage
               src={institution.logo}
               alt=""
               className="w-16 h-16 rounded-2xl object-contain bg-gray-50 border border-gray-100"
@@ -318,7 +318,7 @@ function SponsorModal({
       {sponsor && (
         <div className="space-y-4">
           <div className="flex justify-center py-4">
-            <img
+            <AppImage
               src={sponsor.logo}
               alt={sponsor.nome}
               className="max-h-20 w-auto object-contain"

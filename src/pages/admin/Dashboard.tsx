@@ -27,7 +27,7 @@ import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
-import { Badge, Button, PageLoader, Alert } from '../../components/ui';
+import { Badge, Button, PageLoader, Alert, AppImage } from '../../components/ui';
 import { formatEventDate, formatCurrency } from '../../lib/utils';
 
 type ViewMode = 'general' | 'event' | 'report';
@@ -282,7 +282,7 @@ export default function Dashboard() {
       header: 'Evento',
       render: (event) => (
         <div className="flex items-center gap-4 min-w-0">
-          <img
+          <AppImage
             src={event.banner}
             alt=""
             loading="lazy"
@@ -687,7 +687,7 @@ export default function Dashboard() {
             className="space-y-8"
           >
             <div className="flex items-center gap-4">
-              <img
+              <AppImage
                 src={selectedEvent.banner}
                 alt=""
                 className="w-16 h-16 rounded-2xl object-cover shadow-md shrink-0"

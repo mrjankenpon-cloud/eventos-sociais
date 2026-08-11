@@ -31,7 +31,7 @@ import { ensureStoredImage, deleteImage } from './storage';
 export const patrocinadoresService = {
   async create(data: SponsorFormData): Promise<Sponsor> {
     try {
-      const logo = await ensureStoredImage(data.logo, 'patrocinadores');
+      const logo = await ensureStoredImage(data.logo, 'patrocinadores', null, 'logo');
       const ref = await addDoc(col(COLLECTIONS.patrocinadores), {
         ...stripUndefined({
           ...data,
@@ -43,13 +43,17 @@ export const patrocinadoresService = {
       const created = await this.getById(ref.id);
       if (!created) throw new Error('Falha ao ler patrocinador criado');
 
-      await logsService.record({
-        acao: 'create',
-        colecao: COLLECTIONS.patrocinadores,
-        documentoId: created.id,
-        descricao: `Patrocinador criado: ${created.nome}`,
-        after: { nome: created.nome, ativo: created.ativo },
-      });
+      try {
+        await logsService.record({
+          acao: 'create',
+          colecao: COLLECTIONS.patrocinadores,
+          documentoId: created.id,
+          descricao: `Patrocinador criado: ${created.nome}`,
+          after: { nome: created.nome, ativo: created.ativo },
+        });
+      } catch (logError) {
+        console.error('[patrocinadores.create] log', logError);
+      }
 
       return created;
     } catch (error) {
@@ -85,7 +89,12 @@ export const patrocinadoresService = {
       const before = await this.getById(id);
       const patch = { ...data };
       if (typeof data.logo === 'string') {
-        patch.logo = await ensureStoredImage(data.logo, 'patrocinadores', before?.logo);
+        patch.logo = await ensureStoredImage(
+          data.logo,
+          'patrocinadores',
+          before?.logo,
+          'logo'
+        );
       }
       await updateDoc(docRef(COLLECTIONS.patrocinadores, id), {
         ...stripUndefined(patch as Record<string, unknown>),

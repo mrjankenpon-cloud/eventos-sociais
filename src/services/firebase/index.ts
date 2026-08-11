@@ -3,6 +3,7 @@ export { eventosService } from './eventos';
 export { bannersService } from './banners';
 export { patrocinadoresService } from './patrocinadores';
 export { instituicoesService } from './instituicoes';
+export { imagensService } from './imagens';
 export { ingressosService } from './ingressos';
 export { pedidosService } from './pedidos';
 export { checkinsService, checkinService } from './checkins';
@@ -13,5 +14,6 @@ export {
   uploadImage,
   deleteImage,
   replaceImage,
+  ensureStoredImage,
 } from './storage';
 export { COLLECTIONS } from './helpers';
