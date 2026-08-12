@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firestore';
@@ -242,6 +243,44 @@ export const pedidosService = {
       });
     } catch (error) {
       wrapError('pedidos.delete', error);
+    }
+  },
+
+  /**
+   * Remove todos os pedidos e tickets de um evento (em lotes).
+   * Usado quando o admin escolhe apagar o relatório do banco.
+   */
+  async deleteByEventId(eventId: string): Promise<{ pedidos: number; tickets: number }> {
+    try {
+      const [purchases, tickets] = await Promise.all([
+        this.getByEventId(eventId),
+        this.getTicketsByEventId(eventId),
+      ]);
+
+      const ids = [
+        ...tickets.map((t) => ({ col: COLLECTIONS.tickets, id: t.id })),
+        ...purchases.map((p) => ({ col: COLLECTIONS.pedidos, id: p.id })),
+      ];
+
+      const CHUNK = 400;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const item of ids.slice(i, i + CHUNK)) {
+          batch.delete(docRef(item.col, item.id));
+        }
+        await batch.commit();
+      }
+
+      await logsService.record({
+        acao: 'delete',
+        colecao: COLLECTIONS.pedidos,
+        documentoId: eventId,
+        descricao: `Relatório do evento apagado: ${purchases.length} pedidos, ${tickets.length} tickets`,
+      });
+
+      return { pedidos: purchases.length, tickets: tickets.length };
+    } catch (error) {
+      wrapError('pedidos.deleteByEventId', error);
     }
   },
 

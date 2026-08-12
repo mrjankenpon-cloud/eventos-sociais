@@ -29,6 +29,8 @@ import { ingressosService } from './ingressos';
 import { logsService } from './logs';
 import { persistEventMedia } from './media';
 import { deleteImage } from './storage';
+import { pedidosService } from './pedidos';
+import { checkinsService } from './checkins';
 
 async function hydrateEvent(raw: Evento & Record<string, unknown>): Promise<Event> {
   const tipos = await ingressosService.asTicketTypes(raw.id);
@@ -211,6 +213,28 @@ export const eventosService = {
       });
     } catch (error) {
       wrapError('eventos.hardDelete', error);
+    }
+  },
+
+  /**
+   * Apaga relatório (pedidos/tickets/check-ins/tipos) e o evento permanentemente.
+   */
+  async purgeWithReport(id: string): Promise<void> {
+    try {
+      const current = await this.getById(id);
+      await pedidosService.deleteByEventId(id);
+      await checkinsService.deleteByEvento(id);
+      const tipos = await ingressosService.getByEvento(id);
+      await Promise.all(tipos.map((t) => ingressosService.delete(t.id)));
+      await this.hardDelete(id);
+      await logsService.record({
+        acao: 'delete',
+        colecao: COLLECTIONS.eventos,
+        documentoId: id,
+        descricao: `Evento e relatório apagados: ${current?.titulo || id}`,
+      });
+    } catch (error) {
+      wrapError('eventos.purgeWithReport', error);
     }
   },
 

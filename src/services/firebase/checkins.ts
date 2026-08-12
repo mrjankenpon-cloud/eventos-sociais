@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firestore';
 import { auth } from '../../firebase/auth';
@@ -150,6 +151,24 @@ export const checkinsService = {
     } catch {
       const all = await this.getAll();
       return all.filter((c) => c.eventoId === eventoId);
+    }
+  },
+
+  /** Remove check-ins de um evento (usado no purge de relatório). */
+  async deleteByEvento(eventoId: string): Promise<number> {
+    try {
+      const list = await this.getByEvento(eventoId);
+      const CHUNK = 400;
+      for (let i = 0; i < list.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const item of list.slice(i, i + CHUNK)) {
+          batch.delete(docRef(COLLECTIONS.checkins, item.id));
+        }
+        await batch.commit();
+      }
+      return list.length;
+    } catch (error) {
+      wrapError('checkins.deleteByEvento', error);
     }
   },
 

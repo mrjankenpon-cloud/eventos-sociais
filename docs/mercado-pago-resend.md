@@ -1,6 +1,6 @@
 # Resend — e-mail transacional (preparado, aguardando domínio)
 
-**Status:** implementação pronta · conta/domínio/API Key **ainda não** · **sem deploy de e-mail**
+**Status:** ativo com `onboarding@resend.dev` (teste). Domínio próprio ainda pendente para produção ampla.
 
 ## Provedor
 Resend (`https://api.resend.com/emails`)

@@ -11,14 +11,20 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
+import { participantService } from '../../services/participant.service';
+import { purchaseService } from '../../services/purchase.service';
 import { Event } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
-import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
+import {
+  ArchiveEventDialog,
+  type ReportDisposition,
+} from '../../components/admin/ArchiveEventDialog';
 import { Button, Badge, Alert, PageLoader, AppImage } from '../../components/ui';
 import { formatEventDate } from '../../lib/utils';
+import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
 
 type StatusFilter = 'all' | 'published' | 'draft';
 
@@ -28,7 +34,7 @@ export default function Events() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
@@ -49,26 +55,49 @@ export default function Events() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteId) return;
+  const handleConfirmDelete = async (disposition: ReportDisposition) => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
     setDeleting(true);
+    setError(null);
     try {
-      await eventService.delete(deleteId);
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === deleteId
-            ? {
-                ...ev,
-                status: 'arquivado',
-                arquivado: true,
-                publicado: false,
-              }
-            : ev
-        )
-      );
-      setDeleteId(null);
+      if (disposition === 'export') {
+        const [participants, purchases] = await Promise.all([
+          participantService.getByEventId(target.id),
+          purchaseService.getByEventId(target.id),
+        ]);
+        exportEventReportCsv({
+          event: target,
+          participants,
+          purchases,
+        });
+      }
+
+      if (disposition === 'purge') {
+        await eventService.purgeWithReport(target.id);
+        setEvents((prev) => prev.filter((ev) => ev.id !== target.id));
+      } else {
+        await eventService.delete(target.id);
+        setEvents((prev) =>
+          prev.map((ev) =>
+            ev.id === target.id
+              ? {
+                  ...ev,
+                  status: 'arquivado',
+                  arquivado: true,
+                  publicado: false,
+                }
+              : ev
+          )
+        );
+      }
+      setDeleteTarget(null);
     } catch {
-      setError('Erro ao arquivar evento.');
+      setError(
+        disposition === 'purge'
+          ? 'Erro ao apagar evento e relatório.'
+          : 'Erro ao arquivar evento.'
+      );
     } finally {
       setDeleting(false);
     }
@@ -183,7 +212,7 @@ export default function Events() {
           </Link>
           <button
             type="button"
-            onClick={() => setDeleteId(event.id)}
+            onClick={() => setDeleteTarget(event)}
             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             title="Excluir"
             aria-label="Excluir"
@@ -263,13 +292,11 @@ export default function Events() {
         />
       )}
 
-      <ConfirmDialog
-        isOpen={Boolean(deleteId)}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleConfirmDelete}
-        title="Arquivar evento"
-        description="O evento será arquivado (soft-delete). Pedidos, pagamentos, ingressos e o histórico financeiro são preservados. Novas vendas serão bloqueadas."
-        confirmLabel="Arquivar"
+      <ArchiveEventDialog
+        isOpen={Boolean(deleteTarget)}
+        eventTitle={deleteTarget?.titulo || 'este evento'}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={(d) => void handleConfirmDelete(d)}
         isLoading={deleting}
       />
     </div>

@@ -5,7 +5,7 @@ import { getAppUrl } from '../mp/helpers';
  * Cliente Resend — preparado para ativação posterior.
  *
  * Secrets / env (Firebase Functions — nunca VITE_*):
- *   RESEND_API_KEY   — API Key do Resend (ainda não disponível)
+ *   RESEND_API_KEY   — API Key do Resend
  *   EMAIL_FROM       — ex.: "DELPHOS <ingressos@dominio-oficial.com>"
  *   APP_URL          — base dos links (já usado pelo checkout)
  *

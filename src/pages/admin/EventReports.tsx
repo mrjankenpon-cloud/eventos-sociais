@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Users, Ticket, Wallet, FileText, Percent } from 'lucide-react';
+import { Users, Ticket, Wallet, FileText, Percent, Download } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { participantService } from '../../services/participant.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -10,8 +10,9 @@ import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
-import { Badge, PageLoader, EmptyState } from '../../components/ui';
+import { Badge, Button, PageLoader, EmptyState } from '../../components/ui';
 import { formatCurrency } from '../../lib/utils';
+import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
 
 export default function EventReports() {
   const { id } = useParams();
@@ -151,6 +152,22 @@ export default function EventReports() {
         subtitle="Relatórios e estatísticas"
         backTo={ROUTES.ADMIN.EVENTS}
         backLabel="Voltar para eventos"
+        actions={
+          <Button
+            variant="secondary"
+            className="rounded-2xl"
+            onClick={() =>
+              exportEventReportCsv({
+                event,
+                participants,
+                purchases,
+              })
+            }
+          >
+            <Download size={16} aria-hidden="true" />
+            Exportar CSV
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
