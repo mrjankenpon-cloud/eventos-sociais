@@ -309,8 +309,21 @@ export default function OrderSuccess() {
           {isConfirmed && tickets.length > 0 ? (
             <TicketPassList
               tickets={tickets}
-              eventoTitulo={pedido.eventoTitulo}
-              compradorNome={pedido.nomeComprador}
+              evento={{
+                titulo: pedido.eventoTitulo,
+                data: pedido.eventoData,
+                horaInicio: pedido.eventoHoraInicio,
+                horaFim: pedido.eventoHoraFim,
+                local: pedido.eventoLocal,
+                endereco: pedido.eventoEndereco,
+                cidade: pedido.eventoCidade,
+              }}
+              comprador={{
+                nome: pedido.nomeComprador,
+                email: pedido.email,
+                telefone: pedido.telefone,
+                cpf: pedido.cpf,
+              }}
             />
           ) : isConfirmed ? (
             <Alert variant="info">

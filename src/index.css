@@ -128,14 +128,26 @@
     left: 0;
     top: 0;
     width: 100%;
-    padding: 16px;
+    padding: 12px;
   }
 
   .ticket-pass {
     break-inside: avoid;
     page-break-inside: avoid;
+    page-break-after: always;
     box-shadow: none !important;
-    margin-bottom: 16px;
+    border: 1px solid #d1d5db !important;
+    margin-bottom: 0;
+    border-radius: 12px !important;
+  }
+
+  .ticket-pass:last-child {
+    page-break-after: auto;
+  }
+
+  .ticket-pass-brand {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .print\:hidden {

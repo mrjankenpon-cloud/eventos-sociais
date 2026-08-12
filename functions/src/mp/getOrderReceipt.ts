@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import { timingSafeEqual } from 'crypto';
 import { db } from './helpers';
+import { loadEventTicketSummary } from './eventSummary';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -86,12 +87,21 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
       .sort((a, b) => a.ordem - b.ordem);
 
     let eventoTitulo = '';
+    let eventoData = '';
+    let eventoHoraInicio = '';
+    let eventoHoraFim = '';
+    let eventoLocal = '';
+    let eventoEndereco = '';
+    let eventoCidade = '';
     if (pedido.eventoId) {
-      const ev = await db()
-        .collection('eventos')
-        .doc(String(pedido.eventoId))
-        .get();
-      if (ev.exists) eventoTitulo = String(ev.data()?.titulo || '');
+      const evento = await loadEventTicketSummary(pedido.eventoId);
+      eventoTitulo = evento.titulo;
+      eventoData = evento.data;
+      eventoHoraInicio = evento.horaInicio;
+      eventoHoraFim = evento.horaFim;
+      eventoLocal = evento.local;
+      eventoEndereco = evento.endereco;
+      eventoCidade = evento.cidade;
     }
 
     res.json({
@@ -103,8 +113,16 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         status: pedido.status,
         nomeComprador: pedido.nomeComprador,
         email: pedido.email,
+        telefone: pedido.telefone || '',
+        cpf: pedido.cpf || '',
         eventoId: pedido.eventoId,
         eventoTitulo,
+        eventoData,
+        eventoHoraInicio,
+        eventoHoraFim,
+        eventoLocal,
+        eventoEndereco,
+        eventoCidade,
         ingressoNome: pedido.ingressoNome,
         natureza: pedido.natureza,
         quantidade: pedido.quantidade,

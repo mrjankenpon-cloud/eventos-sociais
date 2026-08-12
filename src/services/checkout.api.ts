@@ -69,8 +69,16 @@ export type OrderReceiptResult = {
     status: string;
     nomeComprador: string;
     email: string;
+    telefone?: string;
+    cpf?: string;
     eventoId: string;
     eventoTitulo: string;
+    eventoData?: string;
+    eventoHoraInicio?: string;
+    eventoHoraFim?: string;
+    eventoLocal?: string;
+    eventoEndereco?: string;
+    eventoCidade?: string;
     ingressoNome?: string;
     natureza?: string;
     quantidade: number;
@@ -111,7 +119,17 @@ export type GuestTicketsResult = {
   orders: Array<{
     id: string;
     status: string;
+    nomeComprador?: string;
+    email?: string;
+    telefone?: string;
+    cpf?: string;
     eventoTitulo: string;
+    eventoData?: string;
+    eventoHoraInicio?: string;
+    eventoHoraFim?: string;
+    eventoLocal?: string;
+    eventoEndereco?: string;
+    eventoCidade?: string;
     ingressoNome?: string;
     quantidade: number;
     valorTotal: number;

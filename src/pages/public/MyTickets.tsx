@@ -149,8 +149,21 @@ export default function MyTickets() {
             ) : (
               <TicketPassList
                 tickets={order.tickets}
-                eventoTitulo={order.eventoTitulo}
-                compradorNome={data.email}
+                evento={{
+                  titulo: order.eventoTitulo,
+                  data: order.eventoData,
+                  horaInicio: order.eventoHoraInicio,
+                  horaFim: order.eventoHoraFim,
+                  local: order.eventoLocal,
+                  endereco: order.eventoEndereco,
+                  cidade: order.eventoCidade,
+                }}
+                comprador={{
+                  nome: order.nomeComprador,
+                  email: order.email || data.email,
+                  telefone: order.telefone,
+                  cpf: order.cpf,
+                }}
                 title="Ingressos com QR"
               />
             )}

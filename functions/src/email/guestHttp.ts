@@ -5,6 +5,7 @@ import {
   sendGuestAccessEmail,
 } from '../email/guestAccess';
 import { db } from '../mp/helpers';
+import { loadEventTicketSummary } from '../mp/eventSummary';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -171,18 +172,37 @@ export const getGuestTickets = functions.https.onRequest(async (req, res) => {
         .sort((a, b) => a.ordem - b.ordem);
 
       let eventoTitulo = '';
+      let eventoData = '';
+      let eventoHoraInicio = '';
+      let eventoHoraFim = '';
+      let eventoLocal = '';
+      let eventoEndereco = '';
+      let eventoCidade = '';
       if (p.eventoId) {
-        const ev = await db()
-          .collection('eventos')
-          .doc(String(p.eventoId))
-          .get();
-        if (ev.exists) eventoTitulo = String(ev.data()?.titulo || '');
+        const evento = await loadEventTicketSummary(p.eventoId);
+        eventoTitulo = evento.titulo;
+        eventoData = evento.data;
+        eventoHoraInicio = evento.horaInicio;
+        eventoHoraFim = evento.horaFim;
+        eventoLocal = evento.local;
+        eventoEndereco = evento.endereco;
+        eventoCidade = evento.cidade;
       }
 
       orders.push({
         id: p.id,
         status: p.status,
+        nomeComprador: p.nomeComprador || '',
+        email: p.email || session.email,
+        telefone: p.telefone || '',
+        cpf: p.cpf || '',
         eventoTitulo,
+        eventoData,
+        eventoHoraInicio,
+        eventoHoraFim,
+        eventoLocal,
+        eventoEndereco,
+        eventoCidade,
         ingressoNome: p.ingressoNome,
         quantidade: p.quantidade,
         valorTotal: p.valorTotal,
