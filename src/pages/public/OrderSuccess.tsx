@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
-  Copy,
-  Ticket,
   XCircle,
 } from 'lucide-react';
 import { checkoutApi, type OrderReceiptResult } from '../../services/checkout.api';
@@ -16,6 +14,7 @@ import {
 } from '../../lib/guestCheckout';
 import { Button, Alert, Badge, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { TicketPassList } from '../../components/public/TicketPass';
 import { formatCurrency } from '../../lib/utils';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
@@ -29,7 +28,6 @@ export default function OrderSuccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<OrderReceiptResult | null>(null);
-  const [copied, setCopied] = useState(false);
   const [sandboxApproving, setSandboxApproving] = useState(false);
   const [sandboxError, setSandboxError] = useState<string | null>(null);
 
@@ -86,16 +84,6 @@ export default function OrderSuccess() {
     }, 4000);
     return () => window.clearInterval(t);
   }, [receipt, load]);
-
-  const copyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
-  };
 
   const handleSandboxApprove = async () => {
     if (!id) return;
@@ -319,39 +307,28 @@ export default function OrderSuccess() {
           </div>
 
           {isConfirmed && tickets.length > 0 ? (
-            <div className="space-y-3">
-              <p className="label-micro flex items-center gap-2">
-                <Ticket size={14} aria-hidden="true" />
-                Seus ingressos
-              </p>
-              {tickets.map((t) => (
-                <div
-                  key={t.id}
-                  className="rounded-2xl border border-gray-100 bg-white p-4 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      Ticket {String(t.ordem).padStart(3, '0')}
-                    </p>
-                    <p className="font-mono font-black text-gray-900 truncate">
-                      {t.codigo}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="rounded-xl shrink-0"
-                    onClick={() => void copyCode(t.codigo)}
-                  >
-                    <Copy size={14} aria-hidden="true" />
-                    {copied ? 'Copiado' : 'Copiar'}
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <TicketPassList
+              tickets={tickets}
+              eventoTitulo={pedido.eventoTitulo}
+              compradorNome={pedido.nomeComprador}
+            />
           ) : isConfirmed ? (
             <Alert variant="info">
               Pagamento confirmado. Ingressos sendo gerados…
+            </Alert>
+          ) : null}
+
+          {isConfirmed ? (
+            <Alert variant="info" className="print:hidden">
+              Guarde esta página ou imprima o ingresso. Você também pode
+              recuperar os QR Codes depois em{' '}
+              <Link
+                to={ROUTES.PUBLIC.ORDER_LOOKUP}
+                className="font-bold text-brand underline"
+              >
+                Já comprou? Receber por e-mail
+              </Link>
+              .
             </Alert>
           ) : null}
 

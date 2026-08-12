@@ -133,15 +133,16 @@ function ticketsEmailHtml(input: {
 <html>
 <body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
   <p>${nome}</p>
-  <p>Use o link abaixo para acessar seus ingressos. Não é necessário criar conta.</p>
+  <p>Seu pagamento foi confirmado. Use o link abaixo para ver e imprimir seus ingressos com QR Code de check-in. Não é necessário criar conta.</p>
   <p style="margin: 24px 0;">
     <a href="${input.accessUrl}"
-       style="background:#0b6e4f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;">
-      Ver meus ingressos
+       style="background:#1655a3;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;">
+      Ver e imprimir ingressos
     </a>
   </p>
   <p style="font-size:13px;color:#555;">
-    Este link é pessoal, criptograficamente seguro e vale por ${input.hours} horas.
+    Neste link você encontra o QR Code que será lido no dia do evento.
+    O acesso é pessoal, seguro e vale por ${input.hours} horas.
     Se você não solicitou, ignore este e-mail.
   </p>
   <p style="font-size:12px;color:#888;">DELPHOS — Eventos</p>

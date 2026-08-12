@@ -112,3 +112,33 @@
   width: 40%;
   animation: processing-bar 1.15s ease-in-out infinite;
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .ticket-pass-list,
+  .ticket-pass-list * {
+    visibility: visible !important;
+  }
+
+  .ticket-pass-list {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 16px;
+  }
+
+  .ticket-pass {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    margin-bottom: 16px;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}

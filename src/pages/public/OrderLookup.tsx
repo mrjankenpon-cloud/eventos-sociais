@@ -54,8 +54,8 @@ export default function OrderLookup() {
         </h1>
       </div>
       <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-        Receba seus ingressos por e-mail. Informe o mesmo endereço usado na
-        compra — sem login e sem criar conta.
+        Informe o mesmo e-mail da compra. Enviaremos um link seguro com seus
+        ingressos e QR Codes para check-in — sem login e sem criar conta.
       </p>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">

@@ -43,10 +43,11 @@ export default function Home() {
       void prefetchPurchaseFunnel();
     });
     return () => {
-      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+      if (typeof window === 'undefined') return;
+      if ('cancelIdleCallback' in window) {
         window.cancelIdleCallback(id as number);
       } else {
-        window.clearTimeout(id as number);
+        clearTimeout(id as ReturnType<typeof setTimeout>);
       }
     };
   }, []);
