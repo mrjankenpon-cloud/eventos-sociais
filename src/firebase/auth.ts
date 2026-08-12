@@ -1,26 +1,23 @@
 import {
-  initializeAuth,
   getAuth,
-  browserLocalPersistence,
+  setPersistence,
   indexedDBLocalPersistence,
+  browserLocalPersistence,
   type Auth,
 } from 'firebase/auth';
 import { firebaseApp } from './config';
 
 /**
- * Persistência local (IndexedDB → localStorage) na inicialização,
- * antes de qualquer listener — sessão sobrevive a navegação e reload
- * até logout explícito.
+ * Auth com persistência explícita (IndexedDB → localStorage).
+ * Evita initializeAuth + array de persistence, que em alguns builds
+ * do Firebase 12 dispara auth/argument-error no Google popup.
  */
 function createAuth(): Auth {
-  try {
-    return initializeAuth(firebaseApp, {
-      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
-    });
-  } catch {
-    // HMR / reimport: Auth já inicializado
-    return getAuth(firebaseApp);
-  }
+  const auth = getAuth(firebaseApp);
+  void setPersistence(auth, indexedDBLocalPersistence).catch(() =>
+    setPersistence(auth, browserLocalPersistence).catch(() => undefined)
+  );
+  return auth;
 }
 
 export const auth: Auth = createAuth();

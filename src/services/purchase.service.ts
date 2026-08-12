@@ -49,7 +49,12 @@ export const purchaseService = {
       receiptUrl: result.receiptUrl,
     };
   },
-  refund: (id: string) => checkoutApi.refund(id),
+  refund: (
+    id: string,
+    opts?: { ticketId?: string; amount?: number }
+  ) => checkoutApi.refund(id, opts),
+  createTicketUpgrade: (ticketId: string) =>
+    checkoutApi.createTicketUpgrade(ticketId),
   confirmPayment: (id: string) => pedidosService.confirmPayment(id),
   update: (id: string, data: Parameters<typeof pedidosService.update>[1]) =>
     pedidosService.update(id, data),

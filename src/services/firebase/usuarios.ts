@@ -515,14 +515,35 @@ export const usuariosService = {
     } catch (error) {
       console.error('[usuarios.loginWithGoogle]', error);
       await signOut(auth).catch(() => undefined);
-      if (error instanceof Error && !error.message.startsWith('[')) {
-        if (
-          error.message.includes('popup-closed') ||
-          error.message.includes('cancelled')
-        ) {
+      if (error instanceof Error) {
+        const code =
+          typeof error === 'object' &&
+          error &&
+          'code' in error &&
+          typeof (error as { code?: string }).code === 'string'
+            ? (error as { code: string }).code
+            : '';
+        const msg = error.message || '';
+        if (code.includes('popup-closed') || msg.includes('popup-closed')) {
           throw new Error('Login com Google cancelado.');
         }
-        throw error;
+        if (
+          code.includes('argument-error') ||
+          msg.includes('auth/argument-error')
+        ) {
+          throw new Error(
+            'Configuração do Google Sign-In inválida. No Firebase Console → Authentication → Google, confira o Client ID OAuth do projeto eventosociais-c057d e os domínios autorizados (localhost e eventos-sociais.vercel.app).'
+          );
+        }
+        if (
+          code.includes('unauthorized-domain') ||
+          msg.includes('unauthorized-domain')
+        ) {
+          throw new Error(
+            'Este domínio não está autorizado no Firebase Authentication.'
+          );
+        }
+        if (!msg.startsWith('[')) throw error;
       }
       throw new Error('Não foi possível entrar com Google.');
     }

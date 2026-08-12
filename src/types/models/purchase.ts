@@ -10,6 +10,14 @@ export interface Purchase {
   quantidadeIngressos: number;
   valorTotal: number;
   valorUnitario?: number;
+  itens?: Array<{
+    ingressoId: string;
+    nome?: string;
+    quantidade: number;
+    valorUnitario?: number;
+  }>;
+  refundedAmount?: number;
+  partialRefund?: boolean;
   statusPagamento:
     | 'pendente'
     | 'confirmado'

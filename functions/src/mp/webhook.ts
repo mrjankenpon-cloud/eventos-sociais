@@ -7,6 +7,7 @@ import {
   transitionPedidoReleaseStock,
 } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
+import { applyTicketUpgrade } from './createTicketUpgradeSession';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -232,6 +233,26 @@ async function processPayment(paymentId: string): Promise<void> {
   };
 
   if (mpStatus === 'approved') {
+    const pedidoTipo = String(pedidoSnap.data()?.tipo || '');
+    if (pedidoTipo === 'upgrade') {
+      const outcome = await confirmPedidoApproved(
+        pedidoId,
+        mpFields,
+        roundMoney(fees.transactionAmount)
+      );
+      if (outcome === 'mismatch') {
+        functions.logger.error('[mpWebhook] upgrade valor ≠ esperado', {
+          pedidoId,
+          paymentId,
+        });
+        return;
+      }
+      if (outcome === 'confirmed' || !isNewEvent) {
+        await applyTicketUpgrade(pedidoId);
+      }
+      return;
+    }
+
     const outcome = await confirmPedidoApproved(
       pedidoId,
       mpFields,

@@ -179,7 +179,43 @@ export const checkoutApi = {
     return postJson('sandboxApproveOrder', { pedidoId, token });
   },
 
-  refund(pedidoId: string): Promise<{ ok: boolean; pedidoId: string }> {
-    return postJson('refundPayment', { pedidoId }, { auth: true });
+  refund(
+    pedidoId: string,
+    opts?: { ticketId?: string; amount?: number }
+  ): Promise<{
+    ok: boolean;
+    pedidoId: string;
+    amount?: number;
+    partial?: boolean;
+    fullyRefunded?: boolean;
+    ticketId?: string | null;
+  }> {
+    return postJson(
+      'refundPayment',
+      {
+        pedidoId,
+        ticketId: opts?.ticketId,
+        amount: opts?.amount,
+      },
+      { auth: true }
+    );
+  },
+
+  createTicketUpgrade(ticketId: string): Promise<{
+    ok: boolean;
+    pedidoId: string;
+    ticketId: string;
+    diff: number;
+    fromValor?: number;
+    toValor?: number;
+    toIngressoNome?: string;
+    initPoint: string;
+    already?: boolean;
+  }> {
+    return postJson(
+      'createTicketUpgradeSession',
+      { ticketId },
+      { auth: true }
+    );
   },
 };

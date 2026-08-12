@@ -10,6 +10,7 @@ import {
   CheckCircle,
   ExternalLink,
   RefreshCw,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { purchaseService } from '../../services/purchase.service';
 import { ticketService } from '../../services/ticket.service';
@@ -21,6 +22,26 @@ import { Badge, Button, PageLoader, EmptyState, Toast, AppImage } from '../../co
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 
+function isMeiaTicket(t: Ticket): boolean {
+  const key = String(t.ingressoKey || '').toLowerCase();
+  const nome = String(t.ingressoNome || '').toLowerCase();
+  return key === 'meia' || nome.includes('meia');
+}
+
+function unitForTicket(purchase: Purchase, ticket: Ticket): number {
+  if (Array.isArray(purchase.itens) && ticket.ingressoId) {
+    const line = purchase.itens.find((i) => i.ingressoId === ticket.ingressoId);
+    if (line && typeof line.valorUnitario === 'number' && line.valorUnitario > 0) {
+      return line.valorUnitario;
+    }
+  }
+  if (typeof purchase.valorUnitario === 'number' && purchase.valorUnitario > 0) {
+    return purchase.valorUnitario;
+  }
+  const qty = Math.max(1, purchase.quantidadeIngressos || 1);
+  return purchase.valorTotal / qty;
+}
+
 export default function PurchaseDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,8 +49,18 @@ export default function PurchaseDetails() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refunding, setRefunding] = useState(false);
+  const [refundingAll, setRefundingAll] = useState(false);
+  const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
   const { message, show, clear } = useFlashMessage();
+
+  const reload = async (purchaseId: string) => {
+    const p = await purchaseService.getById(purchaseId);
+    if (p) {
+      setPurchase(p);
+      const tks = await ticketService.getByPurchaseId(p.id);
+      setTickets(tks.sort((a, b) => a.ordem - b.ordem));
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -51,8 +82,10 @@ export default function PurchaseDetails() {
         setLoading(false);
       }
     }
-    loadData();
+    void loadData();
   }, [id]);
+
+  const refundedAmount = Number(purchase?.refundedAmount) || 0;
 
   const handleCheckin = async (ticketId: string) => {
     try {
@@ -77,27 +110,81 @@ export default function PurchaseDetails() {
     }
   };
 
-  const handleRefund = async () => {
+  const handleRefundAll = async () => {
     if (!purchase) return;
     const ok = window.confirm(
-      'Confirmar reembolso integral via Mercado Pago? Esta ação cancela os ingressos e devolve o estoque.'
+      'Confirmar reembolso integral via Mercado Pago? Cancela todos os ingressos restantes e devolve o valor restante.'
     );
     if (!ok) return;
-    setRefunding(true);
+    setRefundingAll(true);
     try {
       await purchaseService.refund(purchase.id);
-      const refreshed = await purchaseService.getById(purchase.id);
-      if (refreshed) setPurchase(refreshed);
-      const tks = await ticketService.getByPurchaseId(purchase.id);
-      setTickets(tks.sort((a, b) => a.ordem - b.ordem));
-      show('success', 'Reembolso processado.');
+      await reload(purchase.id);
+      show('success', 'Reembolso integral processado.');
     } catch (error: unknown) {
       show(
         'error',
         error instanceof Error ? error.message : 'Falha no reembolso.'
       );
     } finally {
-      setRefunding(false);
+      setRefundingAll(false);
+    }
+  };
+
+  const handleRefundTicket = async (ticket: Ticket) => {
+    if (!purchase) return;
+    const unit = unitForTicket(purchase, ticket);
+    const ok = window.confirm(
+      `Reembolsar apenas o ticket ${ticket.codigo}?\nValor estimado: ${formatCurrency(unit)}\nO ingresso será cancelado e o estoque devolvido.`
+    );
+    if (!ok) return;
+    setBusyTicketId(ticket.id);
+    try {
+      const res = await purchaseService.refund(purchase.id, {
+        ticketId: ticket.id,
+        amount: unit,
+      });
+      await reload(purchase.id);
+      show(
+        'success',
+        res.fullyRefunded
+          ? 'Ticket reembolsado. Pedido totalmente reembolsado.'
+          : `Ticket reembolsado (${formatCurrency(res.amount || unit)}).`
+      );
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Falha no reembolso parcial.'
+      );
+    } finally {
+      setBusyTicketId(null);
+    }
+  };
+
+  const handleUpgradeMeia = async (ticket: Ticket) => {
+    if (!purchase) return;
+    const ok = window.confirm(
+      'Gerar cobrança da diferença meia → inteira no Mercado Pago? Você será redirecionado ao checkout da diferença.'
+    );
+    if (!ok) return;
+    setBusyTicketId(ticket.id);
+    try {
+      const res = await purchaseService.createTicketUpgrade(ticket.id);
+      show(
+        'success',
+        `Diferença: ${formatCurrency(res.diff)} (${res.toIngressoNome || 'Inteira'}). Abrindo pagamento…`
+      );
+      if (res.initPoint) {
+        window.open(res.initPoint, '_blank', 'noopener,noreferrer');
+      }
+      await reload(purchase.id);
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Falha ao criar upgrade.'
+      );
+    } finally {
+      setBusyTicketId(null);
     }
   };
 
@@ -119,6 +206,11 @@ export default function PurchaseDetails() {
   const horario = event
     ? [event.horaInicio, event.horaFim].filter(Boolean).join(' – ')
     : '';
+  const canRefundMoney =
+    purchase.statusPagamento === 'confirmado' &&
+    Boolean(purchase.mpPaymentId) &&
+    purchase.valorTotal > 0 &&
+    refundedAmount < purchase.valorTotal - 0.001;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 min-w-0">
@@ -139,7 +231,6 @@ export default function PurchaseDetails() {
         }
       />
 
-      {/* 1. Dados do evento — horizontal no topo */}
       {event && (
         <section className="card-surface p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 min-w-0">
@@ -156,7 +247,9 @@ export default function PurchaseDetails() {
                 {event.titulo}
               </h2>
               {event.subtitulo?.trim() ? (
-                <p className="text-sm text-gray-500 mt-0.5 truncate">{event.subtitulo}</p>
+                <p className="text-sm text-gray-500 mt-0.5 truncate">
+                  {event.subtitulo}
+                </p>
               ) : null}
             </div>
 
@@ -177,7 +270,6 @@ export default function PurchaseDetails() {
         </section>
       )}
 
-      {/* 2. Comprador + valor pago ao lado */}
       <section className="card-surface overflow-hidden">
         <div className="p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -201,21 +293,6 @@ export default function PurchaseDetails() {
                   </>
                 ) : null}
               </div>
-              {purchase.ticketTypeNome?.trim() ? (
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 pt-1">
-                  {purchase.ticketTypeNome}
-                  {purchase.quantidadeIngressos > 0
-                    ? ` · ${purchase.quantidadeIngressos} ${
-                        purchase.quantidadeIngressos === 1 ? 'ingresso' : 'ingressos'
-                      }`
-                    : ''}
-                </p>
-              ) : purchase.quantidadeIngressos > 0 ? (
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 pt-1">
-                  {purchase.quantidadeIngressos}{' '}
-                  {purchase.quantidadeIngressos === 1 ? 'ingresso' : 'ingressos'}
-                </p>
-              ) : null}
             </div>
 
             <div className="sm:text-right shrink-0 sm:pl-4 sm:border-l sm:border-gray-100">
@@ -225,6 +302,11 @@ export default function PurchaseDetails() {
                   ? 'Gratuito'
                   : formatCurrency(purchase.valorTotal)}
               </p>
+              {refundedAmount > 0 ? (
+                <p className="text-xs text-amber-700 font-bold mt-1">
+                  Já reembolsado: {formatCurrency(refundedAmount)}
+                </p>
+              ) : null}
               <Badge
                 variant={
                   purchase.statusPagamento === 'confirmado'
@@ -237,63 +319,23 @@ export default function PurchaseDetails() {
                 }
                 className="mt-2"
               >
-                {purchase.statusPagamento === 'confirmado'
-                  ? 'Confirmado'
-                  : purchase.statusPagamento === 'cancelado'
-                    ? 'Cancelado'
-                    : purchase.statusPagamento === 'expirado'
-                      ? 'Expirado'
-                      : purchase.statusPagamento === 'reembolsado'
-                        ? 'Reembolsado'
-                        : 'Pendente'}
+                {purchase.statusPagamento}
               </Badge>
               {purchase.mpPaymentId ? (
                 <p className="text-[10px] font-mono text-gray-400 mt-2 break-all">
                   MP: {purchase.mpPaymentId}
                 </p>
               ) : null}
-              {typeof purchase.mpTransactionAmount === 'number' ||
-              typeof purchase.mpFeeAmount === 'number' ||
-              typeof purchase.mpNetReceivedAmount === 'number' ? (
-                <div className="mt-3 text-left sm:text-right text-xs text-gray-500 space-y-0.5">
-                  {typeof purchase.mpTransactionAmount === 'number' ? (
-                    <p>
-                      Bruto:{' '}
-                      <span className="font-bold tabular-nums">
-                        {formatCurrency(purchase.mpTransactionAmount)}
-                      </span>
-                    </p>
-                  ) : null}
-                  {typeof purchase.mpFeeAmount === 'number' ? (
-                    <p>
-                      Taxas MP:{' '}
-                      <span className="font-bold tabular-nums">
-                        {formatCurrency(purchase.mpFeeAmount)}
-                      </span>
-                    </p>
-                  ) : null}
-                  {typeof purchase.mpNetReceivedAmount === 'number' ? (
-                    <p>
-                      Líquido:{' '}
-                      <span className="font-bold tabular-nums text-brand">
-                        {formatCurrency(purchase.mpNetReceivedAmount)}
-                      </span>
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {purchase.statusPagamento === 'confirmado' &&
-              purchase.mpPaymentId &&
-              purchase.valorTotal > 0 ? (
+              {canRefundMoney ? (
                 <Button
                   size="sm"
                   variant="secondary"
                   className="mt-3 rounded-xl"
-                  isLoading={refunding}
-                  onClick={() => void handleRefund()}
+                  isLoading={refundingAll}
+                  onClick={() => void handleRefundAll()}
                 >
                   <RefreshCw size={14} aria-hidden="true" />
-                  Reembolsar
+                  Reembolsar tudo
                 </Button>
               ) : null}
             </div>
@@ -301,7 +343,6 @@ export default function PurchaseDetails() {
         </div>
       </section>
 
-      {/* 3. Ingressos comprados */}
       <section className="card-surface overflow-hidden">
         <div className="p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-3 px-1">
@@ -317,64 +358,110 @@ export default function PurchaseDetails() {
               description="Esta compra ainda não possui tickets gerados."
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {tickets.map((t) => (
-                <motion.div
-                  key={t.id}
-                  layout
-                  className={`p-4 rounded-2xl border flex items-center justify-between gap-3 min-w-0 ${
-                    t.status === 'Utilizado'
-                      ? 'bg-green-50 border-green-100'
-                      : 'bg-white border-gray-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        t.status === 'Utilizado'
-                          ? 'bg-green-200 text-green-700'
-                          : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {t.status === 'Utilizado' ? (
-                        <UserCheck size={18} aria-hidden="true" />
-                      ) : (
-                        <TicketIcon size={18} aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="label-micro">
-                        Ticket {t.ordem.toString().padStart(3, '0')}
-                      </p>
-                      <p className="text-xs font-black text-gray-900 font-mono truncate">
-                        {t.codigo}
-                      </p>
-                      {t.status === 'Utilizado' && t.checkinEm ? (
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          {new Date(t.checkinEm).toLocaleString('pt-BR')}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 gap-3">
+              {tickets.map((t) => {
+                const refundable =
+                  canRefundMoney &&
+                  (t.status === 'Disponível' || t.status === 'Utilizado');
+                const canUpgrade =
+                  purchase.statusPagamento === 'confirmado' &&
+                  t.status === 'Disponível' &&
+                  isMeiaTicket(t) &&
+                  !t.upgradedToInteira;
 
-                  {t.status === 'Disponível' ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCheckin(t.id)}
-                      className="rounded-xl shrink-0"
-                    >
-                      Confirmar
-                    </Button>
-                  ) : t.status === 'Utilizado' ? (
-                    <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1 shrink-0">
-                      <CheckCircle size={14} aria-hidden="true" />
-                      OK
+                return (
+                  <motion.div
+                    key={t.id}
+                    layout
+                    className={`p-4 rounded-2xl border min-w-0 ${
+                      t.status === 'Utilizado'
+                        ? 'bg-green-50 border-green-100'
+                        : t.status === 'Reembolsado' || t.status === 'Cancelado'
+                          ? 'bg-red-50/50 border-red-100'
+                          : 'bg-white border-gray-100'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                            t.status === 'Utilizado'
+                              ? 'bg-green-200 text-green-700'
+                              : 'bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {t.status === 'Utilizado' ? (
+                            <UserCheck size={18} aria-hidden="true" />
+                          ) : (
+                            <TicketIcon size={18} aria-hidden="true" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="label-micro">
+                            Ticket {t.ordem.toString().padStart(3, '0')}
+                            {t.ingressoNome ? ` · ${t.ingressoNome}` : ''}
+                          </p>
+                          <p className="text-xs font-black text-gray-900 font-mono truncate">
+                            {t.codigo}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {formatCurrency(unitForTicket(purchase, t))}
+                            {t.status === 'Utilizado' && t.checkinEm
+                              ? ` · check-in ${new Date(t.checkinEm).toLocaleString('pt-BR')}`
+                              : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {t.status === 'Disponível' ? (
+                          <Button
+                            size="sm"
+                            onClick={() => void handleCheckin(t.id)}
+                            className="rounded-xl"
+                            disabled={busyTicketId === t.id}
+                          >
+                            Check-in
+                          </Button>
+                        ) : t.status === 'Utilizado' ? (
+                          <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1">
+                            <CheckCircle size={14} aria-hidden="true" />
+                            OK
+                          </div>
+                        ) : (
+                          <Badge variant="danger">{t.status}</Badge>
+                        )}
+
+                        {canUpgrade ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="rounded-xl"
+                            isLoading={busyTicketId === t.id}
+                            onClick={() => void handleUpgradeMeia(t)}
+                          >
+                            <ArrowUpCircle size={14} aria-hidden="true" />
+                            Pagar diferença (inteira)
+                          </Button>
+                        ) : null}
+
+                        {refundable ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl text-red-600"
+                            isLoading={busyTicketId === t.id}
+                            onClick={() => void handleRefundTicket(t)}
+                          >
+                            <RefreshCw size={14} aria-hidden="true" />
+                            Reembolsar ticket
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
-                  ) : (
-                    <Badge variant="danger">{t.status}</Badge>
-                  )}
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
