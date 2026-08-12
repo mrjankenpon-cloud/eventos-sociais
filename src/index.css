@@ -114,6 +114,11 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -128,21 +133,67 @@
     left: 0;
     top: 0;
     width: 100%;
-    padding: 12px;
+    padding: 0;
   }
 
-  .ticket-pass {
+  .ticket-print-pages {
+    display: block;
+    width: 100%;
+  }
+
+  .ticket-print-page {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 277mm; /* A4 útil com margem @page */
+    height: 277mm;
+    padding: 6mm 4mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: stretch;
+    gap: 8mm;
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+  }
+
+  .ticket-print-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Um ingresso sozinho na folha: centralizado verticalmente */
+  .ticket-print-page--single {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .ticket-print-page .ticket-pass {
+    flex: 0 1 auto;
+    max-height: calc((277mm - 20mm) / 2);
+    overflow: hidden;
     break-inside: avoid;
     page-break-inside: avoid;
-    page-break-after: always;
+    page-break-after: auto;
     box-shadow: none !important;
     border: 1px solid #d1d5db !important;
-    margin-bottom: 0;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
+    margin: 0;
   }
 
-  .ticket-pass:last-child {
-    page-break-after: auto;
+  .ticket-print-page--single .ticket-pass {
+    max-height: 55%;
+    width: 100%;
+  }
+
+  /* Compacta um pouco o ticket para caber 2 por página */
+  .ticket-print-page .ticket-pass-brand {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+  }
+
+  .ticket-print-page .ticket-pass h2 {
+    font-size: 1.05rem !important;
   }
 
   .ticket-pass-brand {

@@ -285,8 +285,8 @@ export function TicketPassList({
   };
 
   return (
-    <div className="space-y-4 ticket-pass-list">
-      <div className="flex items-center justify-between gap-3 print:hidden">
+    <div className="ticket-pass-list">
+      <div className="flex items-center justify-between gap-3 print:hidden mb-4">
         <p className="label-micro">{title}</p>
         <Button
           size="sm"
@@ -299,7 +299,8 @@ export function TicketPassList({
         </Button>
       </div>
 
-      <div className="space-y-4">
+      {/* Tela: lista contínua */}
+      <div className="space-y-4 print:hidden">
         {tickets.map((t) => (
           <TicketPass
             key={t.id}
@@ -311,6 +312,37 @@ export function TicketPassList({
           />
         ))}
       </div>
+
+      {/* Impressão: 1–2 ingressos por folha, alinhados com simetria */}
+      <div className="hidden print:block ticket-print-pages" aria-hidden="true">
+        {chunkTickets(tickets, 2).map((pageTickets, pageIndex) => (
+          <section
+            key={`print-page-${pageIndex}`}
+            className={
+              pageTickets.length === 1
+                ? 'ticket-print-page ticket-print-page--single'
+                : 'ticket-print-page'
+            }
+          >
+            {pageTickets.map((t) => (
+              <TicketPass
+                key={`print-${t.id}`}
+                ticket={t}
+                evento={eventInfo}
+                comprador={buyerInfo}
+              />
+            ))}
+          </section>
+        ))}
+      </div>
     </div>
   );
+}
+
+function chunkTickets<T>(items: T[], size: number): T[][] {
+  const pages: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    pages.push(items.slice(i, i + size));
+  }
+  return pages;
 }
