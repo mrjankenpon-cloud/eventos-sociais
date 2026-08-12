@@ -513,8 +513,8 @@ export default function EventForm() {
                 activeClass="bg-brand-muted border-brand/20"
               />
               <Toggle
-                title="Exibir vagas"
-                description="Mostra quantidade de lugares"
+                title="Exibir quantidade disponível"
+                description="Mostra vagas/quantidade de ingressos na área pública"
                 checked={formData.mostrarVagas}
                 onChange={(v) => update('mostrarVagas', v)}
                 activeClass="bg-brand-muted border-brand/20"

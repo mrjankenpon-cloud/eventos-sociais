@@ -314,8 +314,10 @@ export default function EventRegistration() {
                                 <p className="text-sm text-gray-500 mt-1">{descricao}</p>
                               ) : null}
                               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-2">
-                                {status.label} · {getTicketAvailableQty(type)}{' '}
-                                disponíveis
+                                {status.label}
+                                {event.mostrarVagas
+                                  ? ` · ${getTicketAvailableQty(type)} disponíveis`
+                                  : null}
                               </p>
                             </div>
                             <p className="font-black text-brand tabular-nums shrink-0">

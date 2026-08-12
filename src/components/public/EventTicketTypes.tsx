@@ -58,12 +58,14 @@ export function EventTicketTypes({
                   ) : null}
 
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    <span>
-                      Qtd.{' '}
-                      <span className="text-gray-700 tabular-nums">
-                        {getTicketAvailableQty(type)}
+                    {event.mostrarVagas ? (
+                      <span>
+                        Qtd.{' '}
+                        <span className="text-gray-700 tabular-nums">
+                          {getTicketAvailableQty(type)}
+                        </span>
                       </span>
-                    </span>
+                    ) : null}
                     <span
                       className={cn(
                         status.available ? 'text-emerald-600' : 'text-amber-600'

@@ -130,8 +130,8 @@ export function eventoToUiEvent(
     gratuito: raw.gratuito,
     valor: raw.valor,
     vagas: raw.quantidadeMaxima ?? (raw.vagas as number) ?? 0,
-    mostrarVagas: raw.mostrarVagas,
-    mostrarValor: raw.mostrarValor,
+    mostrarVagas: raw.mostrarVagas !== false,
+    mostrarValor: raw.mostrarValor !== false,
     tiposIngresso,
     patrocinadoresVinculados:
       raw.patrocinadores ??
