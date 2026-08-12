@@ -1,6 +1,6 @@
 # Resend — e-mail transacional (preparado, aguardando domínio)
 
-**Status:** ativo com `onboarding@resend.dev` (teste). Domínio próprio ainda pendente para produção ampla.
+**Status:** ativo com domínio verificado `institutodelphos.com.br` (`EMAIL_FROM=DELPHOS <ingressos@institutodelphos.com.br>`).
 
 ## Provedor
 Resend (`https://api.resend.com/emails`)

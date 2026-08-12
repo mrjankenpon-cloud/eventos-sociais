@@ -28,7 +28,7 @@ export function isResendConfigured(): boolean {
 export function getEmailFrom(): string {
   return (
     String(process.env.EMAIL_FROM || '').trim() ||
-    'DELPHOS <onboarding@resend.dev>'
+    'DELPHOS <ingressos@institutodelphos.com.br>'
   );
 }
 
