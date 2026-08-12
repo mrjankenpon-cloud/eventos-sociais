@@ -77,12 +77,12 @@ function mapGoogleAuthError(error: unknown): Error {
   }
   if (code.includes('argument-error') || msg.includes('auth/argument-error')) {
     return new Error(
-      'Falha no login Google (auth/argument-error). Atualize a página com Ctrl+F5 (cache do PWA) e confira no Firebase Console → Authentication → Google o Client ID do projeto eventosociais-c057d, com os domínios localhost e eventos-sociais.vercel.app.'
+      'Falha no login Google (auth/argument-error). Atualize a página com Ctrl+F5 (cache do PWA) e confira no Firebase Console → Authentication → Google o Client ID do projeto eventosociais-c057d, com os domínios localhost, eventos-sociais.vercel.app e institutodelphos.com.br.'
     );
   }
   if (code.includes('unauthorized-domain') || msg.includes('unauthorized-domain')) {
     return new Error(
-      'Este domínio não está autorizado no Firebase Authentication.'
+      'O domínio institutodelphos.com.br ainda não está autorizado no Firebase. Em Authentication → Settings → Authorized domains, adicione institutodelphos.com.br (e www se usar).'
     );
   }
   if (code.includes('popup-blocked') || msg.includes('popup-blocked')) {
