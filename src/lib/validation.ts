@@ -44,13 +44,17 @@ export function maskCPF(value: string): string {
 }
 
 /**
- * Mask for Phone: (00) 0 0000-0000
+ * Mask for Brazilian phone: (00) 0000-0000 or (00) 00000-0000
  */
 export function maskPhone(value: string): string {
-  const numbers = value.replace(/[^\d]/g, '').slice(0, 11);
-  return numbers
-    .replace(/^(\d{2})(\d)/g, '($1) $2')
-    .replace(/(\d)(\d{4})(\d)/, '$1 $2-$3');
+  const n = value.replace(/\D/g, '').slice(0, 11);
+  if (n.length === 0) return '';
+  if (n.length <= 2) return `(${n}`;
+  if (n.length <= 6) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
+  if (n.length <= 10) {
+    return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  }
+  return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
 }
 
 /**
@@ -69,10 +73,75 @@ export function validateEmail(email: string): boolean {
   return re.test(email);
 }
 
+export type PhoneCountryOption = {
+  code: string;
+  dial: string;
+  name: string;
+  /** Dígitos nacionais (DDD/área + número), sem DDI */
+  minNational: number;
+  maxNational: number;
+};
+
+/** DDI padrão Brasil (+55). Outros países: validação mais flexível. */
+export const PHONE_COUNTRIES: PhoneCountryOption[] = [
+  { code: 'BR', dial: '55', name: 'Brasil', minNational: 10, maxNational: 11 },
+  { code: 'AR', dial: '54', name: 'Argentina', minNational: 10, maxNational: 12 },
+  { code: 'UY', dial: '598', name: 'Uruguai', minNational: 8, maxNational: 9 },
+  { code: 'PY', dial: '595', name: 'Paraguai', minNational: 9, maxNational: 10 },
+  { code: 'CL', dial: '56', name: 'Chile', minNational: 9, maxNational: 11 },
+  { code: 'PT', dial: '351', name: 'Portugal', minNational: 9, maxNational: 9 },
+  { code: 'US', dial: '1', name: 'EUA / Canadá', minNational: 10, maxNational: 10 },
+  { code: 'OTHER', dial: '', name: 'Outro', minNational: 6, maxNational: 15 },
+];
+
 /**
- * Brazilian mobile phone (11 digits with DDD)
+ * Telefone BR: DDD + 8 (fixo) ou DDD + 9 (celular) → 10 ou 11 dígitos.
+ * Aceita string com máscara ou só dígitos; ignora DDI 55 se presente.
+ */
+export function validateBrazilianPhone(phone: string): boolean {
+  let clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('55') && clean.length >= 12) {
+    clean = clean.slice(2);
+  }
+  if (clean.length !== 10 && clean.length !== 11) return false;
+  const ddd = Number(clean.slice(0, 2));
+  if (ddd < 11 || ddd > 99) return false;
+  return true;
+}
+
+/**
+ * @deprecated Prefer validateBrazilianPhone — mantido para compatibilidade.
+ * Agora aceita fixo (10) e celular (11).
  */
 export function validatePhone(phone: string): boolean {
-  const clean = phone.replace(/\D/g, '');
-  return clean.length === 11;
+  return validateBrazilianPhone(phone);
+}
+
+export function validateNationalPhone(
+  nationalDigits: string,
+  country: PhoneCountryOption
+): boolean {
+  const digits = nationalDigits.replace(/\D/g, '');
+  if (country.code === 'BR') {
+    return validateBrazilianPhone(digits);
+  }
+  return (
+    digits.length >= country.minNational &&
+    digits.length <= country.maxNational
+  );
+}
+
+/** Formata valor final com DDI, ex.: +55 (11) 3456-7890 */
+export function formatPhoneWithDial(
+  dial: string,
+  nationalDigits: string,
+  countryCode: string
+): string {
+  const national = nationalDigits.replace(/\D/g, '');
+  const d = dial.replace(/\D/g, '');
+  if (!d || !national) return '';
+  if (countryCode === 'BR') {
+    return `+${d} ${maskPhone(national)}`;
+  }
+  return `+${d} ${national}`;
 }

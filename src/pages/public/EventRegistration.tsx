@@ -399,7 +399,7 @@ export default function EventRegistration() {
               />
 
               <PhoneInput
-                label="Telefone Celular"
+                label="Telefone"
                 icon={<Phone size={18} />}
                 value={formData.telefone}
                 onChange={(val, isValid) => {
