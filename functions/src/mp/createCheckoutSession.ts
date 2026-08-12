@@ -312,6 +312,16 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
+        // Checkout Pro atual: com credenciais de teste, usar init_point (www),
+        // não sandbox_init_point (legado — costuma cair em congrats/recover/error).
+        // back_urls sem query: o token fica no sessionStorage; o MP acrescenta payment_id.
+        const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
+        const paymentMethods: Record<string, unknown> = {
+          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
+          installments: 1,
+          default_installments: 1,
+        };
+
         const preferenceBody: Record<string, unknown> = {
           items: resolved.map((l) => ({
             id: l.ingressoId.slice(0, 64),
@@ -342,19 +352,14 @@ export const createCheckoutSession = functions.https.onRequest(
             tipos: resolved.length,
           },
           back_urls: {
-            success: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
-            pending: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
-            failure: `${appUrl}/evento/${eventoId}/inscricao`,
+            success: successUrl,
+            pending: successUrl,
+            failure: successUrl,
           },
           auto_return: 'approved',
           notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
           statement_descriptor: 'DELPHOS',
-          payment_methods: {
-            excluded_payment_methods: [],
-            excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
-            installments: 1,
-            default_installments: 1,
-          },
+          payment_methods: paymentMethods,
         };
 
         preference = await mpFetch('/checkout/preferences', {
@@ -367,10 +372,10 @@ export const createCheckoutSession = functions.https.onRequest(
         throw mpError;
       }
 
+      // Preferir init_point mesmo em modo teste (credenciais TESTUSER).
+      // sandbox_init_point redireciona ao domínio sandbox legado e falha com frequência.
       const initPoint =
-        isMercadoPagoSandbox()
-          ? preference.sandbox_init_point || preference.init_point || ''
-          : preference.init_point || preference.sandbox_init_point || '';
+        preference.init_point || preference.sandbox_init_point || '';
 
       await pedidoRef.set({
         ...basePedido,
