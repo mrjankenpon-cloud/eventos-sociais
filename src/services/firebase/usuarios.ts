@@ -12,13 +12,16 @@ import {
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '../../firebase/auth';
+import { firebaseConfig } from '../../firebase/config';
 import type {
   PermissionInviteInput,
   User,
@@ -38,8 +41,58 @@ import {
 import { logsService } from './logs';
 import { isMasterAdminUid, MASTER_ADMIN_UID } from '../../config/masterAdmin';
 
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
+function createGoogleProvider(): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  provider.addScope('email');
+  provider.addScope('profile');
+  return provider;
+}
+
+function authErrorCode(error: unknown): string {
+  if (typeof error === 'object' && error && 'code' in error) {
+    return String((error as { code?: string }).code || '');
+  }
+  return '';
+}
+
+function authErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message || '';
+  return String(error || '');
+}
+
+function assertFirebaseWebConfig(): void {
+  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.appId) {
+    throw new Error(
+      'Configuração Firebase incompleta (apiKey/authDomain/appId). Verifique as variáveis VITE_FIREBASE_*.'
+    );
+  }
+}
+
+function mapGoogleAuthError(error: unknown): Error {
+  const code = authErrorCode(error);
+  const msg = authErrorMessage(error);
+  if (code.includes('popup-closed') || msg.includes('popup-closed') || msg.includes('cancelled')) {
+    return new Error('Login com Google cancelado.');
+  }
+  if (code.includes('argument-error') || msg.includes('auth/argument-error')) {
+    return new Error(
+      'Falha no login Google (auth/argument-error). Atualize a página com Ctrl+F5 (cache do PWA) e confira no Firebase Console → Authentication → Google o Client ID do projeto eventosociais-c057d, com os domínios localhost e eventos-sociais.vercel.app.'
+    );
+  }
+  if (code.includes('unauthorized-domain') || msg.includes('unauthorized-domain')) {
+    return new Error(
+      'Este domínio não está autorizado no Firebase Authentication.'
+    );
+  }
+  if (code.includes('popup-blocked') || msg.includes('popup-blocked')) {
+    return new Error(
+      'O navegador bloqueou o popup do Google. Permita popups ou tente novamente.'
+    );
+  }
+  if (error instanceof Error && !msg.startsWith('[')) return error;
+  return new Error('Não foi possível entrar com Google.');
+}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -494,9 +547,54 @@ export const usuariosService = {
     }
   },
 
-  async loginWithGoogle(): Promise<User> {
+  async completeGoogleRedirectIfAny(): Promise<User | null> {
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
+      const cred = await getRedirectResult(auth);
+      if (!cred?.user) return null;
+      const profile = await claimInviteForAuth(cred.user);
+      try {
+        await logsService.record({
+          acao: 'login',
+          colecao: COLLECTIONS.usuarios,
+          documentoId: profile.id,
+          descricao: `Login Google (redirect): ${profile.email}`,
+          usuarioId: profile.id,
+          usuarioNome: profile.name,
+        });
+      } catch {
+        /* ignore */
+      }
+      return profile;
+    } catch (error) {
+      console.error('[usuarios.completeGoogleRedirectIfAny]', error);
+      await signOut(auth).catch(() => undefined);
+      throw mapGoogleAuthError(error);
+    }
+  },
+
+  async loginWithGoogle(): Promise<User> {
+    assertFirebaseWebConfig();
+    const provider = createGoogleProvider();
+    try {
+      let cred;
+      try {
+        cred = await signInWithPopup(auth, provider);
+      } catch (popupError) {
+        const code = authErrorCode(popupError);
+        const msg = authErrorMessage(popupError);
+        // Popup bloqueado / argument-error em alguns browsers → redirect
+        if (
+          code.includes('argument-error') ||
+          msg.includes('auth/argument-error') ||
+          code.includes('popup-blocked') ||
+          msg.includes('popup-blocked')
+        ) {
+          await signInWithRedirect(auth, provider);
+          // A página vai navegar; o retorno é tratado em completeGoogleRedirectIfAny
+          return new Promise<User>(() => undefined);
+        }
+        throw popupError;
+      }
       const profile = await claimInviteForAuth(cred.user);
       try {
         await logsService.record({
@@ -508,44 +606,13 @@ export const usuariosService = {
           usuarioNome: profile.name,
         });
       } catch (logError) {
-        // Login ok — não derruba a sessão por falha de auditoria
         console.error('[usuarios.loginWithGoogle] log', logError);
       }
       return profile;
     } catch (error) {
       console.error('[usuarios.loginWithGoogle]', error);
       await signOut(auth).catch(() => undefined);
-      if (error instanceof Error) {
-        const code =
-          typeof error === 'object' &&
-          error &&
-          'code' in error &&
-          typeof (error as { code?: string }).code === 'string'
-            ? (error as { code: string }).code
-            : '';
-        const msg = error.message || '';
-        if (code.includes('popup-closed') || msg.includes('popup-closed')) {
-          throw new Error('Login com Google cancelado.');
-        }
-        if (
-          code.includes('argument-error') ||
-          msg.includes('auth/argument-error')
-        ) {
-          throw new Error(
-            'Configuração do Google Sign-In inválida. No Firebase Console → Authentication → Google, confira o Client ID OAuth do projeto eventosociais-c057d e os domínios autorizados (localhost e eventos-sociais.vercel.app).'
-          );
-        }
-        if (
-          code.includes('unauthorized-domain') ||
-          msg.includes('unauthorized-domain')
-        ) {
-          throw new Error(
-            'Este domínio não está autorizado no Firebase Authentication.'
-          );
-        }
-        if (!msg.startsWith('[')) throw error;
-      }
-      throw new Error('Não foi possível entrar com Google.');
+      throw mapGoogleAuthError(error);
     }
   },
 

@@ -39,6 +39,11 @@ export default function Login() {
     setIsGoogleLoading(true);
     setError('');
     try {
+      // Limpa SW/cache antigo que pode servir JS desatualizado
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
+      }
       await loginWithGoogle();
       navigate(from, { replace: true });
     } catch (err: unknown) {

@@ -24,6 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   userRef.current = user;
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const redirected = await usuariosService.completeGoogleRedirectIfAny();
+        if (!cancelled && redirected) {
+          setUser(redirected);
+        }
+      } catch (error) {
+        console.error('[AuthProvider] google redirect', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       const gen = ++restoreGen.current;
 
