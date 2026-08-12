@@ -26,7 +26,11 @@ export default function EventDetails() {
   const [shareCopied, setShareCopied] = useState(false);
 
   const loadEvent = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setEvent(null);
+      setLoading(false);
+      return;
+    }
     try {
       const data = await eventService.getById(id);
       if (!data) {
@@ -112,11 +116,13 @@ export default function EventDetails() {
 
   if (loading) {
     return (
-      <ProcessingOverlay
-        open
-        label="Processando"
-        detail="Carregando detalhes do evento..."
-      />
+      <div className="min-h-[50vh] relative">
+        <ProcessingOverlay
+          open
+          label="Processando"
+          detail="Carregando detalhes do evento..."
+        />
+      </div>
     );
   }
 
@@ -181,11 +187,13 @@ export default function EventDetails() {
                 Sobre o Evento
               </h2>
               <div className="space-y-2.5 text-gray-600 leading-relaxed text-[15px]">
-                {event.descricaoCompleta.split('\n').map((paragraph, idx) =>
-                  paragraph.trim() ? (
-                    <p key={idx}>{paragraph}</p>
-                  ) : null
-                )}
+                {(event.descricaoCompleta || event.descricaoCurta || '')
+                  .split('\n')
+                  .map((paragraph, idx) =>
+                    paragraph.trim() ? (
+                      <p key={idx}>{paragraph}</p>
+                    ) : null
+                  )}
               </div>
 
               {event.regulamento?.trim() && (

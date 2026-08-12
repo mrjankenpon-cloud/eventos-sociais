@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 
 type ProcessingOverlayProps = {
@@ -12,6 +11,7 @@ type ProcessingOverlayProps = {
 
 /**
  * Pop de espera com barra indeterminada — usado em transições e checkout.
+ * Usa `position: fixed` (sem portal) para não esvaziar o outlet do React Router/Suspense.
  */
 export function ProcessingOverlay({
   open = true,
@@ -22,15 +22,13 @@ export function ProcessingOverlay({
 }: ProcessingOverlayProps) {
   if (!open) return null;
 
-  const panel = (
+  return (
     <div
       role="status"
       aria-live="polite"
       aria-busy="true"
       className={cn(
-        contained
-          ? 'absolute inset-0 z-40'
-          : 'fixed inset-0 z-[100]',
+        contained ? 'absolute inset-0 z-40' : 'fixed inset-0 z-[100]',
         'flex items-center justify-center bg-brand-deeper/45 backdrop-blur-[2px] p-4',
         className
       )}
@@ -56,10 +54,4 @@ export function ProcessingOverlay({
       </div>
     </div>
   );
-
-  if (contained || typeof document === 'undefined') {
-    return panel;
-  }
-
-  return createPortal(panel, document.body);
 }

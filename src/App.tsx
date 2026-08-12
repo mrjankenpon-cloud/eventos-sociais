@@ -9,9 +9,11 @@ import PublicLayout from './layouts/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
 import { PWAInstall } from './components/common/PWAInstall';
 
-const Home = lazy(() => import('./pages/public/Home'));
-const EventDetails = lazy(() => import('./pages/public/EventDetails'));
-const EventRegistration = lazy(() => import('./pages/public/EventRegistration'));
+/** Funil público: eager para evitar tela em branco no 1º clique (Suspense/lazy). */
+import Home from './pages/public/Home';
+import EventDetails from './pages/public/EventDetails';
+import EventRegistration from './pages/public/EventRegistration';
+
 const OrderSuccess = lazy(() => import('./pages/public/OrderSuccess'));
 const OrderLookup = lazy(() => import('./pages/public/OrderLookup'));
 const MyTickets = lazy(() => import('./pages/public/MyTickets'));
@@ -30,11 +32,13 @@ const Health = lazy(() => import('./pages/admin/Health'));
 
 function RouteFallback({ detail }: { detail?: string }) {
   return (
-    <ProcessingOverlay
-      open
-      label="Processando"
-      detail={detail || 'Carregando a próxima etapa...'}
-    />
+    <div className="min-h-[50vh]">
+      <ProcessingOverlay
+        open
+        label="Processando"
+        detail={detail || 'Carregando a próxima etapa...'}
+      />
+    </div>
   );
 }
 

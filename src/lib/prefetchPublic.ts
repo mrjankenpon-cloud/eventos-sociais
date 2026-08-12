@@ -1,11 +1,13 @@
-/** Pré-carrega chunks do funil público de compra para reduzir espera entre rotas. */
+/** Pré-carrega chunks ainda lazy do funil público. */
 
 export function prefetchEventDetails() {
-  return import('../pages/public/EventDetails');
+  // Eager em App.tsx — noop para manter API dos cards.
+  return Promise.resolve();
 }
 
 export function prefetchEventRegistration() {
-  return import('../pages/public/EventRegistration');
+  // Eager em App.tsx — noop para manter API dos botões.
+  return Promise.resolve();
 }
 
 export function prefetchOrderSuccess() {
@@ -13,9 +15,5 @@ export function prefetchOrderSuccess() {
 }
 
 export function prefetchPurchaseFunnel() {
-  return Promise.all([
-    prefetchEventDetails(),
-    prefetchEventRegistration(),
-    prefetchOrderSuccess(),
-  ]);
+  return prefetchOrderSuccess();
 }

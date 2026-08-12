@@ -117,11 +117,13 @@ export default function OrderSuccess() {
 
   if (loading) {
     return (
-      <ProcessingOverlay
-        open
-        label="Processando"
-        detail="Carregando seu pedido..."
-      />
+      <div className="min-h-[50vh] relative">
+        <ProcessingOverlay
+          open
+          label="Processando"
+          detail="Carregando seu pedido..."
+        />
+      </div>
     );
   }
 

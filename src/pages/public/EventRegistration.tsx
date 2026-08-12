@@ -220,11 +220,13 @@ export default function EventRegistration() {
 
   if (loading) {
     return (
-      <ProcessingOverlay
-        open
-        label="Processando"
-        detail="Preparando a inscrição..."
-      />
+      <div className="min-h-[50vh] relative">
+        <ProcessingOverlay
+          open
+          label="Processando"
+          detail="Preparando a inscrição..."
+        />
+      </div>
     );
   }
 
