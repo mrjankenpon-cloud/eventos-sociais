@@ -14,7 +14,7 @@ import {
   persistGuestCheckoutSession,
   readGuestCheckoutToken,
 } from '../../lib/guestCheckout';
-import { Button, Alert, PageLoader, Badge } from '../../components/ui';
+import { Button, Alert, Badge, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { formatCurrency } from '../../lib/utils';
 import { THEME } from '../../theme';
@@ -117,9 +117,11 @@ export default function OrderSuccess() {
 
   if (loading) {
     return (
-      <div className="py-20">
-        <PageLoader label="Carregando seu pedido..." />
-      </div>
+      <ProcessingOverlay
+        open
+        label="Processando"
+        detail="Carregando seu pedido..."
+      />
     );
   }
 
@@ -373,6 +375,12 @@ export default function OrderSuccess() {
           </button>
         </motion.div>
       </div>
+
+      <ProcessingOverlay
+        open={sandboxApproving}
+        label="Processando"
+        detail="Confirmando o pagamento de teste..."
+      />
     </div>
   );
 }

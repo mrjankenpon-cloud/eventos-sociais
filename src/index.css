@@ -98,3 +98,17 @@
 #qr-reader video {
   object-fit: cover !important;
 }
+
+@keyframes processing-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.processing-bar {
+  width: 40%;
+  animation: processing-bar 1.15s ease-in-out infinite;
+}

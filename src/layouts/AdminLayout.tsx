@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -17,6 +17,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ROUTES, APP_CONFIG } from '../config';
 import { isMasterAdminUser } from '../config/masterAdmin';
+import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 
 export default function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -192,7 +193,17 @@ export default function AdminLayout() {
         </header>
 
         <main className="flex-grow p-4 sm:p-6 lg:p-8 min-w-0">
-          <Outlet />
+          <Suspense
+            fallback={
+              <ProcessingOverlay
+                open
+                label="Processando"
+                detail="Carregando o painel..."
+              />
+            }
+          >
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

@@ -6,6 +6,7 @@ export { Modal } from './Modal';
 export { Alert } from './Alert';
 export { EmptyState } from './EmptyState';
 export { Spinner, Skeleton, PageLoader } from './Spinner';
+export { ProcessingOverlay } from './ProcessingOverlay';
 export { Toast } from './Toast';
 export { CPFInput } from './CPFInput';
 export { PhoneInput } from './PhoneInput';

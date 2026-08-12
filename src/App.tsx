@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
 import { ROUTES } from './config';
-import { Spinner } from './components/ui/Spinner';
+import { ProcessingOverlay } from './components/ui/ProcessingOverlay';
 
 import PublicLayout from './layouts/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -28,68 +28,82 @@ const Institutions = lazy(() => import('./pages/admin/Institutions'));
 const Permissions = lazy(() => import('./pages/admin/Permissions'));
 const Health = lazy(() => import('./pages/admin/Health'));
 
-const LoadingFallback = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface-muted">
-    <Spinner size="lg" label="Carregando DELPHOS" />
-    <p className="text-sm font-medium text-gray-400">Carregando...</p>
-  </div>
-);
+function RouteFallback({ detail }: { detail?: string }) {
+  return (
+    <ProcessingOverlay
+      open
+      label="Processando"
+      detail={detail || 'Carregando a próxima etapa...'}
+    />
+  );
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <PWAInstall />
-          <Routes>
-            <Route element={<PublicLayout />}>
-              <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />
-              <Route path={ROUTES.PUBLIC.EVENT_DETAILS} element={<EventDetails />} />
-              <Route path={ROUTES.PUBLIC.EVENT_REGISTRATION} element={<EventRegistration />} />
-              <Route path={ROUTES.PUBLIC.ORDER_SUCCESS} element={<OrderSuccess />} />
-              <Route path={ROUTES.PUBLIC.ORDER_LOOKUP} element={<OrderLookup />} />
-              <Route path={ROUTES.PUBLIC.MY_TICKETS} element={<MyTickets />} />
-            </Route>
-
-            <Route path={ROUTES.ADMIN.LOGIN} element={<Login />} />
-
+        <PWAInstall />
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />
+            <Route path={ROUTES.PUBLIC.EVENT_DETAILS} element={<EventDetails />} />
             <Route
-              path="/controle"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to={ROUTES.ADMIN.DASHBOARD} replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="eventos" element={<Events />} />
-              <Route path="eventos/novo" element={<EventForm />} />
-              <Route path="eventos/editar/:id" element={<EventForm />} />
-              <Route path="eventos/relatorios/:id" element={<EventReports />} />
-              <Route path="eventos/checkin/:id" element={<CheckIn />} />
-              <Route path="compras/:id" element={<PurchaseDetails />} />
-              <Route path="patrocinadores" element={<Sponsors />} />
-              <Route path="instituicoes" element={<Institutions />} />
-              <Route path="permissoes" element={<Permissions />} />
-              <Route path="health" element={<Health />} />
-            </Route>
+              path={ROUTES.PUBLIC.EVENT_REGISTRATION}
+              element={<EventRegistration />}
+            />
+            <Route path={ROUTES.PUBLIC.ORDER_SUCCESS} element={<OrderSuccess />} />
+            <Route path={ROUTES.PUBLIC.ORDER_LOOKUP} element={<OrderLookup />} />
+            <Route path={ROUTES.PUBLIC.MY_TICKETS} element={<MyTickets />} />
+          </Route>
 
-            {/* Alias oculto solicitado: /admin/health */}
-            <Route
-              path="/admin/health"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Health />} />
-            </Route>
+          <Route
+            path={ROUTES.ADMIN.LOGIN}
+            element={
+              <Suspense
+                fallback={
+                  <RouteFallback detail="Abrindo acesso ao controle..." />
+                }
+              >
+                <Login />
+              </Suspense>
+            }
+          />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+          <Route
+            path="/controle"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to={ROUTES.ADMIN.DASHBOARD} replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="eventos" element={<Events />} />
+            <Route path="eventos/novo" element={<EventForm />} />
+            <Route path="eventos/editar/:id" element={<EventForm />} />
+            <Route path="eventos/relatorios/:id" element={<EventReports />} />
+            <Route path="eventos/checkin/:id" element={<CheckIn />} />
+            <Route path="compras/:id" element={<PurchaseDetails />} />
+            <Route path="patrocinadores" element={<Sponsors />} />
+            <Route path="instituicoes" element={<Institutions />} />
+            <Route path="permissoes" element={<Permissions />} />
+            <Route path="health" element={<Health />} />
+          </Route>
+
+          <Route
+            path="/admin/health"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Health />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );

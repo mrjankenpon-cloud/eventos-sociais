@@ -8,6 +8,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
 import { eventService } from '../../services/event.service';
 import { Event } from '../../types';
+import { prefetchPurchaseFunnel } from '../../lib/prefetchPublic';
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -32,6 +33,23 @@ export default function Home() {
     setLoading(true);
     void loadEvents();
   }, [loadEvents]);
+
+  useEffect(() => {
+    const idle =
+      typeof window !== 'undefined' && 'requestIdleCallback' in window
+        ? window.requestIdleCallback.bind(window)
+        : (cb: () => void) => window.setTimeout(cb, 400);
+    const id = idle(() => {
+      void prefetchPurchaseFunnel();
+    });
+    return () => {
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(id as number);
+      } else {
+        window.clearTimeout(id as number);
+      }
+    };
+  }, []);
 
   const featured = events.filter((e) => e.eventoDestaque);
   const list = featured.length > 0 ? events.filter((e) => !e.eventoDestaque) : events;

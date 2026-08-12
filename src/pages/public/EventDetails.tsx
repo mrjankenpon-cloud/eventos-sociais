@@ -6,7 +6,7 @@ import { eventService } from '../../services/event.service';
 import { sponsorService } from '../../services/sponsor.service';
 import { institutionService } from '../../services/institution.service';
 import type { Event, Institution, Sponsor } from '../../types';
-import { PageLoader } from '../../components/ui/Spinner';
+import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { AppImage } from '../../components/ui/AppImage';
@@ -14,6 +14,7 @@ import { EventPartnersSection } from '../../components/public/EventPartnersSecti
 import { EventTicketTypes } from '../../components/public/EventTicketTypes';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 import { getActiveTicketTypes } from '../../lib/eventData';
+import { prefetchEventRegistration } from '../../lib/prefetchPublic';
 import { THEME } from '../../theme';
 
 export default function EventDetails() {
@@ -84,6 +85,10 @@ export default function EventDetails() {
     void loadEvent();
   }, [loadEvent]);
 
+  useEffect(() => {
+    void prefetchEventRegistration();
+  }, []);
+
   const handleShare = useCallback(async () => {
     if (!event) return;
     const url = window.location.href;
@@ -107,9 +112,11 @@ export default function EventDetails() {
 
   if (loading) {
     return (
-      <div className="py-20">
-        <PageLoader label="Carregando evento..." />
-      </div>
+      <ProcessingOverlay
+        open
+        label="Processando"
+        detail="Carregando detalhes do evento..."
+      />
     );
   }
 
@@ -274,6 +281,15 @@ export default function EventDetails() {
                   <Link
                     to={`/evento/${event.id}/inscricao`}
                     className="w-full h-12 bg-brand text-white rounded-xl font-black text-base flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
+                    onMouseEnter={() => {
+                      void prefetchEventRegistration();
+                    }}
+                    onFocus={() => {
+                      void prefetchEventRegistration();
+                    }}
+                    onTouchStart={() => {
+                      void prefetchEventRegistration();
+                    }}
                   >
                     {event.textoBotao}
                   </Link>

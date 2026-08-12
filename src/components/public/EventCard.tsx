@@ -6,6 +6,7 @@ import { Event } from '../../types';
 import { Badge } from '../ui/Badge';
 import { formatEventDate } from '../../lib/utils';
 import { getEventPriceLabel } from '../../lib/eventData';
+import { prefetchEventDetails } from '../../lib/prefetchPublic';
 import { THEME } from '../../theme';
 import { AppImage } from '../ui/AppImage';
 
@@ -22,7 +23,19 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
       transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
       className="group relative aspect-[4/5] card-surface overflow-hidden transition-all hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 h-full"
     >
-      <Link to={`/evento/${event.id}`} className="flex flex-col h-full focus-visible:outline-none">
+      <Link
+        to={`/evento/${event.id}`}
+        className="flex flex-col h-full focus-visible:outline-none"
+        onMouseEnter={() => {
+          void prefetchEventDetails();
+        }}
+        onFocus={() => {
+          void prefetchEventDetails();
+        }}
+        onTouchStart={() => {
+          void prefetchEventDetails();
+        }}
+      >
         <div className="relative h-[60%] overflow-hidden shrink-0">
           <AppImage
             src={event.banner}

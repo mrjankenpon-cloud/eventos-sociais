@@ -13,7 +13,7 @@ import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
 import type { Event, TicketType } from '../../types';
-import { Input, CPFInput, PhoneInput, Button, Alert, PageLoader } from '../../components/ui';
+import { Input, CPFInput, PhoneInput, Button, Alert, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { validateEmail } from '../../lib/validation';
 import { formatCurrency, formatEventDate, cn } from '../../lib/utils';
@@ -23,6 +23,7 @@ import {
   getTicketAvailableQty,
   getTicketStatus,
 } from '../../lib/eventData';
+import { prefetchOrderSuccess } from '../../lib/prefetchPublic';
 
 function maxQtyForType(type: TicketType, eventLimit: number): number {
   const available = getTicketAvailableQty(type);
@@ -91,6 +92,10 @@ export default function EventRegistration() {
     setLoading(true);
     void loadEvent();
   }, [loadEvent]);
+
+  useEffect(() => {
+    void prefetchOrderSuccess();
+  }, []);
 
   const activeTickets = useMemo(
     () => (event ? getActiveTicketTypes(event) : []),
@@ -215,9 +220,11 @@ export default function EventRegistration() {
 
   if (loading) {
     return (
-      <div className="py-20">
-        <PageLoader label="Carregando inscrição..." />
-      </div>
+      <ProcessingOverlay
+        open
+        label="Processando"
+        detail="Preparando a inscrição..."
+      />
     );
   }
 
@@ -488,6 +495,12 @@ export default function EventRegistration() {
           </form>
         </div>
       </div>
+
+      <ProcessingOverlay
+        open={isSubmitting}
+        label="Processando"
+        detail="Reservando ingressos e preparando o pagamento..."
+      />
     </div>
   );
 }
