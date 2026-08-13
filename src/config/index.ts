@@ -2,15 +2,20 @@ export const APP_CONFIG = {
   name: 'DELPHOS',
   description: 'Gestão de eventos beneficentes e institucionais.',
   contact: {
-    email: 'contato@ong.org.br',
-    phone: '+55 (11) 99999-9999',
-    address: 'Sede Social - São Paulo - SP'
-  }
+    email: 'ingressos@institutodelphos.com.br',
+    phone: '(11) 4193-5616',
+    address: 'Rua Festival, 96 — Vila Barros, Barueri/SP — CEP 06410-280',
+  },
 };
 
 export const ROUTES = {
   PUBLIC: {
     HOME: '/',
+    ABOUT: '/sobre',
+    TERMS: '/termos',
+    PRIVACY: '/privacidade',
+    DONATIONS: '/doacoes',
+    DONATION_SUCCESS: '/doacao/:id/sucesso',
     EVENT_DETAILS: '/evento/:id',
     EVENT_REGISTRATION: '/evento/:id/inscricao',
     ORDER_SUCCESS: '/pedido/:id/sucesso',

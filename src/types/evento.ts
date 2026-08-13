@@ -41,6 +41,8 @@ export interface Evento extends BaseDocument {
   mapa: string;
   quantidadeMaxima: number;
   quantidadeRestante: number;
+  /** Vendidos que competem pelas vagas do salão */
+  vagasVendidasCompetindo?: number;
   possuiPatrocinadores: boolean;
   possuiInstituicao: boolean;
   patrocinadores: EventoVinculo[];

@@ -71,7 +71,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
                   />
                 ) : null}
                 {event.mostrarVagas ? (
-                  <Meta icon={Users} label="Vagas" value={`${event.vagas} totais`} />
+                  <Meta icon={Users} label="Vagas" value={`${event.vagas} no salão`} />
                 ) : null}
               </div>
             </div>

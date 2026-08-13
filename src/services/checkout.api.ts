@@ -71,6 +71,10 @@ export type OrderReceiptResult = {
     email: string;
     telefone?: string;
     cpf?: string;
+    documentoTipo?: 'cpf' | 'cnpj';
+    certificadoNumero?: string;
+    mensagemDoador?: string;
+    tipo?: string;
     eventoId: string;
     eventoTitulo: string;
     eventoData?: string;
@@ -217,5 +221,25 @@ export const checkoutApi = {
       { ticketId },
       { auth: true }
     );
+  },
+
+  createDonationSession(input: {
+    valor: number;
+    doador: {
+      nome: string;
+      documento: string;
+      documentoTipo: 'cpf' | 'cnpj';
+      email: string;
+      telefone: string;
+    };
+    mensagem?: string;
+  }): Promise<{
+    ok: boolean;
+    pedidoId: string;
+    accessToken: string;
+    initPoint?: string;
+    receiptUrl: string;
+  }> {
+    return postJson('createDonationSession', input);
   },
 };

@@ -27,6 +27,7 @@ import {
 } from '../../lib/eventForm';
 import { cn } from '../../lib/utils';
 import { maskCEP } from '../../lib/validation';
+import { typeCompetesForEventSeats } from '../../types/ingressoNatureza';
 
 type TabId =
   | 'geral'
@@ -122,6 +123,10 @@ export default function EventForm() {
     if (!formData.imagens.length) errs.imagens = 'Envie ao menos uma imagem (capa).';
 
     const ativos = formData.tiposIngresso.filter((t) => t.ativo);
+    const temCompetindo = ativos.some((t) => typeCompetesForEventSeats(t));
+    if (temCompetindo && (!formData.vagas || formData.vagas < 1)) {
+      errs.vagas = 'Informe as vagas do evento (salão).';
+    }
     if (ativos.length === 0) {
       errs.tiposIngresso = 'Ative ao menos um tipo de ingresso.';
     } else {
@@ -131,6 +136,9 @@ export default function EventForm() {
         if (t.quantidade < 0 || !Number.isFinite(t.quantidade)) {
           errs.tiposIngresso = `Quantidade inválida em ${t.nome || 'ingresso'}.`;
         }
+        if (!typeCompetesForEventSeats(t) && t.quantidade < 1) {
+          errs.tiposIngresso = `Informe a cota isolada de ${t.nome || 'ingresso'}.`;
+        }
       }
     }
 
@@ -138,7 +146,7 @@ export default function EventForm() {
     if (Object.keys(errs).length) {
       if (errs.titulo || errs.data || errs.local || errs.descricaoCurta || errs.descricaoCompleta) {
         setTab('geral');
-      } else if (errs.tiposIngresso) setTab('ingressos');
+      } else if (errs.tiposIngresso || errs.vagas) setTab('ingressos');
       else if (errs.imagens) setTab('galeria');
       setError('Revise os campos obrigatórios destacados.');
       return false;
@@ -169,9 +177,12 @@ export default function EventForm() {
 
   const activeTicketsSummary = useMemo(() => {
     const ativos = formData.tiposIngresso.filter((t) => t.ativo);
-    const vagas = ativos.reduce((s, t) => s + t.quantidade, 0);
-    return `${ativos.length} tipo(s) · ${vagas} vagas`;
-  }, [formData.tiposIngresso]);
+    const isoladas = ativos
+      .filter((t) => !typeCompetesForEventSeats(t))
+      .reduce((s, t) => s + (t.quantidade || 0), 0);
+    const extra = isoladas > 0 ? ` · ${isoladas} em cota isolada` : '';
+    return `${ativos.length} tipo(s) · ${formData.vagas || 0} vagas do evento${extra}`;
+  }, [formData.tiposIngresso, formData.vagas]);
 
   if (loading) return <PageLoader label="Carregando dados do evento..." />;
 
@@ -348,8 +359,25 @@ export default function EventForm() {
             {fieldErrors.tiposIngresso && (
               <Alert variant="error">{fieldErrors.tiposIngresso}</Alert>
             )}
+            <Input
+              label="Vagas do evento (salão)"
+              type="number"
+              min={0}
+              step={1}
+              required
+              value={formData.vagas || ''}
+              error={fieldErrors.vagas}
+              onChange={(e) =>
+                update(
+                  'vagas',
+                  Math.max(0, Math.floor(Number(e.target.value) || 0))
+                )
+              }
+              hint="Lugares de quem entra para sentar/comer. Inteira e meia disputam este total, salvo cota isolada."
+            />
             <TicketTypesEditor
               types={formData.tiposIngresso}
+              eventVagas={formData.vagas || 0}
               onChange={(tiposIngresso) => update('tiposIngresso', tiposIngresso)}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">

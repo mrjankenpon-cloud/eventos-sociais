@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom';
 import { APP_CONFIG, ROUTES } from '../../config';
+import { ORG, orgAddressLine } from '../../lib/orgInfo';
+
+const LEGAL_LINKS = [
+  { to: ROUTES.PUBLIC.ABOUT, label: 'Sobre' },
+  { to: ROUTES.PUBLIC.TERMS, label: 'Termo de Uso' },
+  { to: ROUTES.PUBLIC.PRIVACY, label: 'Privacidade' },
+  { to: ROUTES.PUBLIC.DONATIONS, label: 'Doações' },
+] as const;
 
 export default function Footer() {
   return (
@@ -8,7 +16,25 @@ export default function Footer() {
         <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
 
         <div className="flex flex-col items-center gap-8">
-          <nav aria-label="Rodapé" className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+          <nav
+            aria-label="Institucional"
+            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
+          >
+            {LEGAL_LINKS.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <nav
+            aria-label="Acesso"
+            className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8"
+          >
             <Link
               to={ROUTES.PUBLIC.ORDER_LOOKUP}
               className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
@@ -23,9 +49,15 @@ export default function Footer() {
             </Link>
           </nav>
 
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-2 max-w-lg">
             <p className="text-gray-400 text-[11px] tracking-wide">
-              © {new Date().getFullYear()} {APP_CONFIG.name} • Todos os direitos reservados.
+              © {new Date().getFullYear()} {APP_CONFIG.name} • Todos os direitos
+              reservados.
+            </p>
+            <p className="text-gray-400 text-[11px] leading-relaxed">
+              {ORG.razaoSocial} · CNPJ {ORG.cnpj}
+              <br />
+              {orgAddressLine()}
             </p>
             <p className="text-gray-300 text-[10px] tracking-wider uppercase font-medium">
               Este site foi desenvolvido por{' '}

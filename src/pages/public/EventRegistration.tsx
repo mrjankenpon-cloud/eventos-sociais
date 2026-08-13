@@ -24,9 +24,14 @@ import {
   getTicketStatus,
 } from '../../lib/eventData';
 import { prefetchOrderSuccess } from '../../lib/prefetchPublic';
+import { TicketTypeInfo } from '../../components/public/TicketTypeInfo';
 
-function maxQtyForType(type: TicketType, eventLimit: number): number {
-  const available = getTicketAvailableQty(type);
+function maxQtyForType(
+  type: TicketType,
+  eventLimit: number,
+  event: Event
+): number {
+  const available = getTicketAvailableQty(type, event);
   const typeLimit =
     typeof type.limitePorCompra === 'number' && type.limitePorCompra > 0
       ? type.limitePorCompra
@@ -155,7 +160,7 @@ export default function EventRegistration() {
   const setTypeQty = (typeId: string, next: number) => {
     const type = activeTickets.find((t) => t.id === typeId);
     if (!type) return;
-    const max = maxQtyForType(type, eventLimit);
+    const max = event ? maxQtyForType(type, eventLimit, event) : 0;
     const clamped = Math.max(0, Math.min(max, Math.floor(next)));
 
     setQtyByType((prev) => {
@@ -290,10 +295,9 @@ export default function EventRegistration() {
               ) : (
                 <ul className="space-y-2">
                   {activeTickets.map((type) => {
-                    const status = getTicketStatus(type);
-                    const descricao = type.descricao?.trim();
+                    const status = getTicketStatus(type, event);
                     const qty = qtyByType[type.id] || 0;
-                    const max = maxQtyForType(type, eventLimit);
+                    const max = event ? maxQtyForType(type, eventLimit, event) : 0;
                     const selected = qty > 0;
                     const canIncrease =
                       status.available && qty < max && totalQty < eventLimit;
@@ -311,14 +315,20 @@ export default function EventRegistration() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="font-black text-gray-900">{type.nome}</p>
-                              {descricao ? (
-                                <p className="text-sm text-gray-500 mt-1">{descricao}</p>
-                              ) : null}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <p className="font-black text-gray-900 truncate">
+                                  {type.nome}
+                                </p>
+                                <TicketTypeInfo
+                                  ticketKey={type.key}
+                                  descricao={type.descricao}
+                                  nome={type.nome}
+                                />
+                              </div>
                               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-2">
                                 {status.label}
                                 {event.mostrarVagas
-                                  ? ` · ${getTicketAvailableQty(type)} disponíveis`
+                                  ? ` · ${getTicketAvailableQty(type, event)} disponíveis`
                                   : null}
                               </p>
                             </div>

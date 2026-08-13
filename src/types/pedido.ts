@@ -26,6 +26,11 @@ export interface PedidoItem {
 }
 
 export interface Pedido extends BaseDocument {
+  /** `doacao` para contribuições; ausente ou outro valor = ingresso */
+  tipo?: 'ingresso' | 'doacao' | 'upgrade';
+  documentoTipo?: 'cpf' | 'cnpj';
+  certificadoNumero?: string;
+  mensagemDoador?: string;
   nomeComprador: string;
   cpf: string;
   telefone: string;

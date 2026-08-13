@@ -8,6 +8,7 @@ import {
 } from './helpers';
 import { emitTicketsForPedido } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
+import { sendDonationCertificateEmail } from '../email/donationCertificate';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -112,6 +113,26 @@ export const sandboxApproveOrder = functions.https.onRequest(async (req, res) =>
         processedAt: now,
       });
 
+    if (String(pedido.tipo || '') === 'doacao') {
+      await sendDonationCertificateEmail({
+        id: pedidoId,
+        email: String(pedido.email || ''),
+        nomeComprador: String(pedido.nomeComprador || ''),
+        cpf: String(pedido.cpf || ''),
+        documentoTipo: String(pedido.documentoTipo || 'cpf'),
+        valorTotal,
+        dataCompra: String(pedido.dataCompra || ''),
+        certificadoNumero: String(pedido.certificadoNumero || ''),
+        accessToken: String(pedido.accessToken || ''),
+      }).catch((err) => {
+        functions.logger.warn('[sandboxApproveOrder] e-mail doação', err);
+      });
+
+      functions.logger.info('[sandboxApproveOrder] doação ok', { pedidoId });
+      res.json({ ok: true, pedidoId, tickets: 0, simulated: true });
+      return;
+    }
+
     const emit = await emitTicketsForPedido(pedidoId, {
       ...pedido,
       status: 'confirmado',
@@ -122,6 +143,7 @@ export const sandboxApproveOrder = functions.https.onRequest(async (req, res) =>
       id: pedidoId,
       email: String(pedido.email || ''),
       nomeComprador: String(pedido.nomeComprador || ''),
+      eventoId: String(pedido.eventoId || ''),
     }).catch((err) => {
       functions.logger.warn('[sandboxApproveOrder] e-mail', err);
     });

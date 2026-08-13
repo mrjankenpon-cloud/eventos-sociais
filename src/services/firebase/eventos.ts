@@ -41,9 +41,18 @@ async function hydrateEvent(raw: Evento & Record<string, unknown>): Promise<Even
   return eventoToUiEvent(raw, tipos);
 }
 
-async function recalcQuantidadeRestante(eventoId: string): Promise<number> {
-  const tipos = await ingressosService.getByEvento(eventoId);
-  return tipos.reduce((sum, t) => sum + Math.max(0, t.quantidadeDisponivel), 0);
+async function recalcQuantidadeRestante(eventoId: string): Promise<{
+  restante: number;
+  vendidas: number;
+}> {
+  const snap = await getDoc(docRef(COLLECTIONS.eventos, eventoId));
+  const raw = snap.exists() ? snap.data() || {} : {};
+  const vagas = Number(raw.quantidadeMaxima) || 0;
+  const vendidas = Math.max(0, Number(raw.vagasVendidasCompetindo) || 0);
+  return {
+    restante: Math.max(0, vagas - vendidas),
+    vendidas,
+  };
 }
 
 export const eventosService = {
@@ -59,10 +68,10 @@ export const eventosService = {
 
       if (tiposIngresso?.length) {
         await ingressosService.syncForEvento(ref.id, tiposIngresso);
-        const restante = await recalcQuantidadeRestante(ref.id);
+        const { restante, vendidas } = await recalcQuantidadeRestante(ref.id);
         await updateDoc(docRef(COLLECTIONS.eventos, ref.id), {
           quantidadeRestante: restante,
-          quantidadeMaxima: restante,
+          vagasVendidasCompetindo: vendidas,
           ...touchUpdated(),
         });
       }
@@ -142,9 +151,10 @@ export const eventosService = {
         await ingressosService.syncForEvento(id, tiposIngresso);
       }
 
-      const restante = await recalcQuantidadeRestante(id);
+      const { restante, vendidas } = await recalcQuantidadeRestante(id);
       await updateDoc(docRef(COLLECTIONS.eventos, id), {
         quantidadeRestante: restante,
+        vagasVendidasCompetindo: vendidas,
         ...touchUpdated(),
       });
 

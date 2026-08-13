@@ -17,6 +17,11 @@ import EventRegistration from './pages/public/EventRegistration';
 const OrderSuccess = lazy(() => import('./pages/public/OrderSuccess'));
 const OrderLookup = lazy(() => import('./pages/public/OrderLookup'));
 const MyTickets = lazy(() => import('./pages/public/MyTickets'));
+const About = lazy(() => import('./pages/public/About'));
+const Terms = lazy(() => import('./pages/public/Terms'));
+const Privacy = lazy(() => import('./pages/public/Privacy'));
+const Donations = lazy(() => import('./pages/public/Donations'));
+const DonationSuccess = lazy(() => import('./pages/public/DonationSuccess'));
 
 const Login = lazy(() => import('./pages/admin/Login'));
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
@@ -58,6 +63,11 @@ export default function App() {
             <Route path={ROUTES.PUBLIC.ORDER_SUCCESS} element={<OrderSuccess />} />
             <Route path={ROUTES.PUBLIC.ORDER_LOOKUP} element={<OrderLookup />} />
             <Route path={ROUTES.PUBLIC.MY_TICKETS} element={<MyTickets />} />
+            <Route path={ROUTES.PUBLIC.ABOUT} element={<About />} />
+            <Route path={ROUTES.PUBLIC.TERMS} element={<Terms />} />
+            <Route path={ROUTES.PUBLIC.PRIVACY} element={<Privacy />} />
+            <Route path={ROUTES.PUBLIC.DONATIONS} element={<Donations />} />
+            <Route path={ROUTES.PUBLIC.DONATION_SUCCESS} element={<DonationSuccess />} />
           </Route>
 
           <Route

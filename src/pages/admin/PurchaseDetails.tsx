@@ -21,6 +21,13 @@ import { PageHeader } from '../../components/admin/PageHeader';
 import { Badge, Button, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
+import {
+  donationDate,
+  donationStatusBadgeVariant,
+  donationStatusLabel,
+  formatDonorDocument,
+  donorDocumentLabel,
+} from '../../lib/donations';
 
 function isMeiaTicket(t: Ticket): boolean {
   const key = String(t.ingressoKey || '').toLowerCase();
@@ -200,6 +207,64 @@ export default function PurchaseDetails() {
           </Button>
         }
       />
+    );
+  }
+
+  if (purchase.tipo === 'doacao') {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 min-w-0">
+        <PageHeader
+          title="Doação"
+          subtitle={
+            purchase.certificadoNumero ||
+            `Registro ${purchase.id.slice(0, 8)}…`
+          }
+          onBack={() => navigate(-1)}
+          backLabel="Voltar"
+        />
+
+        <section className="card-surface p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={donationStatusBadgeVariant(purchase.statusPagamento)}>
+              {donationStatusLabel(purchase.statusPagamento)}
+            </Badge>
+            {purchase.certificadoNumero ? (
+              <Badge variant="neutral">{purchase.certificadoNumero}</Badge>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Detail label="Doador" value={purchase.compradorNome} />
+            <Detail
+              label={donorDocumentLabel(purchase)}
+              value={formatDonorDocument(purchase)}
+            />
+            <Detail label="E-mail" value={purchase.compradorEmail} />
+            <Detail label="Telefone" value={purchase.compradorTelefone || '—'} />
+            <Detail
+              label="Valor"
+              value={formatCurrency(purchase.valorTotal)}
+              highlight
+            />
+            <Detail
+              label="Data"
+              value={donationDate(purchase).toLocaleString('pt-BR')}
+            />
+          </div>
+
+          {purchase.mensagemDoador?.trim() ? (
+            <blockquote className="text-sm text-gray-600 italic border-l-4 border-brand/30 pl-4">
+              “{purchase.mensagemDoador.trim()}”
+            </blockquote>
+          ) : null}
+
+          {purchase.mpPaymentId ? (
+            <p className="text-xs text-gray-400">
+              Pagamento MP: {purchase.mpPaymentId}
+            </p>
+          ) : null}
+        </section>
+      </div>
     );
   }
 
@@ -468,6 +533,29 @@ export default function PurchaseDetails() {
       </section>
 
       <Toast message={message} onClose={clear} />
+    </div>
+  );
+}
+
+function Detail({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div>
+      <p className="label-micro">{label}</p>
+      <p
+        className={`mt-1 font-bold break-words ${
+          highlight ? 'text-brand text-lg tabular-nums' : 'text-gray-900'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

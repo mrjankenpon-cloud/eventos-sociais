@@ -1,5 +1,8 @@
 import type { Event, TicketType } from '../types/models/event';
 import { formatCurrency } from './utils';
+import { typeCompetesForEventSeats } from '../types/ingressoNatureza';
+
+export { typeCompetesForEventSeats };
 
 /** Active ticket types configured for the event (admin source of truth). */
 export function getActiveTicketTypes(event: Event): TicketType[] {
@@ -13,20 +16,46 @@ export function getTicketTypeById(
   return (event.tiposIngresso ?? []).find((t) => t.id === ticketTypeId);
 }
 
-/** Quantidade ainda disponível para compra */
-export function getTicketAvailableQty(type: TicketType): number {
-  if (typeof type.quantidadeDisponivel === 'number') {
-    return Math.max(0, type.quantidadeDisponivel);
+export function getEventSalonSold(event: Event): number {
+  if (typeof event.vagasVendidasCompetindo === 'number') {
+    return Math.max(0, event.vagasVendidasCompetindo);
   }
-  return Math.max(0, type.quantidade);
+  return (event.tiposIngresso ?? [])
+    .filter((t) => typeCompetesForEventSeats(t))
+    .reduce((s, t) => s + Math.max(0, t.quantidadeVendida || 0), 0);
 }
 
-export function getTicketStatus(type: TicketType): {
+/** Vagas do salão ainda livres (não inclui cotas isoladas). */
+export function getEventSalonRemaining(event: Event): number {
+  return Math.max(0, (event.vagas || 0) - getEventSalonSold(event));
+}
+
+/** Quantidade ainda disponível para compra deste tipo. */
+export function getTicketAvailableQty(type: TicketType, event?: Event): number {
+  const sold = Math.max(0, type.quantidadeVendida || 0);
+  if (!typeCompetesForEventSeats(type)) {
+    if (typeof type.quantidadeDisponivel === 'number') {
+      return Math.max(0, type.quantidadeDisponivel);
+    }
+    return Math.max(0, type.quantidade - sold);
+  }
+
+  const salon = event ? getEventSalonRemaining(event) : Number.POSITIVE_INFINITY;
+  const cap = Math.max(0, type.quantidade || 0);
+  const typeRemain = cap > 0 ? Math.max(0, cap - sold) : salon;
+  if (!Number.isFinite(salon)) return typeRemain;
+  return Math.max(0, Math.min(typeRemain, salon));
+}
+
+export function getTicketStatus(
+  type: TicketType,
+  event?: Event
+): {
   label: string;
   available: boolean;
 } {
   if (!type.ativo) return { label: 'Inativo', available: false };
-  if (getTicketAvailableQty(type) <= 0) {
+  if (getTicketAvailableQty(type, event) <= 0) {
     return { label: 'ESGOTADO', available: false };
   }
   return { label: 'Disponível', available: true };

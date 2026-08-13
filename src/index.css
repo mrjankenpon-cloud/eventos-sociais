@@ -124,11 +124,14 @@
   }
 
   .ticket-pass-list,
-  .ticket-pass-list * {
+  .ticket-pass-list *,
+  .donation-certificate,
+  .donation-certificate * {
     visibility: visible !important;
   }
 
-  .ticket-pass-list {
+  .ticket-pass-list,
+  .donation-certificate {
     position: absolute;
     left: 0;
     top: 0;
@@ -197,6 +200,11 @@
   }
 
   .ticket-pass-brand {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .donation-certificate header {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

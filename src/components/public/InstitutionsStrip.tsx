@@ -34,7 +34,7 @@ export function InstitutionsStrip() {
 
   return (
     <section
-      aria-label="Instituições"
+      aria-label="Instituições parceiras"
       className="relative z-20 w-full bg-white border-b border-gray-100 shadow-sm"
     >
       <motion.div
@@ -46,7 +46,7 @@ export function InstitutionsStrip() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <div className="sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-8">
             <p className="text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-brand">
-              Instituições
+              Instituições Parceiras
             </p>
           </div>
 

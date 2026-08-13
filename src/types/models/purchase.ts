@@ -1,12 +1,17 @@
 export interface Purchase {
   id: string;
   eventId: string;
+  tipo?: 'ingresso' | 'doacao' | 'upgrade';
   ticketTypeId?: string;
   ticketTypeNome?: string;
   compradorNome: string;
   compradorCPF: string;
   compradorTelefone: string;
   compradorEmail: string;
+  documentoTipo?: 'cpf' | 'cnpj';
+  certificadoNumero?: string;
+  mensagemDoador?: string;
+  dataCompra?: string;
   quantidadeIngressos: number;
   valorTotal: number;
   valorUnitario?: number;

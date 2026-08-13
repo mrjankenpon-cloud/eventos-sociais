@@ -43,6 +43,44 @@ export function maskCPF(value: string): string {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
 }
 
+/** CNPJ: 00.000.000/0000-00 */
+export function maskCNPJ(value: string): string {
+  const n = value.replace(/\D/g, '').slice(0, 14);
+  return n
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+}
+
+export function validateCNPJ(cnpj: string): boolean {
+  const d = cnpj.replace(/\D/g, '');
+  if (d.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(d)) return false;
+
+  const calc = (len: number) => {
+    const weights =
+      len === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < weights.length; i++) {
+      sum += Number(d[i]) * weights[i];
+    }
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+
+  return calc(12) === Number(d[12]) && calc(13) === Number(d[13]);
+}
+
+export function validateCpfOrCnpj(value: string): boolean {
+  const d = value.replace(/\D/g, '');
+  if (d.length === 11) return validateCPF(d);
+  if (d.length === 14) return validateCNPJ(d);
+  return false;
+}
+
 /**
  * Mask for Brazilian phone: (00) 0000-0000 or (00) 00000-0000
  */

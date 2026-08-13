@@ -12,6 +12,8 @@ export interface Ingresso extends BaseDocument {
   limitePorCompra: number;
   eventoId: string;
   ativo: boolean;
+  /** true = desconta das vagas do evento; false = cota isolada */
+  competeVagasEvento?: boolean;
   natureza?: IngressoNatureza;
   exigeComprovacao?: boolean;
   checkinModo?: CheckinModo;

@@ -36,6 +36,8 @@ export default function CheckIn() {
   const [showScanner, setShowScanner] = useState(false);
   const [scannedTicket, setScannedTicket] = useState<TicketType | null>(null);
   const [scannedPurchase, setScannedPurchase] = useState<Purchase | null>(null);
+  const [siblingTickets, setSiblingTickets] = useState<TicketType[]>([]);
+  const [confirming, setConfirming] = useState(false);
   const scanLock = useRef(false);
 
   useEffect(() => {
@@ -59,9 +61,15 @@ export default function CheckIn() {
     loadData();
   }, [id]);
 
+  const purchaseKeyOf = (t: TicketType) =>
+    String(t.compraId || t.pedidoId || '').trim();
+
   const handleCheckin = async (ticketId: string) => {
     try {
-      const before = tickets.find((x) => x.id === ticketId);
+      const before =
+        tickets.find((x) => x.id === ticketId) ||
+        siblingTickets.find((x) => x.id === ticketId) ||
+        (scannedTicket?.id === ticketId ? scannedTicket : null);
       const isRetirada = before?.natureza === 'retirada';
       await ticketService.performCheckin(ticketId, 'Operador Admin', id);
       const patch = isRetirada
@@ -77,17 +85,23 @@ export default function CheckIn() {
       setTickets((prev) =>
         prev.map((t) => (t.id === ticketId ? { ...t, ...patch } : t))
       );
+      setSiblingTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, ...patch } : t))
+      );
       if (scannedTicket?.id === ticketId) {
         setScannedTicket((prev) => (prev ? { ...prev, ...patch } : null));
       }
       show(
         'success',
-        isRetirada ? 'Retirada confirmada!' : 'Entrada confirmada!'
+        isRetirada
+          ? `Retirada confirmada no ingresso ${before?.codigo || ''}.`
+          : `Check-in individual confirmado: ${before?.codigo || ticketId}.`
       );
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Erro ao realizar check-in.';
       show('error', msg);
+      throw error;
     }
   };
 
@@ -102,19 +116,32 @@ export default function CheckIn() {
       try {
         const ticket = await ticketService.getByCode(code);
         if (!ticket) {
-          show('error', 'Ticket não localizado.');
+          show('error', 'Ticket não localizado neste QR.');
           return;
         }
         if (ticket.eventoId !== id) {
           show('error', 'Este ticket pertence a outro evento.');
           return;
         }
-        const purchase = await purchaseService.getById(ticket.compraId);
+        const purchaseId = purchaseKeyOf(ticket);
+        const purchase = purchaseId
+          ? await purchaseService.getById(purchaseId)
+          : null;
+        const siblings = purchaseId
+          ? (await ticketService.getByPurchaseId(purchaseId)).sort(
+              (a, b) => a.ordem - b.ordem
+            )
+          : [ticket];
+
         setScannedTicket(ticket);
-        if (purchase) setScannedPurchase(purchase);
+        setScannedPurchase(purchase);
+        setSiblingTickets(siblings.length ? siblings : [ticket]);
         setShowScanner(false);
-      } catch {
-        show('error', 'Erro ao processar QR Code.');
+      } catch (err) {
+        show(
+          'error',
+          err instanceof Error ? err.message : 'Erro ao processar QR Code.'
+        );
       }
     },
     [id, show]
@@ -123,24 +150,32 @@ export default function CheckIn() {
   const closeScannerModal = () => {
     setScannedTicket(null);
     setScannedPurchase(null);
+    setSiblingTickets([]);
+    setConfirming(false);
   };
 
   const confirmScanned = async () => {
-    if (!scannedTicket) return;
-    await handleCheckin(scannedTicket.id);
-    window.setTimeout(() => {
-      setScannedTicket(null);
-      setScannedPurchase(null);
-      setShowScanner(true);
-    }, 1500);
+    if (!scannedTicket || confirming) return;
+    setConfirming(true);
+    try {
+      await handleCheckin(scannedTicket.id);
+      window.setTimeout(() => {
+        closeScannerModal();
+        setShowScanner(true);
+      }, 1200);
+    } catch {
+      setConfirming(false);
+    }
   };
 
   const ticketsByPurchase = useMemo(() => {
     const map = new Map<string, TicketType[]>();
     for (const t of tickets) {
-      const list = map.get(t.compraId) || [];
+      const key = purchaseKeyOf(t);
+      if (!key) continue;
+      const list = map.get(key) || [];
       list.push(t);
-      map.set(t.compraId, list);
+      map.set(key, list);
     }
     return map;
   }, [tickets]);
@@ -171,13 +206,23 @@ export default function CheckIn() {
   }
 
   const horario = [event.horaInicio, event.horaFim].filter(Boolean).join(' – ');
+  const scannedPending = scannedTicket
+    ? isTicketPending(scannedTicket)
+    : false;
+  const siblingTotal = Math.max(siblingTickets.length, 1);
+  const siblingsRemaining = siblingTickets.filter(
+    (t) =>
+      scannedTicket &&
+      t.id !== scannedTicket.id &&
+      isTicketPending(t)
+  ).length;
 
   return (
     <>
       <div className="max-w-4xl mx-auto space-y-6 min-w-0">
         <PageHeader
           title="Check-in"
-          subtitle="Realize o check-in dos participantes na entrada do evento."
+          subtitle="Cada QR Code libera um ingresso. Escaneie um por um na entrada."
           backTo={ROUTES.ADMIN.EVENTS}
           backLabel="Voltar para eventos"
         />
@@ -313,17 +358,20 @@ export default function CheckIn() {
                   </div>
                 </div>
 
-                {/* Ingressos comprados */}
                 <div className="p-4 sm:p-5 space-y-3">
                   <p className="label-micro px-1">
-                    Ingressos ({purchaseTickets.length})
+                    Ingressos individuais ({purchaseTickets.length}) — check-in
+                    um a um
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {purchaseTickets.map((t) => (
+                    {purchaseTickets.map((t) => {
+                      const done = isTicketDone(t);
+                      const pending = isTicketPending(t);
+                      return (
                       <div
                         key={t.id}
                         className={`p-4 rounded-2xl border flex items-center justify-between gap-3 min-w-0 ${
-                          t.status === 'Utilizado'
+                          done
                             ? 'bg-green-50 border-green-100'
                             : 'bg-white border-gray-100'
                         }`}
@@ -331,12 +379,12 @@ export default function CheckIn() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                              t.status === 'Utilizado'
+                              done
                                 ? 'bg-green-200 text-green-700'
                                 : 'bg-gray-100 text-gray-400'
                             }`}
                           >
-                            {t.status === 'Utilizado' ? (
+                            {done ? (
                               <UserCheck size={18} aria-hidden="true" />
                             ) : (
                               <TicketIcon size={18} aria-hidden="true" />
@@ -345,6 +393,7 @@ export default function CheckIn() {
                           <div className="min-w-0">
                             <p className="label-micro">
                               Ticket {t.ordem.toString().padStart(3, '0')}
+                              {t.ingressoNome ? ` · ${t.ingressoNome}` : ''}
                             </p>
                             <p className="text-xs font-black text-gray-900 font-mono truncate">
                               {t.codigo}
@@ -352,10 +401,10 @@ export default function CheckIn() {
                           </div>
                         </div>
 
-                        {t.status === 'Disponível' ? (
+                        {pending ? (
                           <Button
                             size="sm"
-                            onClick={() => handleCheckin(t.id)}
+                            onClick={() => void handleCheckin(t.id).catch(() => undefined)}
                             className="rounded-xl shrink-0"
                           >
                             Confirmar
@@ -363,8 +412,10 @@ export default function CheckIn() {
                         ) : (
                           <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1 shrink-0">
                             <CheckCircle size={14} aria-hidden="true" />
-                            {t.checkinEm
-                              ? new Date(t.checkinEm).toLocaleTimeString('pt-BR', {
+                            {t.checkinEm || t.retiradaEm
+                              ? new Date(
+                                  t.checkinEm || t.retiradaEm || ''
+                                ).toLocaleTimeString('pt-BR', {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })
@@ -372,7 +423,8 @@ export default function CheckIn() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
@@ -399,9 +451,7 @@ export default function CheckIn() {
         isOpen={Boolean(scannedTicket)}
         onClose={closeScannerModal}
         title={
-          scannedTicket?.status === 'Disponível'
-            ? 'Ticket válido'
-            : 'Ticket utilizado'
+          scannedPending ? 'Ingresso individual' : 'Ingresso já utilizado'
         }
         maxWidth="md"
       >
@@ -409,27 +459,39 @@ export default function CheckIn() {
           <div className="space-y-6">
             <div
               className={`rounded-2xl p-5 text-center ${
-                scannedTicket.status === 'Disponível'
-                  ? 'bg-green-50'
-                  : 'bg-red-50'
+                scannedPending ? 'bg-green-50' : 'bg-red-50'
               }`}
             >
               <div
                 className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 ${
-                  scannedTicket.status === 'Disponível'
+                  scannedPending
                     ? 'bg-green-100 text-green-600'
                     : 'bg-red-100 text-red-600'
                 }`}
               >
-                {scannedTicket.status === 'Disponível' ? (
+                {scannedPending ? (
                   <UserCheck size={32} aria-hidden="true" />
                 ) : (
                   <AlertCircle size={32} aria-hidden="true" />
                 )}
               </div>
-              {scannedTicket.status !== 'Disponível' && (
-                <p className="text-red-600/70 text-xs font-bold uppercase tracking-wider">
-                  Este ingresso já realizou check-in
+              <p className="text-2xl font-black text-gray-900">
+                Ticket {String(scannedTicket.ordem || 1).padStart(3, '0')}
+                {siblingTotal > 1
+                  ? ` de ${String(siblingTotal).padStart(3, '0')}`
+                  : ''}
+              </p>
+              <p className="font-mono font-black text-sm text-gray-800 mt-2 break-all">
+                {scannedTicket.codigo}
+              </p>
+              {scannedTicket.ingressoNome ? (
+                <p className="text-sm font-bold text-gray-600 mt-2">
+                  {scannedTicket.ingressoNome}
+                </p>
+              ) : null}
+              {!scannedPending && (
+                <p className="text-red-600/70 text-xs font-bold uppercase tracking-wider mt-3">
+                  Este QR já foi usado no check-in
                 </p>
               )}
             </div>
@@ -437,14 +499,14 @@ export default function CheckIn() {
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="label-micro mb-1">Comprador</p>
-                  <p className="text-xl font-black text-gray-900">
+                  <p className="label-micro mb-1">Comprador (referência)</p>
+                  <p className="text-lg font-black text-gray-900">
                     {scannedPurchase?.compradorNome || '---'}
                   </p>
                 </div>
                 {scannedPurchase && (
                   <div className="text-right shrink-0">
-                    <p className="label-micro mb-1">Valor pago</p>
+                    <p className="label-micro mb-1">Valor da compra</p>
                     <p className="text-lg font-black text-brand tabular-nums">
                       {scannedPurchase.valorTotal === 0
                         ? 'Gratuito'
@@ -453,25 +515,56 @@ export default function CheckIn() {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <p className="label-micro mb-1">Código</p>
-                  <p className="font-black font-mono text-sm">{scannedTicket.codigo}</p>
-                </div>
-                <div>
-                  <p className="label-micro mb-1">Status</p>
-                  <Badge
-                    variant={
-                      scannedTicket.status === 'Disponível' ? 'available' : 'used'
-                    }
-                  >
-                    {scannedTicket.status}
-                  </Badge>
-                </div>
-              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                O check-in vale só para este ingresso. Os demais QR Codes da
+                mesma compra precisam ser lidos separadamente.
+              </p>
             </div>
 
-            {scannedTicket.status === 'Utilizado' && scannedTicket.checkinEm && (
+            {siblingTickets.length > 1 ? (
+              <div className="space-y-2">
+                <p className="label-micro">
+                  Demais ingressos desta compra
+                  {siblingsRemaining > 0
+                    ? ` · ${siblingsRemaining} ainda pendente${
+                        siblingsRemaining > 1 ? 's' : ''
+                      }`
+                    : ' · todos ok'}
+                </p>
+                <ul className="space-y-2 max-h-40 overflow-y-auto">
+                  {siblingTickets.map((t) => {
+                    const isCurrent = t.id === scannedTicket.id;
+                    const done = isTicketDone(t);
+                    return (
+                      <li
+                        key={t.id}
+                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm ${
+                          isCurrent
+                            ? 'border-brand/40 bg-brand/5'
+                            : 'border-gray-100 bg-gray-50'
+                        }`}
+                      >
+                        <span className="min-w-0 truncate font-medium text-gray-800">
+                          {String(t.ordem).padStart(3, '0')} ·{' '}
+                          <span className="font-mono text-xs">{t.codigo}</span>
+                          {t.ingressoNome ? ` · ${t.ingressoNome}` : ''}
+                          {isCurrent ? ' (lido agora)' : ''}
+                        </span>
+                        <span
+                          className={`shrink-0 text-[10px] font-black uppercase tracking-wider ${
+                            done ? 'text-green-600' : 'text-amber-600'
+                          }`}
+                        >
+                          {done ? 'OK' : 'Pendente'}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            {!scannedPending && scannedTicket.checkinEm && (
               <div className="p-5 bg-gray-50 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Clock size={14} aria-hidden="true" />
@@ -485,12 +578,22 @@ export default function CheckIn() {
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-3">
-              <Button variant="secondary" onClick={closeScannerModal} className="flex-1">
+              <Button
+                variant="secondary"
+                onClick={closeScannerModal}
+                className="flex-1"
+              >
                 Fechar
               </Button>
-              {scannedTicket.status === 'Disponível' && (
-                <Button onClick={confirmScanned} className="flex-[2]">
-                  Confirmar Entrada
+              {scannedPending && (
+                <Button
+                  onClick={() => void confirmScanned()}
+                  disabled={confirming}
+                  className="flex-[2]"
+                >
+                  {confirming
+                    ? 'Confirmando…'
+                    : 'Confirmar só este ingresso'}
                 </Button>
               )}
             </div>
@@ -523,4 +626,26 @@ function EventMeta({
       </div>
     </div>
   );
+}
+
+function isTicketDone(t: TicketType): boolean {
+  if (t.natureza === 'retirada') return Boolean(t.retiradaRealizada);
+  return (
+    t.checkinRealizado === true ||
+    t.status === 'Utilizado' ||
+    t.status === 'Cancelado' ||
+    t.status === 'Reembolsado'
+  );
+}
+
+function isTicketPending(t: TicketType): boolean {
+  if (
+    t.status === 'Cancelado' ||
+    t.status === 'Reembolsado' ||
+    t.status === 'Bloqueado'
+  ) {
+    return false;
+  }
+  if (t.natureza === 'retirada') return !t.retiradaRealizada;
+  return t.status === 'Disponível' && !t.checkinRealizado;
 }

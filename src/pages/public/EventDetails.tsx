@@ -266,7 +266,7 @@ export default function EventDetails() {
                   <InfoRow
                     icon={Users}
                     label="Vagas"
-                    value={`${event.vagas} lugares`}
+                    value={`${event.vagas} lugares no salão`}
                   />
                 )}
               </div>

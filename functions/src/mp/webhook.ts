@@ -7,6 +7,7 @@ import {
   transitionPedidoReleaseStock,
 } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
+import { sendDonationCertificateEmail } from '../email/donationCertificate';
 import { applyTicketUpgrade } from './createTicketUpgradeSession';
 
 function cors(res: functions.Response) {
@@ -234,6 +235,41 @@ async function processPayment(paymentId: string): Promise<void> {
 
   if (mpStatus === 'approved') {
     const pedidoTipo = String(pedidoSnap.data()?.tipo || '');
+    if (pedidoTipo === 'doacao') {
+      const outcome = await confirmPedidoApproved(
+        pedidoId,
+        mpFields,
+        roundMoney(fees.transactionAmount)
+      );
+      if (outcome === 'mismatch') {
+        functions.logger.error('[mpWebhook] doação valor ≠ esperado', {
+          pedidoId,
+          paymentId,
+        });
+        return;
+      }
+      if (outcome === 'confirmed' || !isNewEvent) {
+        const pdata = (await db().collection('pedidos').doc(pedidoId).get()).data() || {};
+        const needsEmail =
+          String(pdata.status || '') === 'confirmado' &&
+          !pdata.confirmationEmailSentAt &&
+          String(pdata.email || '').includes('@');
+        if (needsEmail) {
+          await sendDonationCertificateEmail({
+            id: pedidoId,
+            email: String(pdata.email || ''),
+            nomeComprador: String(pdata.nomeComprador || ''),
+            cpf: String(pdata.cpf || ''),
+            documentoTipo: String(pdata.documentoTipo || 'cpf'),
+            valorTotal: Number(pdata.valorTotal) || 0,
+            dataCompra: String(pdata.dataCompra || ''),
+            certificadoNumero: String(pdata.certificadoNumero || ''),
+            accessToken: String(pdata.accessToken || ''),
+          });
+        }
+      }
+      return;
+    }
     if (pedidoTipo === 'upgrade') {
       const outcome = await confirmPedidoApproved(
         pedidoId,
@@ -270,11 +306,17 @@ async function processPayment(paymentId: string): Promise<void> {
       await emitTicketsForPedido(pedidoId);
       const pedidoAfter = await db().collection('pedidos').doc(pedidoId).get();
       const pdata = pedidoAfter.data() || {};
-      if (outcome === 'confirmed' && isNewEvent) {
+      const statusOk = String(pdata.status || '') === 'confirmado';
+      const needsEmail =
+        statusOk &&
+        !pdata.confirmationEmailSentAt &&
+        String(pdata.email || '').includes('@');
+      if (needsEmail) {
         await sendOrderConfirmationEmail({
           id: pedidoId,
           email: String(pdata.email || ''),
           nomeComprador: String(pdata.nomeComprador || ''),
+          eventoId: String(pdata.eventoId || ''),
         });
       }
     }

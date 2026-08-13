@@ -8,6 +8,46 @@ import {
   stockFields,
 } from './helpers';
 
+function typeCompetesForEventSeats(data: {
+  competeVagasEvento?: unknown;
+  natureza?: unknown;
+  key?: unknown;
+}): boolean {
+  if (typeof data.competeVagasEvento === 'boolean') return data.competeVagasEvento;
+  const nat = String(data.natureza || '').toLowerCase();
+  const key = String(data.key || '').toLowerCase();
+  if (nat === 'retirada' || key === 'retirada' || key.startsWith('retirada')) {
+    return false;
+  }
+  return true;
+}
+
+function ingressoSoldFields(
+  data: Record<string, unknown>,
+  nextVendida: number
+): Record<string, number> {
+  const cap = Number(data.quantidade) || 0;
+  const compete = typeCompetesForEventSeats(data);
+  if (compete && cap <= 0) {
+    return {
+      quantidadeVendida: Math.max(0, nextVendida),
+      quantidadeDisponivel: 0,
+    };
+  }
+  return stockFields(cap, nextVendida);
+}
+
+function soldOutError(disponivel: number, salon?: boolean): Error {
+  if (disponivel <= 0) {
+    return new Error(salon ? 'Vagas do evento esgotadas' : 'Ingresso ESGOTADO');
+  }
+  return new Error(
+    salon
+      ? `Apenas ${disponivel} vaga(s) no salão`
+      : `Apenas ${disponivel} ingresso(s) disponível(is)`
+  );
+}
+
 type Tx = admin.firestore.Transaction;
 
 type PedidoItemLine = {
@@ -77,6 +117,14 @@ export async function emitTicketsForPedido(
         firstQr: String(pedido.qrCode || pedidoHint?.qrCode || ''),
         skipped: true,
       };
+    }
+
+    if (String(pedido.tipo || '') === 'doacao') {
+      tx.update(pedidoRef, {
+        ticketsEmitidos: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return { count: 0, firstQr: '', skipped: true };
     }
 
     const status = String(pedido.status || '');
@@ -152,24 +200,58 @@ export async function emitTicketsForPedido(
   });
 }
 
-export async function releaseStock(
-  ingressoId: string,
-  qty: number,
+export async function releaseStockLines(
+  lines: Array<{ ingressoId: string; quantidade: number }>,
   tx?: Tx
 ): Promise<void> {
-  if (!ingressoId || qty <= 0) return;
-  const ref = db().collection('ingressos').doc(ingressoId);
+  const valid = lines.filter((l) => l.ingressoId && l.quantidade > 0);
+  if (valid.length === 0) return;
 
   const apply = async (transaction: Tx) => {
-    const snap = await transaction.get(ref);
-    if (!snap.exists) return;
-    const data = snap.data() || {};
-    const total = Number(data.quantidade) || 0;
-    const vendida = Math.max(0, (Number(data.quantidadeVendida) || 0) - qty);
-    transaction.update(ref, {
-      ...stockFields(total, vendida),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    const rows: Array<{
+      ref: admin.firestore.DocumentReference;
+      snap: admin.firestore.DocumentSnapshot;
+      qty: number;
+    }> = [];
+    for (const line of valid) {
+      const ref = db().collection('ingressos').doc(line.ingressoId);
+      const snap = await transaction.get(ref);
+      rows.push({ ref, snap, qty: line.quantidade });
+    }
+
+    const first = rows.find((r) => r.snap.exists);
+    const eventoId = String(first?.snap.data()?.eventoId || '');
+    const eventoRef = eventoId ? db().collection('eventos').doc(eventoId) : null;
+    const eventoSnap = eventoRef ? await transaction.get(eventoRef) : null;
+
+    let competingQty = 0;
+    for (const row of rows) {
+      if (!row.snap.exists) continue;
+      const data = row.snap.data() || {};
+      if (typeCompetesForEventSeats(data)) competingQty += row.qty;
+      const vendida = Math.max(
+        0,
+        (Number(data.quantidadeVendida) || 0) - row.qty
+      );
+      transaction.update(row.ref, {
+        ...ingressoSoldFields(data, vendida),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (eventoSnap?.exists && competingQty > 0 && eventoRef) {
+      const ev = eventoSnap.data() || {};
+      const vagas = Math.max(0, Number(ev.quantidadeMaxima) || 0);
+      const vendidas = Math.max(
+        0,
+        (Number(ev.vagasVendidasCompetindo) || 0) - competingQty
+      );
+      transaction.update(eventoRef, {
+        vagasVendidasCompetindo: vendidas,
+        quantidadeRestante: Math.max(0, vagas - vendidas),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
   };
 
   if (tx) {
@@ -179,31 +261,96 @@ export async function releaseStock(
   await db().runTransaction(apply);
 }
 
+export async function releaseStock(
+  ingressoId: string,
+  qty: number,
+  tx?: Tx
+): Promise<void> {
+  await releaseStockLines([{ ingressoId, quantidade: qty }], tx);
+}
+
+export async function reserveStockLines(
+  lines: Array<{ ingressoId: string; quantidade: number }>
+): Promise<void> {
+  const valid = lines.filter((l) => l.ingressoId && l.quantidade > 0);
+  if (valid.length === 0) return;
+
+  await db().runTransaction(async (tx) => {
+    const rows: Array<{
+      ref: admin.firestore.DocumentReference;
+      snap: admin.firestore.DocumentSnapshot;
+      qty: number;
+    }> = [];
+    for (const line of valid) {
+      const ref = db().collection('ingressos').doc(line.ingressoId);
+      const snap = await tx.get(ref);
+      rows.push({ ref, snap, qty: line.quantidade });
+    }
+
+    const first = rows[0];
+    if (!first.snap.exists) throw new Error('Ingresso não encontrado');
+    const eventoId = String(first.snap.data()?.eventoId || '');
+    if (!eventoId) throw new Error('Evento do ingresso não encontrado');
+    const eventoRef = db().collection('eventos').doc(eventoId);
+    const eventoSnap = await tx.get(eventoRef);
+    if (!eventoSnap.exists) throw new Error('Evento não encontrado');
+    const evento = eventoSnap.data() || {};
+
+    const vagas = Math.max(0, Number(evento.quantidadeMaxima) || 0);
+    const vendidas = Math.max(0, Number(evento.vagasVendidasCompetindo) || 0);
+
+    let competingQty = 0;
+    for (const row of rows) {
+      if (!row.snap.exists) throw new Error('Ingresso não encontrado');
+      const data = row.snap.data() || {};
+      if (data.ativo === false) throw new Error('Ingresso indisponível');
+      if (typeCompetesForEventSeats(data)) competingQty += row.qty;
+    }
+
+    const salonAvail = Math.max(0, vagas - vendidas);
+    if (competingQty > salonAvail) {
+      throw soldOutError(salonAvail, true);
+    }
+
+    for (const row of rows) {
+      const data = row.snap.data() || {};
+      const typeSold = Number(data.quantidadeVendida) || 0;
+      const cap = Number(data.quantidade) || 0;
+      const compete = typeCompetesForEventSeats(data);
+      if (compete) {
+        if (cap > 0 && typeSold + row.qty > cap) {
+          throw soldOutError(Math.max(0, cap - typeSold));
+        }
+      } else if (row.qty > Math.max(0, cap - typeSold)) {
+        throw soldOutError(Math.max(0, cap - typeSold));
+      }
+    }
+
+    for (const row of rows) {
+      const data = row.snap.data() || {};
+      const typeSold = Number(data.quantidadeVendida) || 0;
+      tx.update(row.ref, {
+        ...ingressoSoldFields(data, typeSold + row.qty),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (competingQty > 0) {
+      const nextVendidas = vendidas + competingQty;
+      tx.update(eventoRef, {
+        vagasVendidasCompetindo: nextVendidas,
+        quantidadeRestante: Math.max(0, vagas - nextVendidas),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+}
+
 export async function reserveStock(
   ingressoId: string,
   qty: number
 ): Promise<void> {
-  const ref = db().collection('ingressos').doc(ingressoId);
-  await db().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new Error('Ingresso não encontrado');
-    const data = snap.data() || {};
-    if (data.ativo === false) throw new Error('Ingresso indisponível');
-    const total = Number(data.quantidade) || 0;
-    const vendida = Number(data.quantidadeVendida) || 0;
-    const disponivel = Math.max(0, total - vendida);
-    if (qty > disponivel) {
-      throw new Error(
-        disponivel <= 0
-          ? 'Ingresso ESGOTADO'
-          : `Apenas ${disponivel} ingresso(s) disponível(is)`
-      );
-    }
-    tx.update(ref, {
-      ...stockFields(total, vendida + qty),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
+  await reserveStockLines([{ ingressoId, quantidade: qty }]);
 }
 
 /**
@@ -245,6 +392,11 @@ export async function transitionPedidoReleaseStock(input: {
       }
     }
 
+    const eventoId = String(pedido.eventoId || '');
+    const eventoRef = eventoId ? db().collection('eventos').doc(eventoId) : null;
+    const eventoSnap =
+      shouldRelease && eventoRef ? await tx.get(eventoRef) : null;
+
     tx.update(pedidoRef, {
       status: input.toStatus,
       estoqueReservado: false,
@@ -253,20 +405,35 @@ export async function transitionPedidoReleaseStock(input: {
     });
 
     let releasedQty = 0;
+    let competingQty = 0;
     if (shouldRelease) {
       for (const row of ingressoSnaps) {
         if (!row.snap.exists || row.qty <= 0) continue;
         const data = row.snap.data() || {};
-        const total = Number(data.quantidade) || 0;
+        if (typeCompetesForEventSeats(data)) competingQty += row.qty;
         const vendida = Math.max(
           0,
           (Number(data.quantidadeVendida) || 0) - row.qty
         );
         tx.update(row.ref, {
-          ...stockFields(total, vendida),
+          ...ingressoSoldFields(data, vendida),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         releasedQty += row.qty;
+      }
+
+      if (eventoSnap?.exists && eventoRef && competingQty > 0) {
+        const ev = eventoSnap.data() || {};
+        const vagas = Math.max(0, Number(ev.quantidadeMaxima) || 0);
+        const vendidas = Math.max(
+          0,
+          (Number(ev.vagasVendidasCompetindo) || 0) - competingQty
+        );
+        tx.update(eventoRef, {
+          vagasVendidasCompetindo: vendidas,
+          quantidadeRestante: Math.max(0, vagas - vendidas),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       }
     }
 

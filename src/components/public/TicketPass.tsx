@@ -210,8 +210,8 @@ export function TicketPass({
           </div>
 
           <p className="text-xs text-gray-400 leading-relaxed print:hidden">
-            Apresente este QR no acesso. O administrador fará o check-in no dia
-            do evento.
+            Apresente este QR no acesso. Cada código libera apenas este ingresso
+            — se a compra tiver mais de um, cada pessoa precisa do seu QR.
           </p>
 
           {onCopy ? (

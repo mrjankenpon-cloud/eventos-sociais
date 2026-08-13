@@ -214,6 +214,7 @@ async function seed() {
       mapa: '',
       quantidadeMaxima: 100,
       quantidadeRestante: 100,
+      vagasVendidasCompetindo: 0,
       possuiPatrocinadores: true,
       possuiInstituicao: true,
       patrocinadores: sponsors.map((id, ordem) => ({ id, ordem })),
@@ -248,6 +249,8 @@ async function seed() {
       limitePorCompra: 10,
       eventoId: ref.id,
       ativo: true,
+      natureza: 'entrada',
+      competeVagasEvento: true,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

@@ -170,7 +170,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             Check-in Digital
           </h2>
           <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">
-            Escaneie o QR Code do ingresso
+            Cada QR = 1 ingresso · escaneie individualmente
           </p>
         </div>
 

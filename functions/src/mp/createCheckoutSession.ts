@@ -10,7 +10,7 @@ import {
   randomToken,
   roundMoney,
 } from './helpers';
-import { emitTicketsForPedido, releaseStock, reserveStock } from './stock';
+import { emitTicketsForPedido, releaseStockLines, reserveStockLines } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 
 type CheckoutItemInput = {
@@ -90,15 +90,14 @@ function parseRequestedItems(body: CheckoutBody): ReservedLine[] {
 }
 
 async function releaseReserved(lines: ReservedLine[]): Promise<void> {
-  for (const line of lines) {
-    try {
-      await releaseStock(line.ingressoId, line.quantidade);
-    } catch (err) {
-      functions.logger.error('[createCheckoutSession] rollback estoque', {
-        ...line,
-        err,
-      });
-    }
+  if (lines.length === 0) return;
+  try {
+    await releaseStockLines(lines);
+  } catch (err) {
+    functions.logger.error('[createCheckoutSession] rollback estoque', {
+      lines,
+      err,
+    });
   }
 }
 
@@ -227,13 +226,18 @@ export const createCheckoutSession = functions.https.onRequest(
         agora.getTime() + RESERVE_MINUTES * 60 * 1000
       );
 
-      for (const line of resolved) {
-        await reserveStock(line.ingressoId, line.quantidade);
-        reserved.push({
-          ingressoId: line.ingressoId,
-          quantidade: line.quantidade,
-        });
-      }
+      await reserveStockLines(
+        resolved.map((l) => ({
+          ingressoId: l.ingressoId,
+          quantidade: l.quantidade,
+        }))
+      );
+      reserved.push(
+        ...resolved.map((l) => ({
+          ingressoId: l.ingressoId,
+          quantidade: l.quantidade,
+        }))
+      );
 
       const pedidoRef = db().collection('pedidos').doc();
       const basePedido: Record<string, unknown> = {
@@ -288,6 +292,7 @@ export const createCheckoutSession = functions.https.onRequest(
           id: pedidoRef.id,
           email,
           nomeComprador: nome,
+          eventoId,
         });
 
         res.json({

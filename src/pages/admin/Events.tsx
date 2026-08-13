@@ -205,8 +205,8 @@ export default function Events() {
           <Link
             to={ROUTES.ADMIN.EVENT_REPORTS.replace(':id', event.id)}
             className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-            title="Relatório"
-            aria-label="Relatório"
+            title="Abrir lista"
+            aria-label="Abrir lista de inscritos"
           >
             <FileText size={17} />
           </Link>

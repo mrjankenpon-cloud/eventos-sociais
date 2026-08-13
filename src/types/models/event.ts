@@ -9,12 +9,20 @@ export interface TicketType {
   descricao: string;
   ativo: boolean;
   valor: number;
-  /** Capacidade total */
+  /**
+   * Se compete: teto opcional deste tipo (0 = sem teto, usa as vagas do evento).
+   * Se não compete: cota isolada.
+   */
   quantidade: number;
   /** Vendidos (Firestore) — inclui reservados + pagos */
   quantidadeVendida?: number;
   /** Disponíveis restantes (Firestore) */
   quantidadeDisponivel?: number;
+  /**
+   * true = desconta das vagas do evento (salão).
+   * false = cota isolada (ex.: retirada).
+   */
+  competeVagasEvento?: boolean;
   /** Limite por compra deste tipo (sobrescreve o do evento se definido) */
   limitePorCompra?: number;
   /** Natureza operacional (entrada, retirada, etc.) */
@@ -73,7 +81,10 @@ export interface Event {
   /** Legacy / derived from tiposIngresso for compatibility */
   gratuito: boolean;
   valor: number;
+  /** Vagas do salão (quem entra para sentar). Não inclui cotas isoladas. */
   vagas: number;
+  /** Ingressos que competem pelas vagas do salão (reservados + pagos). */
+  vagasVendidasCompetindo?: number;
   mostrarVagas: boolean;
   mostrarValor: boolean;
   tiposIngresso: TicketType[];

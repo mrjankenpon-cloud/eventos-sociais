@@ -9,6 +9,7 @@ import type {
 import { createId } from './utils';
 import {
   defaultCheckinModo,
+  defaultCompeteVagasEvento,
   defaultNaturezaForKey,
 } from '../types/ingressoNatureza';
 
@@ -20,16 +21,18 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'inteira',
       nome: 'Inteira',
-      descricao: '',
+      descricao:
+        'Entrada integral para o público geral. Não exige comprovante especial na porta.',
       ativo: true,
       valor: 0,
-      quantidade: 100,
+      quantidade: 0,
     },
     {
       id: createId('tt'),
       key: 'meia',
       nome: 'Meia-Entrada',
-      descricao: 'Validação de documentação na porta do evento',
+      descricao:
+        'Meia-entrada para quem tem direito legal (estudantes, idosos, PcD, jovens de baixa renda etc.). Leve documento original ou comprovante válido — a comprovação é feita na entrada.',
       ativo: false,
       valor: 0,
       quantidade: 0,
@@ -39,7 +42,8 @@ export function defaultTicketTypes(): TicketType[] {
       id: createId('tt'),
       key: 'retirada',
       nome: 'Retirada',
-      descricao: 'Produto/comida para retirada',
+      descricao:
+        'Retirada de produto/kit/alimento no local. Apresente o QR na retirada. Não é ingresso de acesso, salvo indicação da organização.',
       ativo: false,
       valor: 0,
       quantidade: 0,
@@ -51,6 +55,7 @@ export function defaultTicketTypes(): TicketType[] {
     return {
       ...t,
       natureza,
+      competeVagasEvento: defaultCompeteVagasEvento(natureza, t.key),
       exigeComprovacao: 'exigeComprovacao' in t ? t.exigeComprovacao : false,
       checkinModo: defaultCheckinModo(natureza),
       limitePorCompra: undefined,
@@ -79,7 +84,8 @@ export function createEmptyEventForm(): EventFormData {
     googleMaps: '',
     gratuito: false,
     valor: 0,
-    vagas: 0,
+    vagas: 100,
+    vagasVendidasCompetindo: 0,
     mostrarVagas: true,
     mostrarValor: true,
     tiposIngresso: defaultTicketTypes(),
@@ -107,7 +113,6 @@ export function syncDerivedEventFields<T extends Partial<EventFormData>>(data: T
   const tipos = data.tiposIngresso ?? [];
   const ativos = tipos.filter((t) => t.ativo);
   const paid = ativos.filter((t) => t.valor > 0);
-  const vagas = ativos.reduce((sum, t) => sum + (Number(t.quantidade) || 0), 0);
   const valor =
     paid[0]?.valor ??
     ativos.find((t) => t.key === 'inteira')?.valor ??
@@ -122,7 +127,6 @@ export function syncDerivedEventFields<T extends Partial<EventFormData>>(data: T
   return {
     ...data,
     valor,
-    vagas,
     gratuito,
     banner: cover?.url || data.banner || '',
     galeria,
@@ -204,6 +208,7 @@ function resolveSponsorLinks(raw: RawEvent): EventEntityLink[] {
 }
 
 function normalizeTicketType(t: Partial<TicketType> & Pick<TicketType, 'id' | 'key' | 'nome'>): TicketType {
+  const natureza = t.natureza ?? defaultNaturezaForKey(t.key);
   return {
     id: t.id,
     key: t.key,
@@ -212,6 +217,16 @@ function normalizeTicketType(t: Partial<TicketType> & Pick<TicketType, 'id' | 'k
     ativo: Boolean(t.ativo),
     valor: Math.max(0, Number(t.valor) || 0),
     quantidade: Math.max(0, Math.floor(Number(t.quantidade) || 0)),
+    quantidadeVendida: t.quantidadeVendida,
+    quantidadeDisponivel: t.quantidadeDisponivel,
+    limitePorCompra: t.limitePorCompra,
+    natureza,
+    competeVagasEvento:
+      typeof t.competeVagasEvento === 'boolean'
+        ? t.competeVagasEvento
+        : defaultCompeteVagasEvento(natureza, t.key),
+    exigeComprovacao: t.exigeComprovacao,
+    checkinModo: t.checkinModo,
   };
 }
 

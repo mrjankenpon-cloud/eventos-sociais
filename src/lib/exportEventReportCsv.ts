@@ -59,6 +59,12 @@ export function exportEventReportCsv(input: {
     }
   }
 
+  const pending = purchases.filter((p) => p.statusPagamento === 'pendente');
+  const active = purchases.filter(
+    (p) =>
+      p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente'
+  );
+
   const rows: Array<Array<string | number>> = [
     ['SECAO', 'RESUMO'],
     ['Campo', 'Valor'],
@@ -66,36 +72,45 @@ export function exportEventReportCsv(input: {
     ['Evento ID', event.id],
     ['Data', event.data],
     ['Local', event.local],
-    ['Inscritos', participants.length],
+    ['Vagas do evento (salao)', event.vagas ?? 0],
+    ['Inscritos', active.length],
     [
-      'Ingressos confirmados',
+      'Ingressos Pagos',
       confirmed.reduce((a, p) => a + p.quantidadeIngressos, 0),
     ],
+    [
+      'Ingressos Pendentes',
+      pending.reduce((a, p) => a + p.quantidadeIngressos, 0),
+    ],
+    [
+      'Valor Arrecadado',
+      confirmed.reduce((a, p) => a + p.valorTotal, 0).toFixed(2),
+    ],
     ['Check-ins', participants.filter((p) => p.checkinRealizado).length],
-    ['Bruto', bruto.toFixed(2)],
+    ['Bruto MP', bruto.toFixed(2)],
     ['Taxas MP', taxas.toFixed(2)],
-    ['Liquido', liquido.toFixed(2)],
+    ['Liquido MP', liquido.toFixed(2)],
     ['Exportado em', new Date().toISOString()],
     [],
     ['SECAO', 'PARTICIPANTES'],
     [
       'Nome',
-      'CPF',
       'E-mail',
       'Telefone',
       'Ingressos',
-      'Status pagamento',
+      'Pagamento',
       'Check-in',
+      'CPF',
       'Data inscricao',
     ],
     ...participants.map((p) => [
       p.nome,
-      p.cpf,
       p.email,
       p.telefone,
       p.quantidadeIngressos,
-      p.statusPagamento,
-      p.checkinRealizado ? 'sim' : 'nao',
+      p.statusPagamento === 'confirmado' ? 'Pago' : 'Pendente',
+      p.checkinRealizado ? 'Sim' : 'Nao',
+      p.cpf,
       p.dataInscricao,
     ]),
     [],

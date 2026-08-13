@@ -4,13 +4,23 @@ import type { TicketType } from '../../../types/models/event';
 import { createId } from '../../../lib/eventForm';
 import { Input, Textarea, Button } from '../../ui';
 import { cn } from '../../../lib/utils';
+import {
+  defaultCompeteVagasEvento,
+  defaultNaturezaForKey,
+  typeCompetesForEventSeats,
+} from '../../../types/ingressoNatureza';
 
 interface TicketTypesEditorProps {
   types: TicketType[];
+  eventVagas: number;
   onChange: (types: TicketType[]) => void;
 }
 
-export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
+export function TicketTypesEditor({
+  types,
+  eventVagas,
+  onChange,
+}: TicketTypesEditorProps) {
   const update = (id: string, patch: Partial<TicketType>) => {
     onChange(types.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   };
@@ -26,6 +36,7 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
         ativo: true,
         valor: 0,
         quantidade: 0,
+        competeVagasEvento: true,
       },
     ]);
   };
@@ -39,13 +50,23 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        Cada tipo é independente. Os dados abaixo são os mesmos exibidos na página pública e no
-        checkout.
+        Cada opção escolhe se disputa as vagas do evento. Se não disputar (ex.:
+        retirada), informe uma cota isolada — ela não reduz o salão.
       </p>
 
       <div className="space-y-4">
         {types.map((type) => {
           const isCore = ['inteira', 'meia', 'retirada'].includes(type.key);
+          const compete = typeCompetesForEventSeats({
+            ...type,
+            competeVagasEvento:
+              typeof type.competeVagasEvento === 'boolean'
+                ? type.competeVagasEvento
+                : defaultCompeteVagasEvento(
+                    type.natureza ?? defaultNaturezaForKey(type.key),
+                    type.key
+                  ),
+          });
           return (
             <div
               key={type.id}
@@ -100,25 +121,78 @@ export function TicketTypesEditor({ types, onChange }: TicketTypesEditorProps) {
                     }
                     hint={type.key === 'retirada' ? 'Pode ser R$ 0,00' : undefined}
                   />
-                  <Input
-                    label="Quantidade disponível"
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={type.quantidade}
+                  {compete ? (
+                    <Input
+                      label="Limite deste tipo (opcional)"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={type.quantidade || ''}
+                      onChange={(e) =>
+                        update(type.id, {
+                          quantidade: Math.max(
+                            0,
+                            Math.floor(Number(e.target.value) || 0)
+                          ),
+                        })
+                      }
+                      placeholder="Sem limite"
+                      hint={
+                        type.quantidade > 0
+                          ? `No máximo ${type.quantidade} deste tipo, dentro das ${eventVagas || 0} vagas do evento.`
+                          : `Pode usar todas as ${eventVagas || 0} vagas do evento.`
+                      }
+                    />
+                  ) : (
+                    <Input
+                      label="Cota isolada"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={type.quantidade}
+                      onChange={(e) =>
+                        update(type.id, {
+                          quantidade: Math.max(
+                            0,
+                            Math.floor(Number(e.target.value) || 0)
+                          ),
+                        })
+                      }
+                      hint="Não desconta das vagas do evento."
+                    />
+                  )}
+                </div>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-5 w-5 accent-brand shrink-0"
+                    checked={compete}
                     onChange={(e) =>
                       update(type.id, {
-                        quantidade: Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                        competeVagasEvento: e.target.checked,
                       })
                     }
                   />
-                </div>
+                  <span>
+                    <span className="block text-sm font-bold text-gray-900">
+                      Compete pelas vagas do evento
+                    </span>
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      {compete
+                        ? 'Cada unidade vendida ocupa uma vaga do salão.'
+                        : 'Cota própria (ex.: retirada). Não ocupa lugar de quem entra para sentar.'}
+                    </span>
+                  </span>
+                </label>
+
                 <Textarea
-                  label="Descrição (opcional)"
+                  label="Observações (público)"
                   value={type.descricao}
                   onChange={(e) => update(type.id, { descricao: e.target.value })}
-                  rows={2}
-                  placeholder=""
+                  rows={3}
+                  placeholder="Quem pode comprar, documentos exigidos, regras de retirada…"
+                  hint="Aparece no ícone de exclamação ao lado do ingresso na inscrição."
                 />
               </div>
 

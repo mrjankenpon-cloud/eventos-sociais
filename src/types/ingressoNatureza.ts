@@ -22,3 +22,25 @@ export function defaultCheckinModo(natureza: IngressoNatureza): CheckinModo {
   if (natureza === 'outro') return 'nao_aplicavel';
   return 'entrada';
 }
+
+/** Se o tipo disputa as vagas do salão. Retirada, por padrão, não. */
+export function defaultCompeteVagasEvento(
+  natureza?: string,
+  key?: string
+): boolean {
+  const nat = String(natureza || '').toLowerCase();
+  const k = String(key || '').toLowerCase();
+  if (nat === 'retirada' || k === 'retirada' || k.startsWith('retirada')) {
+    return false;
+  }
+  return true;
+}
+
+export function typeCompetesForEventSeats(type: {
+  competeVagasEvento?: boolean;
+  natureza?: string;
+  key?: string;
+}): boolean {
+  if (typeof type.competeVagasEvento === 'boolean') return type.competeVagasEvento;
+  return defaultCompeteVagasEvento(type.natureza, type.key);
+}

@@ -14,6 +14,7 @@ import type { Patrocinador } from '../../types/patrocinador';
 import type { Institution } from '../../types/models/institution';
 import type { Instituicao } from '../../types/instituicao';
 import { normalizeEvent, syncDerivedEventFields } from '../../lib/eventForm';
+import { typeCompetesForEventSeats, defaultCompeteVagasEvento } from '../../types/ingressoNatureza';
 
 function statusFromPublicado(
   publicado: boolean,
@@ -66,7 +67,10 @@ export function eventFormToEventoPayload(
     cep: rest.cep ?? '',
     mapa: googleMaps ?? '',
     quantidadeMaxima: vagas ?? 0,
-    quantidadeRestante: vagas ?? 0,
+    quantidadeRestante: Math.max(
+      0,
+      (vagas ?? 0) - (Number(rest.vagasVendidasCompetindo) || 0)
+    ),
     possuiPatrocinadores: Boolean(exibirPatrocinadores),
     possuiInstituicao: Boolean(exibirInstituicoes),
     patrocinadores: patrocinadoresVinculados ?? [],
@@ -95,6 +99,10 @@ export function eventFormToEventoPayload(
     arquivadoEm: rest.arquivadoEm || null,
     gratuito: Boolean(rest.gratuito),
     valor: Number(rest.valor) || 0,
+    vagasVendidasCompetindo: Math.max(
+      0,
+      Number(rest.vagasVendidasCompetindo) || 0
+    ),
     ativo: !Boolean(rest.arquivado),
   };
 }
@@ -104,6 +112,29 @@ export function eventoToUiEvent(
   tiposIngresso: TicketType[] = []
 ): Event {
   const status = (raw.status as EventoStatus) || 'rascunho';
+  const tipos = tiposIngresso.map((t) => ({
+    ...t,
+    competeVagasEvento:
+      typeof t.competeVagasEvento === 'boolean'
+        ? t.competeVagasEvento
+        : defaultCompeteVagasEvento(t.natureza, t.key),
+  }));
+
+  const storedVagas = Number(raw.quantidadeMaxima ?? raw.vagas) || 0;
+  const allQty = tipos.reduce((s, t) => s + (Number(t.quantidade) || 0), 0);
+  const competingQty = tipos
+    .filter((t) => typeCompetesForEventSeats(t))
+    .reduce((s, t) => s + (Number(t.quantidade) || 0), 0);
+  const hasSoldField = typeof raw.vagasVendidasCompetindo === 'number';
+  const vagas =
+    !hasSoldField && allQty > 0 && storedVagas === allQty && competingQty !== allQty
+      ? competingQty
+      : storedVagas;
+
+  const competingSold = tipos
+    .filter((t) => typeCompetesForEventSeats(t))
+    .reduce((s, t) => s + Math.max(0, t.quantidadeVendida || 0), 0);
+
   return normalizeEvent({
     id: raw.id,
     titulo: raw.titulo,
@@ -129,10 +160,13 @@ export function eventoToUiEvent(
     googleMaps: raw.mapa ?? (raw.googleMaps as string),
     gratuito: raw.gratuito,
     valor: raw.valor,
-    vagas: raw.quantidadeMaxima ?? (raw.vagas as number) ?? 0,
+    vagas,
+    vagasVendidasCompetindo: hasSoldField
+      ? Math.max(0, Number(raw.vagasVendidasCompetindo) || 0)
+      : competingSold,
     mostrarVagas: raw.mostrarVagas !== false,
     mostrarValor: raw.mostrarValor !== false,
-    tiposIngresso,
+    tiposIngresso: tipos,
     patrocinadoresVinculados:
       raw.patrocinadores ??
       (raw.patrocinadoresVinculados as Event['patrocinadoresVinculados']) ??
@@ -185,6 +219,10 @@ export function ingressoToTicketType(ing: Ingresso): TicketType {
     quantidadeDisponivel: disponivel,
     limitePorCompra: ing.limitePorCompra,
     natureza: ing.natureza,
+    competeVagasEvento:
+      typeof ing.competeVagasEvento === 'boolean'
+        ? ing.competeVagasEvento
+        : defaultCompeteVagasEvento(ing.natureza, ing.key),
     exigeComprovacao: ing.exigeComprovacao,
     checkinModo: ing.checkinModo,
   };
@@ -213,6 +251,10 @@ export function ticketTypeToIngressoPayload(
     limitePorCompra: tipo.limitePorCompra ?? 10,
     eventoId,
     ativo: tipo.ativo,
+    competeVagasEvento:
+      typeof tipo.competeVagasEvento === 'boolean'
+        ? tipo.competeVagasEvento
+        : defaultCompeteVagasEvento(natureza, tipo.key),
     natureza,
     exigeComprovacao: tipo.exigeComprovacao ?? tipo.key === 'meia',
     checkinModo:
@@ -235,12 +277,17 @@ export function pedidoToPurchase(pedido: Pedido): Purchase {
   return {
     id: pedido.id,
     eventId: pedido.eventoId,
+    tipo: pedido.tipo,
     ticketTypeId: pedido.ingressoId ?? first?.ingressoId,
     ticketTypeNome: pedido.ingressoNome ?? first?.nome,
     compradorNome: pedido.nomeComprador,
     compradorCPF: pedido.cpf,
     compradorTelefone: pedido.telefone,
     compradorEmail: pedido.email,
+    documentoTipo: pedido.documentoTipo,
+    certificadoNumero: pedido.certificadoNumero,
+    mensagemDoador: pedido.mensagemDoador,
+    dataCompra: pedido.dataCompra,
     quantidadeIngressos: pedido.quantidade,
     valorTotal: pedido.valorTotal,
     valorUnitario: pedido.valorUnitario ?? first?.valorUnitario,

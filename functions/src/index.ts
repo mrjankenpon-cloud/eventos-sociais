@@ -46,6 +46,7 @@ export { cancelOrder } from './cancelOrder';
 export { syncUserClaims } from './syncUserClaims';
 
 export { createCheckoutSession } from './mp/createCheckoutSession';
+export { createDonationSession } from './mp/createDonationSession';
 export { mpWebhook } from './mp/webhook';
 export {
   expirePendingOrders,

@@ -7,6 +7,7 @@ import {
   getTicketStatus,
 } from '../../lib/eventData';
 import { cn } from '../../lib/utils';
+import { TicketTypeInfo } from './TicketTypeInfo';
 
 interface EventTicketTypesProps {
   event: Event;
@@ -31,8 +32,7 @@ export function EventTicketTypes({
       <p className="label-micro">Ingressos</p>
       <ul className="space-y-2">
         {types.map((type) => {
-          const status = getTicketStatus(type);
-          const descricao = type.descricao?.trim();
+          const status = getTicketStatus(type, event);
 
           return (
             <li
@@ -45,24 +45,27 @@ export function EventTicketTypes({
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="font-black text-gray-900 leading-snug text-sm">
-                      {type.nome}
-                    </h3>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h3 className="font-black text-gray-900 leading-snug text-sm truncate">
+                        {type.nome}
+                      </h3>
+                      <TicketTypeInfo
+                        ticketKey={type.key}
+                        descricao={type.descricao}
+                        nome={type.nome}
+                      />
+                    </div>
                     <p className="text-sm font-black text-brand tabular-nums shrink-0">
                       {formatTicketValue(type)}
                     </p>
                   </div>
-
-                  {descricao ? (
-                    <p className="text-xs text-gray-500 leading-relaxed">{descricao}</p>
-                  ) : null}
 
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     {event.mostrarVagas ? (
                       <span>
                         Qtd.{' '}
                         <span className="text-gray-700 tabular-nums">
-                          {getTicketAvailableQty(type)}
+                          {getTicketAvailableQty(type, event)}
                         </span>
                       </span>
                     ) : null}

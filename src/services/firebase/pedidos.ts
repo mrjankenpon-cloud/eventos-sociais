@@ -33,6 +33,7 @@ import {
 import { pedidoToPurchase, purchaseInputToPedidoPayload } from './mappers';
 import { logsService } from './logs';
 import { buildQrPayload, generateTicketQrSecrets, parseQrPayload } from '../../lib/qr';
+import { typeCompetesForEventSeats } from '../../types/ingressoNatureza';
 
 type PurchaseInput = Omit<Purchase, 'id' | 'createdAt' | 'updatedAt' | 'statusPagamento'>;
 
@@ -40,6 +41,26 @@ function stockFields(quantidade: number, vendida: number) {
   const quantidadeVendida = Math.max(0, vendida);
   const quantidadeDisponivel = Math.max(0, quantidade - quantidadeVendida);
   return { quantidadeVendida, quantidadeDisponivel };
+}
+
+function ingressoSoldFields(
+  data: {
+    quantidade?: unknown;
+    competeVagasEvento?: boolean;
+    natureza?: string;
+    key?: string;
+  },
+  nextVendida: number
+) {
+  const cap = Number(data.quantidade) || 0;
+  const compete = typeCompetesForEventSeats(data);
+  if (compete && cap <= 0) {
+    return {
+      quantidadeVendida: Math.max(0, nextVendida),
+      quantidadeDisponivel: 0,
+    };
+  }
+  return stockFields(cap, nextVendida);
 }
 
 export const pedidosService = {
@@ -71,20 +92,42 @@ export const pedidosService = {
           throw new Error('Ingresso indisponível');
         }
 
-        const total = Number(ingresso.quantidade) || 0;
+        const eventoSnap = await tx.get(eventoRef);
+        const ev = eventoSnap.exists() ? eventoSnap.data() : undefined;
+        const compete = typeCompetesForEventSeats(ingresso);
+        const cap = Number(ingresso.quantidade) || 0;
         const vendida = Number(ingresso.quantidadeVendida) || 0;
-        const disponivel = Math.max(0, total - vendida);
+        const qty = data.quantidadeIngressos;
 
-        if (data.quantidadeIngressos > disponivel) {
-          throw new Error(
-            disponivel <= 0
-              ? 'Ingresso ESGOTADO'
-              : `Apenas ${disponivel} ingresso(s) disponível(is)`
-          );
+        if (compete) {
+          const vagas = Math.max(0, Number(ev?.quantidadeMaxima) || 0);
+          const salonSold = Math.max(0, Number(ev?.vagasVendidasCompetindo) || 0);
+          const salonAvail = Math.max(0, vagas - salonSold);
+          if (qty > salonAvail) {
+            throw new Error(
+              salonAvail <= 0
+                ? 'Vagas do evento esgotadas'
+                : `Apenas ${salonAvail} vaga(s) no salão`
+            );
+          }
+          if (cap > 0 && vendida + qty > cap) {
+            const d = Math.max(0, cap - vendida);
+            throw new Error(
+              d <= 0 ? 'Ingresso ESGOTADO' : `Apenas ${d} ingresso(s) disponível(is)`
+            );
+          }
+        } else {
+          const disponivel = Math.max(0, cap - vendida);
+          if (qty > disponivel) {
+            throw new Error(
+              disponivel <= 0
+                ? 'Ingresso ESGOTADO'
+                : `Apenas ${disponivel} ingresso(s) disponível(is)`
+            );
+          }
         }
 
-        const nextVendida = vendida + data.quantidadeIngressos;
-        const stock = stockFields(total, nextVendida);
+        const nextVendida = vendida + qty;
 
         tx.set(pedidoRef, {
           ...stripUndefined(payload as unknown as Record<string, unknown>),
@@ -96,20 +139,17 @@ export const pedidosService = {
         });
 
         tx.update(ingressoRef, {
-          ...stock,
+          ...ingressoSoldFields(ingresso, nextVendida),
           ...touchUpdated(),
         });
 
-        const eventoSnap = await tx.get(eventoRef);
-        if (eventoSnap.exists()) {
-          const ev = eventoSnap.data();
-          const max = Number(ev.quantidadeMaxima) || total;
-          const restanteAtual =
-            typeof ev.quantidadeRestante === 'number'
-              ? ev.quantidadeRestante
-              : max - vendida;
+        if (eventoSnap.exists() && compete) {
+          const vagas = Math.max(0, Number(ev?.quantidadeMaxima) || 0);
+          const salonSold = Math.max(0, Number(ev?.vagasVendidasCompetindo) || 0);
+          const nextSalon = salonSold + qty;
           tx.update(eventoRef, {
-            quantidadeRestante: Math.max(0, restanteAtual - data.quantidadeIngressos),
+            vagasVendidasCompetindo: nextSalon,
+            quantidadeRestante: Math.max(0, vagas - nextSalon),
             ...touchUpdated(),
           });
         }
@@ -366,34 +406,53 @@ export const pedidosService = {
         }
 
         const reservado = Boolean(pedido.estoqueReservado);
-        const ingressoId = String(pedido.ingressoId || pedido.itens?.[0]?.ingressoId || '');
         const qty = Number(pedido.quantidade) || 0;
+        const ingressoId = String(
+          pedido.ingressoId || pedido.itens?.[0]?.ingressoId || ''
+        );
 
         if (!reservado && ingressoId && qty > 0) {
           const ingressoRef = docRef(COLLECTIONS.ingressos, ingressoId);
           const ingressoSnap = await tx.get(ingressoRef);
           if (!ingressoSnap.exists()) throw new Error('Ingresso não encontrado');
           const ingresso = ingressoSnap.data();
-          const total = Number(ingresso.quantidade) || 0;
-          const vendida = Number(ingresso.quantidadeVendida) || 0;
-          const disponivel = Math.max(0, total - vendida);
-          if (qty > disponivel) {
-            throw new Error(
-              disponivel <= 0 ? 'Ingresso ESGOTADO' : `Estoque insuficiente (${disponivel})`
-            );
-          }
-          const next = stockFields(total, vendida + qty);
-          tx.update(ingressoRef, { ...next, ...touchUpdated() });
-
           const eventoRef = docRef(COLLECTIONS.eventos, String(pedido.eventoId));
           const eventoSnap = await tx.get(eventoRef);
-          if (eventoSnap.exists()) {
-            const ev = eventoSnap.data();
-            const max = Number(ev.quantidadeMaxima) || total;
-            const restante =
-              typeof ev.quantidadeRestante === 'number' ? ev.quantidadeRestante : max - vendida;
+          const ev = eventoSnap.exists() ? eventoSnap.data() : undefined;
+          const compete = typeCompetesForEventSeats(ingresso);
+          const cap = Number(ingresso.quantidade) || 0;
+          const vendida = Number(ingresso.quantidadeVendida) || 0;
+
+          if (compete) {
+            const vagas = Math.max(0, Number(ev?.quantidadeMaxima) || 0);
+            const salonSold = Math.max(0, Number(ev?.vagasVendidasCompetindo) || 0);
+            if (qty > Math.max(0, vagas - salonSold)) {
+              throw new Error('Vagas do evento esgotadas');
+            }
+            if (cap > 0 && vendida + qty > cap) {
+              throw new Error('Estoque insuficiente');
+            }
+          } else {
+            const disponivel = Math.max(0, cap - vendida);
+            if (qty > disponivel) {
+              throw new Error(
+                disponivel <= 0 ? 'Ingresso ESGOTADO' : `Estoque insuficiente (${disponivel})`
+              );
+            }
+          }
+
+          tx.update(ingressoRef, {
+            ...ingressoSoldFields(ingresso, vendida + qty),
+            ...touchUpdated(),
+          });
+
+          if (eventoSnap.exists() && compete) {
+            const vagas = Math.max(0, Number(ev?.quantidadeMaxima) || 0);
+            const salonSold = Math.max(0, Number(ev?.vagasVendidasCompetindo) || 0);
+            const nextSalon = salonSold + qty;
             tx.update(eventoRef, {
-              quantidadeRestante: Math.max(0, restante - qty),
+              vagasVendidasCompetindo: nextSalon,
+              quantidadeRestante: Math.max(0, vagas - nextSalon),
               ...touchUpdated(),
             });
           }
@@ -486,19 +545,30 @@ export const pedidosService = {
   },
 
   async getTicketsByPurchaseId(purchaseId: string): Promise<Ticket[]> {
-    try {
-      const q = query(
+    const byKey = (field: 'compraId' | 'pedidoId') =>
+      query(
         col(COLLECTIONS.tickets),
-        where('compraId', '==', purchaseId),
+        where(field, '==', purchaseId),
         orderBy('ordem', 'asc')
       );
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => mapDoc<Ticket>(d));
+
+    try {
+      const snap = await getDocs(byKey('compraId'));
+      if (!snap.empty) {
+        return snap.docs.map((d) => mapDoc<Ticket>(d));
+      }
+      const byPedido = await getDocs(byKey('pedidoId'));
+      if (!byPedido.empty) {
+        return byPedido.docs.map((d) => mapDoc<Ticket>(d));
+      }
+      return [];
     } catch {
       const snap = await getDocs(col(COLLECTIONS.tickets));
       return snap.docs
         .map((d) => mapDoc<Ticket>(d))
-        .filter((t) => t.compraId === purchaseId)
+        .filter(
+          (t) => t.compraId === purchaseId || t.pedidoId === purchaseId
+        )
         .sort((a, b) => a.ordem - b.ordem);
     }
   },
@@ -530,6 +600,9 @@ export const pedidosService = {
         if (byId) {
           if (parsed.hash && byId.hash && parsed.hash !== byId.hash) {
             throw new Error('QR inválido: hash não confere');
+          }
+          if (parsed.codigo && byId.codigo && parsed.codigo !== byId.codigo) {
+            throw new Error('QR inválido: código não confere');
           }
           return byId;
         }
