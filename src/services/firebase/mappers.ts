@@ -94,6 +94,7 @@ export function eventFormToEventoPayload(
     textoBotao: rest.textoBotao ?? '',
     linkPagamento: rest.linkPagamento ?? '',
     limitePorCompra: Number(rest.limitePorCompra) || 10,
+    limitePorCpf: Math.max(0, Number(rest.limitePorCpf) || 0),
     vendasEncerramEm: rest.vendasEncerramEm || null,
     arquivado: Boolean(rest.arquivado),
     arquivadoEm: rest.arquivadoEm || null,
@@ -187,6 +188,10 @@ export function eventoToUiEvent(
     textoBotao: raw.textoBotao,
     linkPagamento: raw.linkPagamento,
     limitePorCompra: (raw as { limitePorCompra?: number }).limitePorCompra ?? 10,
+    limitePorCpf: Math.max(
+      0,
+      Number((raw as { limitePorCpf?: number }).limitePorCpf) || 0
+    ),
     vendasEncerramEm: (raw as { vendasEncerramEm?: string }).vendasEncerramEm,
     arquivado:
       status === 'arquivado' ||

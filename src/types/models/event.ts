@@ -104,8 +104,10 @@ export interface Event {
   textoBotao: string;
   /** @deprecated Prefer Checkout Pro; mantido para docs legados */
   linkPagamento: string;
-  /** Limite padrão de itens por compra (sobrescrito por tipo se houver) */
+  /** Limite padrão de itens por compra (carrinho) */
   limitePorCompra?: number;
+  /** Teto de ingressos por CPF neste evento (0 = sem teto por documento) */
+  limitePorCpf?: number;
   /** Encerramento de vendas (ISO). Vendas param no primeiro entre isto e estoque zero. */
   vendasEncerramEm?: string;
   /** Soft-delete: arquivado não aparece no público nem aceita novas vendas */

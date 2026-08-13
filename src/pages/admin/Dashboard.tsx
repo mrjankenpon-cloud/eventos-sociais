@@ -22,6 +22,8 @@ import {
   HeartHandshake,
   TrendingUp,
   Download,
+  ChevronDown,
+  EyeOff,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -100,6 +102,8 @@ export default function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [donationsOpen, setDonationsOpen] = useState(false);
+  const [showDonationAmounts, setShowDonationAmounts] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -629,7 +633,7 @@ export default function Dashboard() {
         className: 'text-right',
         render: (d) => (
           <span className="font-black text-brand tabular-nums">
-            {formatCurrency(d.valorTotal)}
+            {showDonationAmounts ? formatCurrency(d.valorTotal) : '••••'}
           </span>
         ),
       },
@@ -685,7 +689,7 @@ export default function Dashboard() {
         ),
       },
     ],
-    []
+    [showDonationAmounts]
   );
 
   if (loading) return <PageLoader label="Carregando dashboard..." />;
@@ -761,6 +765,7 @@ export default function Dashboard() {
     icon: LucideIcon;
     accent: string;
     type: ReportType;
+    sensitive?: boolean;
   }> = [
     {
       title: 'Doações Confirmadas',
@@ -775,6 +780,7 @@ export default function Dashboard() {
       icon: Wallet,
       accent: THEME.colors.status.active,
       type: 'doacoes_confirmadas',
+      sensitive: true,
     },
     {
       title: 'Doações Pendentes',
@@ -796,6 +802,7 @@ export default function Dashboard() {
       icon: TrendingUp,
       accent: THEME.colors.primary,
       type: 'doacoes_confirmadas',
+      sensitive: true,
     },
     {
       title: 'Ticket Médio',
@@ -806,6 +813,7 @@ export default function Dashboard() {
       icon: PieChart,
       accent: '#0d9488',
       type: 'doacoes_confirmadas',
+      sensitive: true,
     },
   ];
 
@@ -816,30 +824,35 @@ export default function Dashboard() {
           value: eventStats.vagas,
           icon: PieChart,
           accent: THEME.colors.primary,
+          sensitive: false,
         },
         {
           title: 'Inscritos',
           value: eventStats.inscritos,
           icon: Users,
           accent: THEME.colors.primary,
+          sensitive: false,
         },
         {
           title: 'Ingressos Pagos',
           value: eventStats.ingressosPagos,
           icon: Ticket,
           accent: THEME.colors.status.active,
+          sensitive: false,
         },
         {
           title: 'Ingressos Pendentes',
           value: eventStats.ingressosPendentes,
           icon: Clock,
           accent: '#d97706',
+          sensitive: false,
         },
         {
           title: 'Valor Arrecadado',
           value: formatCurrency(eventStats.arrecadado),
           icon: Wallet,
           accent: THEME.colors.status.active,
+          sensitive: true,
         },
       ]
     : [];
@@ -880,80 +893,106 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <section className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                <div>
+            <section className="card-surface p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
                   <p className="label-micro text-brand mb-1">Solidariedade</p>
                   <h2 className="text-lg font-black text-gray-900">Doações</h2>
-                  {donationStats.ultimaDoacao ? (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Última confirmada:{' '}
-                      <span className="font-bold text-gray-700">
-                        {donationStats.ultimaDoacao.compradorNome}
-                      </span>{' '}
-                      · {formatCurrency(donationStats.ultimaDoacao.valorTotal)} ·{' '}
-                      {donationDate(donationStats.ultimaDoacao).toLocaleDateString(
-                        'pt-BR'
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Nenhuma doação confirmada ainda.
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {donationsOpen
+                      ? 'Detalhes visíveis só nesta sessão, até você ocultar de novo.'
+                      : 'Valores e doadores ficam ocultos até você abrir as informações.'}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl"
-                    onClick={() => exportDonationsCsv(donations)}
-                    disabled={donations.length === 0}
-                  >
-                    <Download size={16} aria-hidden="true" />
-                    Exportar CSV
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="rounded-2xl"
-                    onClick={() => handleOpenReport('doacoes')}
-                  >
-                    Ver todas
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-stretch">
-                {donationCards.map((card) => (
-                  <StatCard
-                    key={card.title}
-                    title={card.title}
-                    value={card.value}
-                    icon={card.icon}
-                    accent={card.accent}
-                    onClick={() => handleOpenReport(card.type)}
+                <Button
+                  variant={donationsOpen ? 'secondary' : 'primary'}
+                  className="rounded-2xl shrink-0"
+                  onClick={() => setDonationsOpen((open) => !open)}
+                >
+                  <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className={donationsOpen ? 'rotate-180 transition-transform' : 'transition-transform'}
                   />
-                ))}
+                  {donationsOpen ? 'Ocultar informações' : 'Ver informações'}
+                </Button>
               </div>
 
-              <DataTable
-                columns={donationColumns}
-                data={recentDonations}
-                rowKey={(d) => d.id}
-                emptyTitle="Nenhuma doação registrada"
-                emptyDescription="As contribuições feitas pela página pública aparecerão aqui."
-                emptyIcon={HeartHandshake}
-                toolbar={
-                  <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-sm font-black text-gray-900">
-                      Doações recentes
-                    </h3>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
-                      {donations.length}{' '}
-                      {donations.length === 1 ? 'registro' : 'registros'}
-                    </span>
+              {donationsOpen ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                    <p className="text-xs text-gray-500">
+                      {donationStats.ultimaDoacao
+                        ? `Última confirmada: ${donationStats.ultimaDoacao.compradorNome} · ${donationDate(donationStats.ultimaDoacao).toLocaleDateString('pt-BR')}`
+                        : 'Nenhuma doação confirmada ainda.'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={() => setShowDonationAmounts((v) => !v)}
+                      >
+                        {showDonationAmounts ? (
+                          <EyeOff size={16} aria-hidden="true" />
+                        ) : (
+                          <Eye size={16} aria-hidden="true" />
+                        )}
+                        {showDonationAmounts ? 'Ocultar valores' : 'Mostrar valores'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={() => exportDonationsCsv(donations)}
+                        disabled={donations.length === 0}
+                      >
+                        <Download size={16} aria-hidden="true" />
+                        Exportar CSV
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="rounded-2xl"
+                        onClick={() => handleOpenReport('doacoes')}
+                      >
+                        Ver todas
+                      </Button>
+                    </div>
                   </div>
-                }
-              />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-stretch">
+                    {donationCards.map((card) => (
+                      <StatCard
+                        key={card.title}
+                        title={card.title}
+                        value={card.value}
+                        icon={card.icon}
+                        accent={card.accent}
+                        sensitive={card.sensitive}
+                        onClick={() => handleOpenReport(card.type)}
+                      />
+                    ))}
+                  </div>
+
+                  <DataTable
+                    columns={donationColumns}
+                    data={recentDonations}
+                    rowKey={(d) => d.id}
+                    emptyTitle="Nenhuma doação registrada"
+                    emptyDescription="As contribuições feitas pela página pública aparecerão aqui."
+                    emptyIcon={HeartHandshake}
+                    toolbar={
+                      <div className="flex items-center justify-between gap-4">
+                        <h3 className="text-sm font-black text-gray-900">
+                          Doações recentes
+                        </h3>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
+                          {donations.length}{' '}
+                          {donations.length === 1 ? 'registro' : 'registros'}
+                        </span>
+                      </div>
+                    }
+                  />
+                </>
+              ) : null}
             </section>
 
             <DataTable
@@ -1037,6 +1076,7 @@ export default function Dashboard() {
                   value={card.value}
                   icon={card.icon}
                   accent={card.accent}
+                  sensitive={card.sensitive}
                 />
               ))}
             </div>
@@ -1060,15 +1100,29 @@ export default function Dashboard() {
               actions={
                 <div className="flex flex-wrap gap-2">
                   {isDonationReport(activeReport) ? (
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl"
-                      onClick={() => exportDonationsCsv(filteredDonations)}
-                      disabled={filteredDonations.length === 0}
-                    >
-                      <Download size={18} aria-hidden="true" />
-                      Exportar CSV
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={() => setShowDonationAmounts((v) => !v)}
+                      >
+                        {showDonationAmounts ? (
+                          <EyeOff size={18} aria-hidden="true" />
+                        ) : (
+                          <Eye size={18} aria-hidden="true" />
+                        )}
+                        {showDonationAmounts ? 'Ocultar valores' : 'Mostrar valores'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={() => exportDonationsCsv(filteredDonations)}
+                        disabled={filteredDonations.length === 0}
+                      >
+                        <Download size={18} aria-hidden="true" />
+                        Exportar CSV
+                      </Button>
+                    </>
                   ) : null}
                   <Button
                     variant="outline"

@@ -2,12 +2,14 @@ import {
   deleteDoc,
   getDoc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
   where,
   limit,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
@@ -132,15 +134,16 @@ async function ensureMasterProfile(fbUser: FirebaseUser): Promise<User> {
     console.error('[usuarios.ensureMasterProfile] read', error);
   }
 
-  // Já existe perfil master ativo → só lê (evita write a cada refresh/navegação)
+  // Já existe perfil master ativo → sincroniza foto/nome do Google
   if (base && base.ativo !== false && (base.master || base.role === 'admin')) {
-    return withMasterFlags({
+    const merged = withMasterFlags({
       ...base,
       id: MASTER_ADMIN_UID,
       email: email || base.email,
-      name: base.name || fbUser.displayName || 'Administrador Master',
+      name: fbUser.displayName || base.name || 'Administrador Master',
       avatar: fbUser.photoURL || base.avatar,
     });
+    return persistGoogleProfile(MASTER_ADMIN_UID, fbUser, merged);
   }
 
   const profile: Omit<User, 'id'> = {
@@ -215,6 +218,49 @@ function withMasterFlags(profile: User): User {
   };
 }
 
+/** Atualiza nome e foto com a conta Google autenticada. */
+async function persistGoogleProfile(
+  userId: string,
+  fbUser: FirebaseUser,
+  profile: User
+): Promise<User> {
+  const name = (fbUser.displayName || profile.name || '').trim() || profile.name;
+  const avatar = fbUser.photoURL || profile.avatar || undefined;
+  const email = normalizeEmail(fbUser.email || profile.email);
+  const next: User = {
+    ...profile,
+    id: userId,
+    name,
+    email,
+    avatar,
+    authProvider:
+      profile.authProvider === 'password' ? 'password' : 'google',
+  };
+
+  const changed =
+    next.name !== profile.name ||
+    (next.avatar || '') !== (profile.avatar || '') ||
+    next.email !== profile.email;
+
+  if (!changed) return next;
+
+  try {
+    await updateDoc(docRef(COLLECTIONS.usuarios, userId), {
+      ...stripUndefined({
+        name: next.name,
+        email: next.email,
+        avatar: next.avatar,
+        authProvider: next.authProvider,
+      } as Record<string, unknown>),
+      ...touchUpdated(),
+    });
+  } catch (error) {
+    console.error('[usuarios.persistGoogleProfile]', error);
+  }
+
+  return next;
+}
+
 async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
   // Master UID: sempre autorizado, mesmo sem convite prévio
   if (isMasterAdminUid(fbUser.uid)) {
@@ -235,7 +281,10 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
     if (profile.ativo === false) {
       throw new Error('Seu acesso está desativado. Contate um administrador.');
     }
-    return { ...profile, ativo: true };
+    return persistGoogleProfile(fbUser.uid, fbUser, {
+      ...profile,
+      ativo: true,
+    });
   }
 
   const inviteId = inviteDocId(email);
@@ -619,6 +668,7 @@ export const usuariosService = {
   async logout(): Promise<void> {
     try {
       const uid = auth.currentUser?.uid ?? 'anon';
+      await this.markOffline().catch(() => undefined);
       await signOut(auth);
       await logsService.record({
         acao: 'logout',
@@ -657,7 +707,10 @@ export const usuariosService = {
               mapDoc<User>(snap as Parameters<typeof mapDoc>[0])
             );
             if (profile.ativo !== false || isMasterAdminUid(profile.id)) {
-              return { ...profile, ativo: true };
+              return persistGoogleProfile(fbUser.uid, fbUser, {
+                ...profile,
+                ativo: true,
+              });
             }
           }
         } catch (readError) {
@@ -685,6 +738,50 @@ export const usuariosService = {
         ? error
         : new Error('Falha ao carregar perfil');
     }
+  },
+
+  async heartbeat(): Promise<void> {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      await updateDoc(docRef(COLLECTIONS.usuarios, uid), {
+        lastSeenAt: new Date().toISOString(),
+        presenceActive: true,
+      });
+    } catch (error) {
+      console.error('[usuarios.heartbeat]', error);
+    }
+  },
+
+  async markOffline(): Promise<void> {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      await updateDoc(docRef(COLLECTIONS.usuarios, uid), {
+        presenceActive: false,
+        lastSeenAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[usuarios.markOffline]', error);
+    }
+  },
+
+  subscribeStaff(onChange: (users: User[]) => void): Unsubscribe {
+    return onSnapshot(
+      col(COLLECTIONS.usuarios),
+      (snap) => {
+        const rows = snap.docs
+          .map((d) => withMasterFlags(mapDoc<User>(d)))
+          .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        onChange(rows);
+      },
+      (error) => {
+        console.error('[usuarios.subscribeStaff]', error);
+        void this.getAll()
+          .then(onChange)
+          .catch(() => onChange([]));
+      }
+    );
   },
 
   async findByEmail(email: string): Promise<User | undefined> {

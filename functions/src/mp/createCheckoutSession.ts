@@ -64,6 +64,28 @@ function vendasAbertas(evento: Record<string, unknown>): boolean {
   return true;
 }
 
+async function countCpfTicketsForEvent(
+  eventoId: string,
+  cpf: string
+): Promise<number> {
+  const snap = await db()
+    .collection('pedidos')
+    .where('eventoId', '==', eventoId)
+    .where('cpf', '==', cpf)
+    .get();
+
+  let total = 0;
+  for (const doc of snap.docs) {
+    const row = doc.data() || {};
+    const tipo = String(row.tipo || '');
+    if (tipo === 'doacao' || tipo === 'upgrade') continue;
+    const status = String(row.status || '');
+    if (status !== 'pendente' && status !== 'confirmado') continue;
+    total += Math.max(0, Math.floor(Number(row.quantidade) || 0));
+  }
+  return total;
+}
+
 function parseRequestedItems(body: CheckoutBody): ReservedLine[] {
   const fromArray = Array.isArray(body.itens) ? body.itens : [];
   const merged = new Map<string, number>();
@@ -160,6 +182,21 @@ export const createCheckoutSession = functions.https.onRequest(
           error: `Limite de ${eventLimit} ingresso(s) por compra`,
         });
         return;
+      }
+
+      const cpfLimit = Math.max(0, Number(evento.limitePorCpf) || 0);
+      if (cpfLimit > 0) {
+        const already = await countCpfTicketsForEvent(eventoId, cpf);
+        if (already + totalQtyRequested > cpfLimit) {
+          const remaining = Math.max(0, cpfLimit - already);
+          res.status(400).json({
+            error:
+              remaining <= 0
+                ? `Este CPF já atingiu o limite de ${cpfLimit} ingresso(s) neste evento`
+                : `Este CPF pode adquirir mais ${remaining} ingresso(s) neste evento (limite ${cpfLimit} por CPF)`,
+          });
+          return;
+        }
       }
 
       const resolved: ResolvedLine[] = [];

@@ -285,7 +285,10 @@ export default function EventRegistration() {
               <div className="flex items-end justify-between gap-3">
                 <p className="label-micro">Ingressos</p>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                  Até {eventLimit} no total
+                  Até {eventLimit} por compra
+                  {event.limitePorCpf && event.limitePorCpf > 0
+                    ? ` · até ${event.limitePorCpf} por CPF`
+                    : ''}
                 </p>
               </div>
               {activeTickets.length === 0 ? (

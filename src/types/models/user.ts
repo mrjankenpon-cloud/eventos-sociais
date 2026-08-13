@@ -11,6 +11,10 @@ export interface User {
   /** Convite ainda não vinculado a um login Google */
   pending?: boolean;
   authProvider?: 'google' | 'password' | 'invite';
+  /** Último heartbeat no painel (ISO). */
+  lastSeenAt?: string;
+  /** Sessão aberta no painel até timeout ou logout. */
+  presenceActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -283,6 +283,7 @@ export default function EventReports() {
           title="Valor Arrecadado"
           value={formatCurrency(stats.arrecadado)}
           icon={Wallet}
+          sensitive
         />
       </div>
 

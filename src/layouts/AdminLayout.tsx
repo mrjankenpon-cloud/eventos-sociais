@@ -7,7 +7,6 @@ import {
   LogOut,
   Menu,
   X,
-  User,
   ArrowLeft,
   Handshake,
   HeartHandshake,
@@ -18,12 +17,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { ROUTES, APP_CONFIG } from '../config';
 import { isMasterAdminUser } from '../config/masterAdmin';
 import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
+import { StaffAvatar } from '../components/admin/StaffAvatar';
+import { AdminPresenceProvider, useAdminPresence } from '../contexts/AdminPresenceContext';
 
 export default function AdminLayout() {
+  return (
+    <AdminPresenceProvider>
+      <AdminShell />
+    </AdminPresenceProvider>
+  );
+}
+
+function AdminShell() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuth();
+  const { onlineStaff, staff } = useAdminPresence();
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
@@ -46,7 +56,9 @@ export default function AdminLayout() {
     navigate(ROUTES.ADMIN.LOGIN);
   };
 
-  const displayName = user?.name || 'Admin Controle';
+  const live = staff.find((s) => s.id === user?.id);
+  const displayName = live?.name || user?.name || 'Admin Controle';
+  const avatar = live?.avatar || user?.avatar;
 
   return (
     <div className="min-h-screen bg-surface-admin flex overflow-x-hidden min-w-0">
@@ -169,6 +181,36 @@ export default function AdminLayout() {
           </button>
 
           <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 pl-1.5 pr-2.5 py-1"
+              title={
+                onlineStaff.length
+                  ? onlineStaff.map((s) => s.name).join(', ')
+                  : 'Nenhum outro acesso no momento'
+              }
+            >
+              <span className="flex -space-x-2">
+                {onlineStaff.slice(0, 4).map((s) => (
+                  <StaffAvatar
+                    key={s.id}
+                    person={s}
+                    size={22}
+                    online
+                    ringClassName="ring-gray-50"
+                  />
+                ))}
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap">
+                {onlineStaff.length}{' '}
+                <span className="hidden sm:inline">
+                  {onlineStaff.length === 1
+                    ? 'administrador online'
+                    : 'administradores online'}
+                </span>
+                <span className="sm:hidden">online</span>
+              </span>
+            </div>
+
             <div className="text-right hidden sm:block min-w-0">
               <p className="text-sm font-bold truncate">{displayName}</p>
               <p className="text-xs text-gray-400">
@@ -183,12 +225,11 @@ export default function AdminLayout() {
                         : 'Acesso'}
               </p>
             </div>
-            <div
-              className="w-10 h-10 rounded-full bg-brand-muted flex items-center justify-center text-brand border border-brand/10 shrink-0"
-              aria-hidden="true"
-            >
-              <User size={18} />
-            </div>
+            <StaffAvatar
+              person={{ name: displayName, avatar }}
+              size={40}
+              online
+            />
           </div>
         </header>
 

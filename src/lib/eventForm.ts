@@ -103,6 +103,7 @@ export function createEmptyEventForm(): EventFormData {
     textoBotao: 'Garantir minha vaga',
     linkPagamento: '',
     limitePorCompra: 10,
+    limitePorCpf: 0,
     vendasEncerramEm: undefined,
     arquivado: false,
   };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Plus, Shield, Trash2, UserPlus } from 'lucide-react';
+import { Plus, Shield, Trash2, UserPlus } from 'lucide-react';
 import { authService } from '../../services/auth.service';
 import type { User, UserRole } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,6 +20,9 @@ import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
 import { validateEmail } from '../../lib/validation';
 import { isMasterAdminUser } from '../../config/masterAdmin';
+import { StaffAvatar } from '../../components/admin/StaffAvatar';
+import { useAdminPresence } from '../../contexts/AdminPresenceContext';
+import { isStaffOnline } from '../../lib/presence';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
@@ -42,6 +45,7 @@ const EMPTY_FORM: FormState = {
 
 export default function Permissions() {
   const { user: currentUser } = useAuth();
+  const { staff: liveStaff } = useAdminPresence();
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,14 +74,22 @@ export default function Permissions() {
     void load();
   }, [load]);
 
+  const merged = useMemo(() => {
+    const byId = new Map(liveStaff.map((s) => [s.id, s]));
+    return items.map((u) => {
+      const live = byId.get(u.id);
+      return live ? { ...u, ...live } : u;
+    });
+  }, [items, liveStaff]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    if (!q) return merged;
+    return merged.filter(
       (u) =>
         u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     );
-  }, [items, search]);
+  }, [merged, search]);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -220,9 +232,11 @@ export default function Permissions() {
               className="card-surface p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-11 h-11 rounded-full bg-brand-muted text-brand flex items-center justify-center shrink-0">
-                  <Mail size={18} aria-hidden="true" />
-                </div>
+                <StaffAvatar
+                  person={u}
+                  size={44}
+                  online={isStaffOnline(u)}
+                />
                 <div className="min-w-0">
                   <p className="font-black text-gray-900 truncate">{u.name}</p>
                   <p className="text-sm text-gray-500 truncate">{u.email}</p>
@@ -234,6 +248,9 @@ export default function Permissions() {
                       {u.ativo ? 'Ativo' : 'Inativo'}
                     </Badge>
                     <Badge variant="info">{ROLE_LABELS[u.role]}</Badge>
+                    {isStaffOnline(u) ? (
+                      <Badge variant="success">Online agora</Badge>
+                    ) : null}
                     {u.pending ? (
                       <Badge variant="warning">Aguardando 1º login</Badge>
                     ) : (

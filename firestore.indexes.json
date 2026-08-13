@@ -37,7 +37,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "eventoId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "cpf", "order": "ASCENDING" }
       ]
     },
     {
