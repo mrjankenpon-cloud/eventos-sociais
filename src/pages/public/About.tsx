@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Building2, Hash, Mail, MapPin, Phone } from 'lucide-react';
 import { LegalPage, LegalSection } from '../../components/public/LegalPage';
 import { AppImage } from '../../components/ui/AppImage';
 import { institutionService } from '../../services/institution.service';
@@ -71,78 +72,37 @@ export default function About() {
       </LegalSection>
 
       <LegalSection title="Dados institucionais">
-        <p>
-          Informações extraídas do Comprovante de Inscrição e de Situação
-          Cadastral da Receita Federal do Brasil.
-        </p>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-gray-50 border border-gray-100 p-4 sm:p-5">
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Razão social
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">{ORG.razaoSocial}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              CNPJ
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1 tabular-nums">
-              {ORG.cnpj}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Natureza jurídica
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">
-              {ORG.naturezaJuridica}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Situação cadastral
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">
-              {ORG.situacaoCadastral}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Abertura
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">
-              {ORG.dataAberturaLabel}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Atividade principal
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">
-              {ORG.atividadePrincipal}
-            </dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Endereço
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">{orgAddressLine()}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              Telefone
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1">{ORG.telefone}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-              E-mail operacional
-            </dt>
-            <dd className="font-bold text-gray-900 mt-1 break-all">
-              {ORG.emailOperacional}
-            </dd>
-          </div>
-        </dl>
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <OrgFact
+            icon={<Building2 size={18} aria-hidden="true" />}
+            label="Razão social"
+            value={ORG.razaoSocial}
+            wide
+          />
+          <OrgFact
+            icon={<Hash size={18} aria-hidden="true" />}
+            label="CNPJ"
+            value={ORG.cnpj}
+          />
+          <OrgFact
+            icon={<MapPin size={18} aria-hidden="true" />}
+            label="Endereço"
+            value={orgAddressLine()}
+            wide
+          />
+          <OrgFact
+            icon={<Phone size={18} aria-hidden="true" />}
+            label="Telefone"
+            value={ORG.telefone}
+            href={`tel:${ORG.telefone.replace(/\D/g, '')}`}
+          />
+          <OrgFact
+            icon={<Mail size={18} aria-hidden="true" />}
+            label="E-mail"
+            value={ORG.emailOperacional}
+            href={`mailto:${ORG.emailOperacional}`}
+          />
+        </ul>
       </LegalSection>
 
       {partners.length > 0 ? (
@@ -207,5 +167,54 @@ export default function About() {
         .
       </p>
     </LegalPage>
+  );
+}
+
+function OrgFact({
+  icon,
+  label,
+  value,
+  href,
+  wide,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  href?: string;
+  wide?: boolean;
+}) {
+  const body = (
+    <>
+      <span className="shrink-0 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-muted text-brand">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
+          {label}
+        </span>
+        <span className="mt-1 block text-sm sm:text-[15px] font-bold text-gray-900 leading-snug break-words">
+          {value}
+        </span>
+      </span>
+    </>
+  );
+
+  const className = `flex items-start gap-3.5 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 ${
+    wide ? 'sm:col-span-2' : ''
+  }`;
+
+  return (
+    <li className={className}>
+      {href ? (
+        <a
+          href={href}
+          className="flex items-start gap-3.5 min-w-0 w-full rounded-xl focus-visible:outline-none hover:opacity-90"
+        >
+          {body}
+        </a>
+      ) : (
+        body
+      )}
+    </li>
   );
 }
