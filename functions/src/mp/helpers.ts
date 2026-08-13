@@ -24,6 +24,11 @@ export function isMercadoPagoSandbox(): boolean {
   return (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox';
 }
 
+/** Token de produção (APP_USR-…). TEST- é sandbox. */
+export function isLiveMpAccessToken(): boolean {
+  return getAccessToken().startsWith('APP_USR-');
+}
+
 /**
  * Em sandbox o payer do Checkout Pro deve ser o TESTUSER comprador.
  * E-mail real no formulário DELPHOS continua no pedido Firestore.

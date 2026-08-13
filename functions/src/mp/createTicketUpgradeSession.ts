@@ -4,8 +4,7 @@ import { randomBytes } from 'crypto';
 import {
   db,
   getAppUrl,
-  getSandboxPayerEmail,
-  isMercadoPagoSandbox,
+  isLiveMpAccessToken,
   mpFetch,
   roundMoney,
 } from './helpers';
@@ -115,41 +114,61 @@ async function createPixPayment(input: {
   expiresAt: string;
   notificationUrl: string;
 }) {
-  const payment = await mpFetch<MpPixPayment>('/v1/payments', {
-    method: 'POST',
-    headers: { 'X-Idempotency-Key': `upgrade-pix-${input.pedidoId}` },
-    body: JSON.stringify({
-      transaction_amount: input.diff,
-      description: input.description.slice(0, 255),
-      payment_method_id: 'pix',
-      payer: {
-        email: getSandboxPayerEmail(input.email),
-        ...(isMercadoPagoSandbox()
-          ? {}
-          : {
-              first_name: input.name.slice(0, 60) || 'Convidado',
-              identification: {
-                type: 'CPF',
-                number: input.cpf.replace(/\D/g, '').slice(0, 14),
-              },
-            }),
-      },
-      external_reference: input.pedidoId,
-      notification_url: input.notificationUrl,
-      date_of_expiration: input.expiresAt,
-      metadata: {
-        pedido_id: input.pedidoId,
-        tipo: 'upgrade',
-        ticket_id: input.ticketId,
-        evento_id: input.eventoId,
-      },
-    }),
-  });
-  const pix = pixFromPayment(payment);
-  if (!pix.qrCode) {
-    throw new Error('Mercado Pago não devolveu o código PIX');
+  /**
+   * PIX usa Checkout Transparente (POST /v1/payments), não o Checkout Pro.
+   * Credencial TEST- não gera QR. Token APP_USR- + e-mail de TESTUSER
+   * devolve 401 "Unauthorized use of live credentials".
+   */
+  if (!isLiveMpAccessToken()) {
+    throw new Error(
+      'PIX da diferença não funciona no ambiente de teste do Mercado Pago. Use as credenciais de produção (APP_USR) desta aplicação.'
+    );
   }
-  return pix;
+
+  const email = String(input.email || '').trim().toLowerCase();
+  const cpf = input.cpf.replace(/\D/g, '').slice(0, 11);
+  const payer: Record<string, unknown> = {
+    email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
+    first_name: (input.name || 'Convidado').slice(0, 60),
+  };
+  if (cpf.length === 11) {
+    payer.identification = { type: 'CPF', number: cpf };
+  }
+
+  try {
+    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
+      method: 'POST',
+      headers: { 'X-Idempotency-Key': `upgrade-pix-${input.pedidoId}` },
+      body: JSON.stringify({
+        transaction_amount: input.diff,
+        description: input.description.slice(0, 255),
+        payment_method_id: 'pix',
+        payer,
+        external_reference: input.pedidoId,
+        notification_url: input.notificationUrl,
+        date_of_expiration: input.expiresAt,
+        metadata: {
+          pedido_id: input.pedidoId,
+          tipo: 'upgrade',
+          ticket_id: input.ticketId,
+          evento_id: input.eventoId,
+        },
+      }),
+    });
+    const pix = pixFromPayment(payment);
+    if (!pix.qrCode) {
+      throw new Error('Mercado Pago não devolveu o código PIX');
+    }
+    return pix;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/401|unauthorized|live credentials/i.test(msg)) {
+      throw new Error(
+        'O Mercado Pago recusou gerar PIX com estas credenciais. Ingressos usam Checkout Pro; o QR da diferença usa Checkout Transparente. Ative PIX/pagamentos via API na aplicação de produção do Mercado Pago.'
+      );
+    }
+    throw error;
+  }
 }
 
 function jsonPix(res: functions.Response, payload: Record<string, unknown>) {
