@@ -50,16 +50,16 @@ export function InstitutionsStrip() {
             </p>
           </div>
 
-          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-8 flex-1 min-w-0">
+          <ul className="flex flex-wrap items-center justify-center sm:justify-start gap-4 sm:gap-8 flex-1 min-w-0">
             {items.map((inst) => {
               const href = institutionHref(inst);
               const logo = (
-                <span className="inline-flex items-center justify-center h-28 sm:h-32 px-3 sm:px-4 rounded-xl bg-transparent transition-all hover:opacity-90">
+                <span className="inline-flex items-center justify-center h-16 sm:h-20 md:h-24 px-2 sm:px-4 rounded-xl bg-transparent transition-all hover:opacity-90">
                   <AppImage
                     src={inst.logo}
                     alt={inst.nome}
                     loading="lazy"
-                    className="h-24 sm:h-28 w-auto max-w-[440px] sm:max-w-[560px] object-contain"
+                    className="h-12 sm:h-16 md:h-20 w-auto max-w-[160px] sm:max-w-[220px] md:max-w-[280px] object-contain"
                   />
                 </span>
               );

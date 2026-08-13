@@ -24,7 +24,7 @@ export function LegalPage({
         </Link>
 
         <article className="card-surface overflow-hidden">
-          <header className="bg-brand p-6 sm:p-8 text-white">
+          <header className="bg-brand p-5 sm:p-8 text-white">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70 mb-2">
               Instituto Delphos
             </p>
@@ -35,7 +35,7 @@ export function LegalPage({
               </p>
             ) : null}
           </header>
-          <div className="p-6 sm:p-8 md:p-10 space-y-8 text-sm sm:text-[15px] text-gray-600 leading-relaxed">
+          <div className="p-4 sm:p-8 md:p-10 space-y-8 text-sm sm:text-[15px] text-gray-600 leading-relaxed">
             {children}
           </div>
         </article>

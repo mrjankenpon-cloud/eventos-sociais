@@ -11,7 +11,7 @@ const LEGAL_LINKS = [
 
 export default function Footer() {
   return (
-    <footer className="bg-surface-muted pt-14 sm:pt-20 pb-12 sm:pb-16">
+    <footer className="bg-surface-muted pt-10 sm:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16">
       <div className="page-container">
         <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
 

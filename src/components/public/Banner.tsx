@@ -27,7 +27,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.7, ease: THEME.motion.ease }}
-      className="group relative mb-10 w-full max-w-6xl mx-auto"
+      className="group relative mb-6 sm:mb-10 w-full max-w-6xl mx-auto"
     >
       <div
         className="absolute -inset-px rounded-[34px] opacity-10 blur-[2px] transition-opacity duration-500 group-hover:opacity-25"
@@ -36,7 +36,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
       />
 
       <div className="relative flex flex-col md:flex-row h-auto md:h-[400px] rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
-        <div className="w-full md:w-2/3 h-[320px] sm:h-[400px] md:h-full relative overflow-hidden">
+        <div className="w-full md:w-2/3 h-[240px] sm:h-[320px] md:h-full relative overflow-hidden">
           <AppImage
             src={event.banner}
             alt=""
@@ -46,9 +46,9 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
           <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-          <div className="absolute bottom-5 left-5 right-5 md:bottom-10 md:left-10 text-white z-10">
-            <div className="bg-black/25 backdrop-blur-[14px] border border-white/10 rounded-[24px] p-5 md:p-7 w-full md:max-w-[500px] shadow-2xl">
-              <h3 className="text-2xl sm:text-[32px] md:text-[38px] font-bold mb-2 tracking-tighter leading-tight drop-shadow-lg">
+          <div className="absolute bottom-4 left-4 right-4 md:bottom-10 md:left-10 text-white z-10">
+            <div className="bg-black/25 backdrop-blur-[14px] border border-white/10 rounded-2xl md:rounded-[24px] p-4 sm:p-5 md:p-7 w-full md:max-w-[500px] shadow-2xl min-w-0">
+              <h3 className="text-xl sm:text-[32px] md:text-[38px] font-bold mb-2 tracking-tighter leading-tight drop-shadow-lg line-clamp-3">
                 {event.titulo}
               </h3>
               {(event.subtitulo || event.descricaoCurta)?.trim() ? (
@@ -79,7 +79,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
         </div>
 
         <div
-          className="w-full md:w-1/3 flex flex-col items-center justify-center p-8 sm:p-10 text-white relative overflow-hidden"
+          className="w-full md:w-1/3 flex flex-col items-center justify-center p-6 sm:p-10 text-white relative overflow-hidden"
           style={{ backgroundColor: primaryColor }}
         >
           <div
@@ -88,8 +88,8 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
           />
 
           <div className="text-center relative z-10 w-full flex flex-col items-center">
-            <div className="mb-8">
-              <span className="block text-7xl sm:text-8xl md:text-9xl font-black tracking-tighter leading-none">
+            <div className="mb-6 sm:mb-8">
+              <span className="block text-6xl sm:text-8xl md:text-9xl font-black tracking-tighter leading-none">
                 {day}
               </span>
               <span className="block text-[11px] font-black tracking-[0.5em] uppercase opacity-70 mt-3">
@@ -112,7 +112,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
               to={`/evento/${event.id}`}
               className="w-full group/btn bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:border-transparent px-5 py-4 rounded-2xl transition-all duration-400 flex items-center justify-between shadow-xl backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-white/50"
             >
-              <span className="font-black text-[10px] tracking-[0.35em] uppercase ml-2">
+              <span className="font-black text-[10px] tracking-[0.2em] sm:tracking-[0.35em] uppercase ml-2 truncate">
                 {event.textoBotao || 'Participar'}
               </span>
               <div className="w-10 h-10 rounded-xl bg-white/5 group-hover/btn:bg-black/5 flex items-center justify-center transition-transform group-hover/btn:translate-x-1">

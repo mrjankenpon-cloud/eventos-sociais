@@ -51,7 +51,7 @@ export function PageHeader({
           )
         )}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight truncate">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight break-words">
             {title}
           </h1>
           {subtitle && (

@@ -156,11 +156,20 @@ export default function Dashboard() {
   }, [events]);
 
   const eventAggregates = useMemo(() => {
-    const map = new Map<string, { purchases: number; tickets: number }>();
-    events.forEach((e) => map.set(e.id, { purchases: 0, tickets: 0 }));
+    const map = new Map<
+      string,
+      { purchases: number; tickets: number; arrecadado: number }
+    >();
+    events.forEach((e) =>
+      map.set(e.id, { purchases: 0, tickets: 0, arrecadado: 0 })
+    );
     ticketPurchases.forEach((p) => {
       const agg = map.get(p.eventId);
-      if (agg) agg.purchases += 1;
+      if (!agg) return;
+      agg.purchases += 1;
+      if (p.statusPagamento === 'confirmado') {
+        agg.arrecadado += p.valorTotal || 0;
+      }
     });
     tickets.forEach((t) => {
       const agg = map.get(t.eventoId);
@@ -207,7 +216,20 @@ export default function Dashboard() {
     const disponiveis = tickets.filter((t) => t.status === 'Disponível').length;
     const pendentes = ticketPurchases.filter(
       (p) => p.statusPagamento === 'pendente'
-    ).length;
+    );
+    const confirmadas = ticketPurchases.filter(
+      (p) => p.statusPagamento === 'confirmado'
+    );
+    const arrecadado = confirmadas.reduce(
+      (acc, p) => acc + (p.valorTotal || 0),
+      0
+    );
+    const valorPendente = pendentes.reduce(
+      (acc, p) => acc + (p.valorTotal || 0),
+      0
+    );
+    const ticketMedio =
+      confirmadas.length > 0 ? arrecadado / confirmadas.length : 0;
 
     return {
       published,
@@ -215,10 +237,14 @@ export default function Dashboard() {
       totalPurchases,
       totalTickets,
       vagasDisponiveis,
-      pendentes,
+      pendentes: pendentes.length,
       utilizados,
       disponiveis,
       cancelados,
+      arrecadado,
+      valorPendente,
+      comprasConfirmadas: confirmadas.length,
+      ticketMedio,
     };
   }, [events, ticketPurchases, tickets]);
 
@@ -436,6 +462,16 @@ export default function Dashboard() {
       render: (event) => (
         <span className="font-black text-brand">
           {eventAggregates.get(event.id)?.tickets ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: 'arrecadado',
+      header: 'Recebido',
+      className: 'text-right',
+      render: (event) => (
+        <span className="font-black text-gray-900 tabular-nums whitespace-nowrap">
+          {formatCurrency(eventAggregates.get(event.id)?.arrecadado ?? 0)}
         </span>
       ),
     },
@@ -759,6 +795,50 @@ export default function Dashboard() {
     },
   ];
 
+  const eventRevenueCards: Array<{
+    title: string;
+    value: string | number;
+    icon: LucideIcon;
+    accent: string;
+    type: ReportType;
+    hint?: string;
+  }> = [
+    {
+      title: 'Valor recebido',
+      value: formatCurrency(generalStats.arrecadado),
+      icon: Wallet,
+      accent: THEME.colors.status.active,
+      type: 'total',
+      hint: 'Ingressos pagos em todos os eventos',
+    },
+    {
+      title: 'Valor pendente',
+      value: formatCurrency(generalStats.valorPendente),
+      icon: Clock,
+      accent: '#d97706',
+      type: 'pendentes',
+      hint: 'Compras aguardando pagamento',
+    },
+    {
+      title: 'Compras confirmadas',
+      value: generalStats.comprasConfirmadas,
+      icon: CheckCircle,
+      accent: THEME.colors.primary,
+      type: 'total',
+    },
+    {
+      title: 'Ticket médio',
+      value:
+        generalStats.comprasConfirmadas > 0
+          ? formatCurrency(generalStats.ticketMedio)
+          : '—',
+      icon: TrendingUp,
+      accent: '#0d9488',
+      type: 'total',
+      hint: 'Por compra confirmada',
+    },
+  ];
+
   const donationCards: Array<{
     title: string;
     value: string | number;
@@ -880,7 +960,7 @@ export default function Dashboard() {
               </Alert>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
               {generalCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -893,7 +973,32 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <section className="card-surface p-5 sm:p-6 space-y-4">
+            <section className="space-y-3">
+              <div className="min-w-0">
+                <p className="label-micro text-brand mb-1">Eventos</p>
+                <h2 className="text-lg font-black text-gray-900">
+                  Valores recebidos
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Soma consolidada das compras de ingressos em todos os eventos.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch">
+                {eventRevenueCards.map((card) => (
+                  <StatCard
+                    key={card.title}
+                    title={card.title}
+                    value={card.value}
+                    icon={card.icon}
+                    accent={card.accent}
+                    hint={card.hint}
+                    onClick={() => handleOpenReport(card.type)}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="card-surface p-4 sm:p-6 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="min-w-0">
                   <p className="label-micro text-brand mb-1">Solidariedade</p>
@@ -958,7 +1063,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-stretch">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-stretch">
                     {donationCards.map((card) => (
                       <StatCard
                         key={card.title}
@@ -1004,7 +1109,7 @@ export default function Dashboard() {
               emptyDescription="Cadastre eventos na aba Eventos para acompanhar as métricas."
               emptyIcon={Calendar}
               toolbar={
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h2 className="text-lg font-black text-gray-900">Eventos</h2>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
                     {events.length} {events.length === 1 ? 'Evento' : 'Eventos'}
@@ -1068,7 +1173,7 @@ export default function Dashboard() {
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 items-stretch">
               {eventCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -1136,7 +1241,7 @@ export default function Dashboard() {
               }
             />
 
-            <div className="sticky top-16 sm:top-20 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
+            <div className="sticky top-14 sm:top-20 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
               <SearchField
                 value={searchTerm}
                 onChange={setSearchTerm}

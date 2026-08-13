@@ -30,56 +30,58 @@ export function StatCard({
   const hidden = sensitive && !revealed;
   const interactive = Boolean(onClick);
   const classNames = cn(
-    'card-surface p-5 sm:p-6 text-left w-full h-full min-h-[132px] flex flex-col justify-between gap-4',
+    'card-surface p-4 sm:p-5 text-left w-full h-full min-h-[136px]',
+    'grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_1fr] gap-x-3 gap-y-3',
     'transition-all hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5',
-    interactive && 'cursor-pointer focus-visible:ring-2 focus-visible:ring-brand/30 active:scale-[0.99]',
+    interactive &&
+      'cursor-pointer focus-visible:ring-2 focus-visible:ring-brand/30 active:scale-[0.99]',
     className
   );
 
   const content = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <p className="label-micro leading-relaxed pr-2">{title}</p>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {sensitive ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setRevealed((v) => !v);
-              }}
-              className="p-2 rounded-xl text-gray-400 hover:text-brand hover:bg-brand-muted transition-colors"
-              aria-label={hidden ? 'Mostrar valor' : 'Ocultar valor'}
-              title={hidden ? 'Mostrar valor' : 'Ocultar valor'}
-            >
-              {hidden ? <Eye size={16} /> : <EyeOff size={16} />}
-            </button>
-          ) : null}
-          {Icon && (
-            <div
-              className="p-2.5 rounded-xl"
-              style={{ backgroundColor: `${accent}14`, color: accent }}
-            >
-              <Icon size={18} aria-hidden="true" />
-            </div>
-          )}
-        </div>
+      <p className="label-micro leading-snug line-clamp-2 h-10 overflow-hidden">
+        {title}
+      </p>
+      <div className="flex items-center gap-1.5 shrink-0 self-start h-10">
+        {sensitive ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setRevealed((v) => !v);
+            }}
+            className="w-10 h-10 inline-flex items-center justify-center rounded-xl text-gray-400 hover:text-brand hover:bg-brand-muted transition-colors"
+            aria-label={hidden ? 'Mostrar valor' : 'Ocultar valor'}
+            title={hidden ? 'Mostrar valor' : 'Ocultar valor'}
+          >
+            {hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+        ) : null}
+        {Icon ? (
+          <div
+            className="w-10 h-10 inline-flex items-center justify-center rounded-xl shrink-0"
+            style={{ backgroundColor: `${accent}14`, color: accent }}
+          >
+            <Icon size={18} aria-hidden="true" />
+          </div>
+        ) : null}
       </div>
-      <div>
+      <div className="col-span-2 min-w-0 self-end">
         <p
           className={cn(
-            'text-2xl sm:text-3xl font-black tracking-tight',
+            'text-[1.35rem] sm:text-2xl font-black tracking-tight leading-none truncate',
             hidden ? 'text-gray-400' : 'text-gray-900 tabular-nums'
           )}
         >
           {hidden ? '••••••' : value}
         </p>
-        {hint && (
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-1.5">
+        {hint ? (
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-1.5 truncate">
             {hint}
           </p>
-        )}
+        ) : null}
       </div>
     </>
   );

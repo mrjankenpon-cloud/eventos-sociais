@@ -31,6 +31,26 @@
   --shadow-focus: 0 0 0 3px rgb(22 85 163 / 0.2);
 }
 
+:root {
+  --header-height: 5.5rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --header-height: 7.1875rem;
+  }
+}
+
+html.header-compact {
+  --header-height: 4.5rem;
+}
+
+@media (min-width: 640px) {
+  html.header-compact {
+    --header-height: 5.3125rem;
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -69,12 +89,27 @@
 
 @layer components {
   .page-container {
-    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply w-full max-w-7xl mx-auto;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  @media (min-width: 640px) {
+    .page-container {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      padding-left: max(2rem, env(safe-area-inset-left));
+      padding-right: max(2rem, env(safe-area-inset-right));
+    }
   }
 
   .card-surface {
-    @apply bg-white border border-gray-100 shadow-[var(--shadow-card)];
-    border-radius: var(--radius-card);
+    @apply bg-white border border-gray-100 shadow-[var(--shadow-card)] rounded-[1.5rem] sm:rounded-[2rem];
   }
 
   .label-micro {
@@ -87,6 +122,7 @@
     box-shadow: var(--shadow-card);
   }
 }
+
 
 /* QR Scanner video fill */
 #qr-reader,

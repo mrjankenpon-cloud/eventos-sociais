@@ -21,7 +21,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-      className="group relative aspect-[4/5] card-surface overflow-hidden transition-all hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 h-full"
+      className="group relative sm:aspect-[4/5] card-surface overflow-hidden transition-all hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 h-full min-h-0"
     >
       <Link
         to={`/evento/${event.id}`}
@@ -36,7 +36,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
           void prefetchEventDetails();
         }}
       >
-        <div className="relative h-[60%] overflow-hidden shrink-0">
+        <div className="relative h-48 sm:h-[60%] overflow-hidden shrink-0">
           <AppImage
             src={event.banner}
             alt=""
@@ -58,7 +58,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
           </div>
         </div>
 
-        <div className="flex-1 p-5 sm:p-6 flex flex-col justify-between min-h-0">
+        <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between min-h-0">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5 text-gray-400">
               <Calendar size={15} className="text-brand shrink-0" aria-hidden="true" />

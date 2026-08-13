@@ -144,8 +144,8 @@ export default function EventDetails() {
   }
 
   return (
-    <div className="pb-12 sm:pb-16 min-h-screen bg-white">
-      <div className="relative h-[36vh] min-h-[240px] sm:min-h-[280px] max-h-[420px] w-full -mt-[115px] pt-[115px]">
+    <div className="pb-24 lg:pb-16 min-h-screen bg-white">
+      <div className="relative h-[42vh] min-h-[280px] sm:min-h-[340px] max-h-[480px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
         <AppImage
           src={event.banner}
           alt=""
@@ -229,7 +229,7 @@ export default function EventDetails() {
           </div>
 
           <aside className="min-w-0">
-            <div className="card-surface p-4 sm:p-5 sticky top-24 lg:top-28">
+            <div className="card-surface p-4 sm:p-5 lg:sticky lg:top-[calc(var(--header-height)+env(safe-area-inset-top)+0.75rem)]">
               <div className="space-y-3 mb-4">
                 {event.categoria && (
                   <p className="label-micro text-brand">{event.categoria}</p>
@@ -288,7 +288,7 @@ export default function EventDetails() {
                 {event.permitirCompraOnline !== false && event.permitirInscricao !== false && (
                   <Link
                     to={`/evento/${event.id}/inscricao`}
-                    className="w-full h-12 bg-brand text-white rounded-xl font-black text-base flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
+                    className="hidden lg:flex w-full h-12 bg-brand text-white rounded-xl font-black text-base items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
                     onMouseEnter={() => {
                       void prefetchEventRegistration();
                     }}
@@ -332,6 +332,21 @@ export default function EventDetails() {
           showSponsors={event.exibirPatrocinadores !== false}
         />
       </div>
+
+      {event.permitirCompraOnline !== false &&
+      event.permitirInscricao !== false ? (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur-md px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Link
+            to={`/evento/${event.id}/inscricao`}
+            className="w-full h-12 bg-brand text-white rounded-xl font-black text-base flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98]"
+            onTouchStart={() => {
+              void prefetchEventRegistration();
+            }}
+          >
+            {event.textoBotao}
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

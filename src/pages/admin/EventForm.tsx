@@ -582,8 +582,8 @@ export default function EventForm() {
           </SectionCard>
         )}
 
-        <div className="fixed bottom-0 inset-x-0 z-20 border-t border-gray-100 bg-white/95 backdrop-blur-md md:static md:border-0 md:bg-transparent md:backdrop-blur-none">
-          <div className="max-w-4xl mx-auto p-4 md:p-0 md:pt-2 flex flex-col sm:flex-row gap-3">
+        <div className="fixed bottom-0 inset-x-0 z-20 border-t border-gray-100 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:static md:border-0 md:bg-transparent md:backdrop-blur-none md:pb-0">
+          <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-0 md:pt-2 flex flex-col sm:flex-row gap-3">
             <Button
               type="button"
               variant="secondary"

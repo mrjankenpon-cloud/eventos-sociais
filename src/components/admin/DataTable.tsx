@@ -51,14 +51,14 @@ export function DataTable<T>({
         />
       ) : (
         <div className="overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[640px] text-left border-collapse">
+          <table className="w-full min-w-[520px] sm:min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
                 {columns.map((col) => (
                   <th
                     key={col.key}
                     className={cn(
-                      'px-4 sm:px-6 py-3.5 label-micro whitespace-nowrap',
+                      'px-3 sm:px-6 py-3.5 label-micro whitespace-nowrap',
                       stickyHeader && 'sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm',
                       col.hideOnMobile && 'hidden md:table-cell',
                       col.className
@@ -95,7 +95,7 @@ export function DataTable<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        'px-4 sm:px-6 py-4 text-sm text-gray-700 align-middle',
+                        'px-3 sm:px-6 py-3.5 sm:py-4 text-sm text-gray-700 align-middle',
                         col.hideOnMobile && 'hidden md:table-cell',
                         col.className
                       )}

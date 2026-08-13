@@ -170,7 +170,7 @@ function AdminShell() {
       </aside>
 
       <div className="flex-grow flex flex-col min-h-screen min-w-0">
-        <header className="h-16 sm:h-20 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+        <header className="h-14 sm:h-20 bg-white border-b border-gray-100 px-3 sm:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 min-w-0">
           <button
             type="button"
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
@@ -182,7 +182,7 @@ function AdminShell() {
 
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 pl-1.5 pr-2.5 py-1"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-full bg-gray-50 border border-gray-100 pl-1.5 pr-2 py-1 max-w-[46vw] sm:max-w-none min-w-0"
               title={
                 onlineStaff.length
                   ? onlineStaff.map((s) => s.name).join(', ')
@@ -200,7 +200,7 @@ function AdminShell() {
                   />
                 ))}
               </span>
-              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap truncate">
                 {onlineStaff.length}{' '}
                 <span className="hidden sm:inline">
                   {onlineStaff.length === 1
@@ -227,13 +227,13 @@ function AdminShell() {
             </div>
             <StaffAvatar
               person={{ name: displayName, avatar }}
-              size={40}
+              size={36}
               online
             />
           </div>
         </header>
 
-        <main className="flex-grow p-4 sm:p-6 lg:p-8 min-w-0">
+        <main className="flex-grow p-3 sm:p-6 lg:p-8 min-w-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <Suspense
             fallback={
               <ProcessingOverlay

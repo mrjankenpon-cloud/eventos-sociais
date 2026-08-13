@@ -274,7 +274,7 @@ export default function EventRegistration() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-8 md:p-10 space-y-6" noValidate>
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 md:p-10 space-y-6" noValidate>
             {submitError && (
               <Alert variant="error" onClose={() => setSubmitError(null)}>
                 {submitError}
@@ -282,7 +282,7 @@ export default function EventRegistration() {
             )}
 
             <div className="space-y-3">
-              <div className="flex items-end justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 sm:gap-3">
                 <p className="label-micro">Ingressos</p>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                   Até {eventLimit} por compra
@@ -309,15 +309,15 @@ export default function EventRegistration() {
                       <li key={type.id}>
                         <div
                           className={cn(
-                            'w-full rounded-2xl border p-4 transition-all',
+                            'w-full rounded-2xl border p-3 sm:p-4 transition-all min-w-0',
                             selected
                               ? 'border-brand bg-brand-muted/40 ring-2 ring-brand/20'
                               : 'border-gray-100 bg-white',
                             !status.available && 'opacity-50'
                           )}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
+                          <div className="flex items-start justify-between gap-3 min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <p className="font-black text-gray-900 truncate">
                                   {type.nome}
@@ -450,9 +450,9 @@ export default function EventRegistration() {
                 {cartLines.map((line) => (
                   <div
                     key={line.type.id}
-                    className="flex items-center justify-between gap-4"
+                    className="flex items-center justify-between gap-3 min-w-0"
                   >
-                    <span className="text-sm font-bold text-gray-600">
+                    <span className="text-sm font-bold text-gray-600 min-w-0 truncate">
                       {line.type.nome}
                     </span>
                     <span className="text-sm text-gray-500 tabular-nums">
