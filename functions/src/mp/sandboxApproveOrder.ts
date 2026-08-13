@@ -6,6 +6,7 @@ import {
   isMercadoPagoSandbox,
   roundMoney,
 } from './helpers';
+import { applyTicketUpgrade } from './createTicketUpgradeSession';
 import { emitTicketsForPedido } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 import { sendDonationCertificateEmail } from '../email/donationCertificate';
@@ -112,6 +113,13 @@ export const sandboxApproveOrder = functions.https.onRequest(async (req, res) =>
         receivedAt: now,
         processedAt: now,
       });
+
+    if (String(pedido.tipo || '') === 'upgrade') {
+      await applyTicketUpgrade(pedidoId);
+      functions.logger.info('[sandboxApproveOrder] upgrade ok', { pedidoId });
+      res.json({ ok: true, pedidoId, tickets: 0, simulated: true, upgrade: true });
+      return;
+    }
 
     if (String(pedido.tipo || '') === 'doacao') {
       await sendDonationCertificateEmail({

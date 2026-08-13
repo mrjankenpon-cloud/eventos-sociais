@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
@@ -19,6 +19,7 @@ import { Purchase, Ticket, Event } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Badge, Button, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
+import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 import {
@@ -58,6 +59,11 @@ export default function PurchaseDetails() {
   const [loading, setLoading] = useState(true);
   const [refundingAll, setRefundingAll] = useState(false);
   const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
+  const [pixOpen, setPixOpen] = useState(false);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixPayload, setPixPayload] = useState<UpgradePixPayload | null>(null);
+  const [pixError, setPixError] = useState<string | null>(null);
+  const [pixTicket, setPixTicket] = useState<Ticket | null>(null);
   const { message, show, clear } = useFlashMessage();
 
   const reload = async (purchaseId: string) => {
@@ -170,30 +176,42 @@ export default function PurchaseDetails() {
 
   const handleUpgradeMeia = async (ticket: Ticket) => {
     if (!purchase) return;
-    const ok = window.confirm(
-      'Gerar cobrança da diferença meia → inteira no Mercado Pago? Você será redirecionado ao checkout da diferença.'
-    );
-    if (!ok) return;
+    setPixTicket(ticket);
+    setPixOpen(true);
+    setPixError(null);
+    setPixPayload(null);
+    setPixLoading(true);
     setBusyTicketId(ticket.id);
     try {
       const res = await purchaseService.createTicketUpgrade(ticket.id);
-      show(
-        'success',
-        `Diferença: ${formatCurrency(res.diff)} (${res.toIngressoNome || 'Inteira'}). Abrindo pagamento…`
-      );
-      if (res.initPoint) {
-        window.open(res.initPoint, '_blank', 'noopener,noreferrer');
-      }
-      await reload(purchase.id);
+      setPixPayload({
+        pedidoId: res.pedidoId,
+        ticketId: res.ticketId || ticket.id,
+        diff: res.diff,
+        fromValor: res.fromValor,
+        toValor: res.toValor,
+        toIngressoNome: res.toIngressoNome,
+        qrCode: res.qrCode,
+        qrCodeBase64: res.qrCodeBase64,
+        ticketUrl: res.ticketUrl,
+        expiresAt: res.expiresAt,
+        confirmed: Boolean(res.confirmed),
+      });
     } catch (error: unknown) {
-      show(
-        'error',
-        error instanceof Error ? error.message : 'Falha ao criar upgrade.'
+      setPixError(
+        error instanceof Error ? error.message : 'Falha ao gerar o PIX da diferença.'
       );
     } finally {
+      setPixLoading(false);
       setBusyTicketId(null);
     }
   };
+
+  const handlePixConfirmed = useCallback(() => {
+    if (!purchase) return;
+    void reload(purchase.id);
+    show('success', 'PIX confirmado. O ingresso agora é inteira.');
+  }, [purchase, show]);
 
   if (loading) return <PageLoader label="Carregando detalhes..." />;
   if (!purchase) {
@@ -433,6 +451,7 @@ export default function PurchaseDetails() {
                   t.status === 'Disponível' &&
                   isMeiaTicket(t) &&
                   !t.upgradedToInteira;
+                const pixPending = canUpgrade && t.upgradeStatus === 'pendente';
 
                 return (
                   <motion.div
@@ -471,6 +490,11 @@ export default function PurchaseDetails() {
                           </p>
                           <p className="text-[10px] text-gray-400 mt-1">
                             {formatCurrency(unitForTicket(purchase, t))}
+                            {t.upgradedToInteira
+                              ? ' · convertido para inteira'
+                              : pixPending
+                                ? ' · aguardando PIX da diferença'
+                                : ''}
                             {t.status === 'Utilizado' && t.checkinEm
                               ? ` · check-in ${new Date(t.checkinEm).toLocaleString('pt-BR')}`
                               : ''}
@@ -506,7 +530,9 @@ export default function PurchaseDetails() {
                             onClick={() => void handleUpgradeMeia(t)}
                           >
                             <ArrowUpCircle size={14} aria-hidden="true" />
-                            Pagar diferença (inteira)
+                            {pixPending
+                              ? 'Ver PIX da diferença'
+                              : 'Pagar diferença (PIX)'}
                           </Button>
                         ) : null}
 
@@ -533,6 +559,20 @@ export default function PurchaseDetails() {
       </section>
 
       <Toast message={message} onClose={clear} />
+      <UpgradePixModal
+        open={pixOpen}
+        payload={pixPayload}
+        loading={pixLoading}
+        error={pixError}
+        onClose={() => {
+          setPixOpen(false);
+          setPixTicket(null);
+        }}
+        onConfirmed={handlePixConfirmed}
+        onRetry={
+          pixTicket ? () => void handleUpgradeMeia(pixTicket) : undefined
+        }
+      />
     </div>
   );
 }

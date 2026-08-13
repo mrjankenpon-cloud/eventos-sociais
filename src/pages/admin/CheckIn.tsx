@@ -11,6 +11,7 @@ import {
   Search,
   Calendar,
   MapPin,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -21,6 +22,7 @@ import { QRScanner } from '../../components/admin/QRScanner';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { Modal, Button, Badge, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
+import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 
@@ -38,6 +40,10 @@ export default function CheckIn() {
   const [scannedPurchase, setScannedPurchase] = useState<Purchase | null>(null);
   const [siblingTickets, setSiblingTickets] = useState<TicketType[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [pixOpen, setPixOpen] = useState(false);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixPayload, setPixPayload] = useState<UpgradePixPayload | null>(null);
+  const [pixError, setPixError] = useState<string | null>(null);
   const scanLock = useRef(false);
 
   useEffect(() => {
@@ -154,6 +160,60 @@ export default function CheckIn() {
     setConfirming(false);
   };
 
+  const openUpgradePix = async (ticket: TicketType) => {
+    setPixOpen(true);
+    setPixError(null);
+    setPixPayload(null);
+    setPixLoading(true);
+    try {
+      const res = await purchaseService.createTicketUpgrade(ticket.id);
+      setPixPayload({
+        pedidoId: res.pedidoId,
+        ticketId: res.ticketId || ticket.id,
+        diff: res.diff,
+        fromValor: res.fromValor,
+        toValor: res.toValor,
+        toIngressoNome: res.toIngressoNome,
+        qrCode: res.qrCode,
+        qrCodeBase64: res.qrCodeBase64,
+        ticketUrl: res.ticketUrl,
+        expiresAt: res.expiresAt,
+        confirmed: Boolean(res.confirmed),
+      });
+    } catch (error: unknown) {
+      setPixError(
+        error instanceof Error ? error.message : 'Falha ao gerar o PIX da diferença.'
+      );
+    } finally {
+      setPixLoading(false);
+    }
+  };
+
+  const patchTicketToInteira = (ticketId: string, nome?: string) => {
+    const apply = (t: TicketType): TicketType =>
+      t.id === ticketId
+        ? {
+            ...t,
+            ingressoKey: 'inteira',
+            ingressoNome: nome || 'Inteira',
+            upgradedToInteira: true,
+            upgradeStatus: 'confirmado',
+          }
+        : t;
+    setTickets((prev) => prev.map(apply));
+    setScannedTicket((prev) => (prev ? apply(prev) : prev));
+    setSiblingTickets((prev) => prev.map(apply));
+  };
+
+  const handlePixConfirmed = useCallback(() => {
+    if (!scannedTicket) return;
+    patchTicketToInteira(
+      scannedTicket.id,
+      pixPayload?.toIngressoNome
+    );
+    show('success', 'PIX confirmado. O ingresso agora é inteira.');
+  }, [scannedTicket, pixPayload?.toIngressoNome, show]);
+
   const confirmScanned = async () => {
     if (!scannedTicket || confirming) return;
     setConfirming(true);
@@ -209,6 +269,13 @@ export default function CheckIn() {
   const scannedPending = scannedTicket
     ? isTicketPending(scannedTicket)
     : false;
+  const canUpgradePix = Boolean(
+    scannedTicket &&
+      scannedPurchase?.statusPagamento === 'confirmado' &&
+      scannedTicket.status === 'Disponível' &&
+      isMeiaTicket(scannedTicket) &&
+      !scannedTicket.upgradedToInteira
+  );
   const siblingTotal = Math.max(siblingTickets.length, 1);
   const siblingsRemaining = siblingTickets.filter(
     (t) =>
@@ -585,6 +652,20 @@ export default function CheckIn() {
               >
                 Fechar
               </Button>
+              {canUpgradePix ? (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    scannedTicket && void openUpgradePix(scannedTicket)
+                  }
+                  className="flex-1"
+                >
+                  <ArrowUpCircle size={16} aria-hidden="true" />
+                  {scannedTicket?.upgradeStatus === 'pendente'
+                    ? 'Ver PIX da diferença'
+                    : 'Pagar diferença (PIX)'}
+                </Button>
+              ) : null}
               {scannedPending && (
                 <Button
                   onClick={() => void confirmScanned()}
@@ -600,6 +681,18 @@ export default function CheckIn() {
           </div>
         )}
       </Modal>
+
+      <UpgradePixModal
+        open={pixOpen}
+        payload={pixPayload}
+        loading={pixLoading}
+        error={pixError}
+        onClose={() => setPixOpen(false)}
+        onConfirmed={handlePixConfirmed}
+        onRetry={
+          scannedTicket ? () => void openUpgradePix(scannedTicket) : undefined
+        }
+      />
 
       <Toast message={message} onClose={clear} />
     </>
@@ -626,6 +719,12 @@ function EventMeta({
       </div>
     </div>
   );
+}
+
+function isMeiaTicket(t: TicketType): boolean {
+  const key = String(t.ingressoKey || '').toLowerCase();
+  const nome = String(t.ingressoNome || '').toLowerCase();
+  return key === 'meia' || nome.includes('meia');
 }
 
 function isTicketDone(t: TicketType): boolean {

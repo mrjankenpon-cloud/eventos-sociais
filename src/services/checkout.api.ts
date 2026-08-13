@@ -207,14 +207,20 @@ export const checkoutApi = {
 
   createTicketUpgrade(ticketId: string): Promise<{
     ok: boolean;
+    pix?: boolean;
     pedidoId: string;
     ticketId: string;
     diff: number;
     fromValor?: number;
     toValor?: number;
     toIngressoNome?: string;
-    initPoint: string;
+    qrCode?: string;
+    qrCodeBase64?: string;
+    ticketUrl?: string;
+    expiresAt?: string;
+    confirmed?: boolean;
     already?: boolean;
+    initPoint?: string;
   }> {
     return postJson(
       'createTicketUpgradeSession',

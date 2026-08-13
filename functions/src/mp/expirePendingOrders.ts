@@ -59,7 +59,22 @@ async function expireBatch(): Promise<{ expired: number; skipped: number }> {
 
     expired += 1;
 
-    const preferenceId = String(doc.data().mpPreferenceId || '');
+    const data = doc.data() || {};
+    if (String(data.tipo || '') === 'upgrade') {
+      const ticketId = String(data.ticketId || '').trim();
+      if (ticketId) {
+        await db()
+          .collection('tickets')
+          .doc(ticketId)
+          .update({
+            upgradeStatus: 'expirado',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+          .catch(() => undefined);
+      }
+    }
+
+    const preferenceId = String(data.mpPreferenceId || '');
     if (preferenceId) {
       try {
         await mpFetch(`/checkout/preferences/${preferenceId}`, {

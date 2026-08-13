@@ -9,9 +9,11 @@ import {
   mpFetch,
   roundMoney,
 } from './helpers';
-import { releaseStock, reserveStock } from './stock';
+import { releaseStock, reserveStock, transitionPedidoReleaseStock } from './stock';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
+/** PIX no MP exige no mínimo ~30 min. */
+const PIX_MINUTES = 30;
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -19,7 +21,7 @@ function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-async function requireAdmin(req: functions.Request): Promise<string> {
+async function requireStaff(req: functions.Request): Promise<string> {
   const header = String(req.headers.authorization || '');
   const match = header.match(/^Bearer\s+(.+)$/i);
   if (!match) throw new Error('Autenticação obrigatória');
@@ -29,14 +31,23 @@ async function requireAdmin(req: functions.Request): Promise<string> {
     return decoded.uid;
   }
   const role = String(decoded.role || '');
-  if (role === 'admin' && decoded.ativo !== false) return decoded.uid;
+  if (
+    ['admin', 'editor', 'operador'].includes(role) &&
+    decoded.ativo !== false
+  ) {
+    return decoded.uid;
+  }
 
   const userSnap = await db().collection('usuarios').doc(decoded.uid).get();
   const user = userSnap.data();
-  if (user && user.ativo !== false && String(user.role || '') === 'admin') {
+  if (
+    user &&
+    user.ativo !== false &&
+    ['admin', 'editor', 'operador'].includes(String(user.role || ''))
+  ) {
     return decoded.uid;
   }
-  throw new Error('Sem permissão (somente administrador)');
+  throw new Error('Sem permissão');
 }
 
 function isMeiaKey(key: string, nome: string): boolean {
@@ -51,8 +62,122 @@ function isInteiraKey(key: string, nome: string): boolean {
   return k === 'inteira' || (n.includes('inteira') && !n.includes('meia'));
 }
 
+function isoWithOffset(date: Date): string {
+  const pad = (n: number) => String(Math.trunc(n)).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const h = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  const offsetMin = -date.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const oh = pad(Math.floor(Math.abs(offsetMin) / 60));
+  const om = pad(Math.abs(offsetMin) % 60);
+  return `${y}-${m}-${d}T${h}:${min}:${s}.${ms}${sign}${oh}:${om}`;
+}
+
+type MpPixPayment = {
+  id?: number | string;
+  status?: string;
+  date_of_expiration?: string;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string;
+      qr_code_base64?: string;
+      ticket_url?: string;
+    };
+  };
+};
+
+function pixFromPayment(payment: MpPixPayment) {
+  const td = payment.point_of_interaction?.transaction_data || {};
+  return {
+    qrCode: String(td.qr_code || ''),
+    qrCodeBase64: String(td.qr_code_base64 || ''),
+    ticketUrl: String(td.ticket_url || ''),
+    paymentId: String(payment.id || ''),
+    expiresAt: String(payment.date_of_expiration || ''),
+    status: String(payment.status || ''),
+  };
+}
+
+async function createPixPayment(input: {
+  pedidoId: string;
+  diff: number;
+  description: string;
+  email: string;
+  name: string;
+  cpf: string;
+  ticketId: string;
+  eventoId: string;
+  expiresAt: string;
+  notificationUrl: string;
+}) {
+  const payment = await mpFetch<MpPixPayment>('/v1/payments', {
+    method: 'POST',
+    headers: { 'X-Idempotency-Key': `upgrade-pix-${input.pedidoId}` },
+    body: JSON.stringify({
+      transaction_amount: input.diff,
+      description: input.description.slice(0, 255),
+      payment_method_id: 'pix',
+      payer: {
+        email: getSandboxPayerEmail(input.email),
+        ...(isMercadoPagoSandbox()
+          ? {}
+          : {
+              first_name: input.name.slice(0, 60) || 'Convidado',
+              identification: {
+                type: 'CPF',
+                number: input.cpf.replace(/\D/g, '').slice(0, 14),
+              },
+            }),
+      },
+      external_reference: input.pedidoId,
+      notification_url: input.notificationUrl,
+      date_of_expiration: input.expiresAt,
+      metadata: {
+        pedido_id: input.pedidoId,
+        tipo: 'upgrade',
+        ticket_id: input.ticketId,
+        evento_id: input.eventoId,
+      },
+    }),
+  });
+  const pix = pixFromPayment(payment);
+  if (!pix.qrCode) {
+    throw new Error('Mercado Pago não devolveu o código PIX');
+  }
+  return pix;
+}
+
+function jsonPix(res: functions.Response, payload: Record<string, unknown>) {
+  res.json({
+    ok: true,
+    pix: true,
+    ...payload,
+  });
+}
+
+async function expireUpgradePedido(pedidoId: string, ticketId: string) {
+  await transitionPedidoReleaseStock({
+    pedidoId,
+    fromStatuses: ['pendente'],
+    toStatus: 'expirado',
+  });
+  await db()
+    .collection('tickets')
+    .doc(ticketId)
+    .update({
+      upgradeStatus: 'expirado',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    .catch(() => undefined);
+}
+
 /**
- * Cria checkout MP pela diferença meia → inteira.
+ * Cria cobrança PIX (QR + copia-e-cola) pela diferença meia → inteira.
  * Body: { ticketId, toIngressoId? }
  */
 export const createTicketUpgradeSession = functions.https.onRequest(
@@ -68,9 +193,12 @@ export const createTicketUpgradeSession = functions.https.onRequest(
     }
 
     let reservedInteiraId = '';
+    let createdPedidoId = '';
+    let ticketIdForCleanup = '';
     try {
-      const uid = await requireAdmin(req);
+      const uid = await requireStaff(req);
       const ticketId = String(req.body?.ticketId || '').trim();
+      ticketIdForCleanup = ticketId;
       const toIngressoIdForced = String(req.body?.toIngressoId || '').trim();
       if (!ticketId) {
         res.status(400).json({ error: 'ticketId obrigatório' });
@@ -84,25 +212,18 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         return;
       }
       const ticket = ticketSnap.data() || {};
+      if (ticket.upgradedToInteira === true) {
+        jsonPix(res, {
+          ticketId,
+          confirmed: true,
+          already: true,
+          toIngressoNome: String(ticket.ingressoNome || 'Inteira'),
+          diff: 0,
+        });
+        return;
+      }
       if (String(ticket.status || '') !== 'Disponível') {
         throw new Error('Só é possível upgrade de ticket Disponível');
-      }
-      if (ticket.upgradePedidoId) {
-        const prev = await db()
-          .collection('pedidos')
-          .doc(String(ticket.upgradePedidoId))
-          .get();
-        if (prev.exists && String(prev.data()?.status) === 'pendente') {
-          const p = prev.data() || {};
-          res.json({
-            ok: true,
-            already: true,
-            pedidoId: prev.id,
-            initPoint: p.linkPagamento || null,
-            diff: Number(p.valorTotal) || 0,
-          });
-          return;
-        }
       }
 
       const fromKey = String(ticket.ingressoKey || '');
@@ -176,16 +297,145 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         );
       }
 
+      const appUrl = getAppUrl();
+      const projectId =
+        process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        'eventosociais-c057d';
+      const notificationUrl = `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
+      const eventoSnap = await db().collection('eventos').doc(eventoId).get();
+      const eventoTitulo = String(eventoSnap.data()?.titulo || 'Evento');
+
+      const pixPayer = {
+        email: String(origem.email || ''),
+        name: String(origem.nomeComprador || ''),
+        cpf: String(origem.cpf || ''),
+        ticketId,
+        eventoId,
+        notificationUrl,
+        description: `${eventoTitulo} — diferença meia→inteira`,
+        diff,
+      };
+
+      const existingId = String(ticket.upgradePedidoId || '').trim();
+      if (existingId) {
+        const prev = await db().collection('pedidos').doc(existingId).get();
+        if (prev.exists) {
+          const p = prev.data() || {};
+          const prevStatus = String(p.status || '');
+          const expira = new Date(String(p.pixExpiresAt || p.reservaExpiraEm || ''));
+          const stillValid =
+            prevStatus === 'pendente' &&
+            !Number.isNaN(expira.getTime()) &&
+            expira.getTime() > Date.now() + 20_000;
+
+          if (prevStatus === 'confirmado') {
+            await applyTicketUpgrade(existingId);
+            jsonPix(res, {
+              pedidoId: existingId,
+              ticketId,
+              diff,
+              fromValor: meiaUnit,
+              toValor: inteiraValor,
+              toIngressoNome: String(toIngresso.nome || 'Inteira'),
+              confirmed: true,
+              already: true,
+            });
+            return;
+          }
+
+          const mpPaymentId = String(p.mpPaymentId || '');
+          if (stillValid && mpPaymentId) {
+            try {
+              const live = await mpFetch<MpPixPayment>(
+                `/v1/payments/${mpPaymentId}`
+              );
+              if (String(live.status) === 'approved') {
+                await applyTicketUpgrade(existingId);
+                jsonPix(res, {
+                  pedidoId: existingId,
+                  ticketId,
+                  diff,
+                  fromValor: meiaUnit,
+                  toValor: inteiraValor,
+                  toIngressoNome: String(toIngresso.nome || 'Inteira'),
+                  confirmed: true,
+                });
+                return;
+              }
+            } catch (err) {
+              functions.logger.warn('[createTicketUpgradeSession] poll pix', err);
+            }
+          }
+
+          const qrCode = String(p.pixQrCode || '');
+          if (stillValid && qrCode) {
+            jsonPix(res, {
+              pedidoId: existingId,
+              ticketId,
+              diff: Number(p.valorTotal) || diff,
+              fromValor: meiaUnit,
+              toValor: inteiraValor,
+              toIngressoNome: String(toIngresso.nome || 'Inteira'),
+              qrCode,
+              qrCodeBase64: String(p.pixQrCodeBase64 || ''),
+              ticketUrl: String(p.pixTicketUrl || p.linkPagamento || ''),
+              expiresAt: String(p.pixExpiresAt || p.reservaExpiraEm || ''),
+              already: true,
+            });
+            return;
+          }
+
+          if (stillValid && !qrCode) {
+            const expiresAt = isoWithOffset(
+              new Date(Date.now() + PIX_MINUTES * 60 * 1000)
+            );
+            const pix = await createPixPayment({
+              ...pixPayer,
+              pedidoId: existingId,
+              expiresAt,
+            });
+            await prev.ref.update({
+              formaPagamento: 'pix',
+              mpPaymentId: pix.paymentId,
+              pixQrCode: pix.qrCode,
+              pixQrCodeBase64: pix.qrCodeBase64 || '',
+              pixTicketUrl: pix.ticketUrl,
+              pixExpiresAt: pix.expiresAt || expiresAt,
+              reservaExpiraEm: pix.expiresAt || expiresAt,
+              linkPagamento: pix.ticketUrl || '',
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            jsonPix(res, {
+              pedidoId: existingId,
+              ticketId,
+              diff: Number(p.valorTotal) || diff,
+              fromValor: meiaUnit,
+              toValor: inteiraValor,
+              toIngressoNome: String(toIngresso.nome || 'Inteira'),
+              qrCode: pix.qrCode,
+              qrCodeBase64: pix.qrCodeBase64,
+              ticketUrl: pix.ticketUrl,
+              expiresAt: pix.expiresAt || expiresAt,
+              already: true,
+            });
+            return;
+          }
+
+          if (prevStatus === 'pendente') {
+            await expireUpgradePedido(existingId, ticketId);
+          }
+        }
+      }
+
       await reserveStock(toIngressoId, 1);
       reservedInteiraId = toIngressoId;
 
       const accessToken = randomBytes(32).toString('hex');
       const agora = new Date();
-      const reservaExpiraEm = new Date(agora.getTime() + 15 * 60 * 1000);
+      const reservaExpiraEm = new Date(agora.getTime() + PIX_MINUTES * 60 * 1000);
+      const expiresAt = isoWithOffset(reservaExpiraEm);
       const pedidoRef = db().collection('pedidos').doc();
-
-      const eventoSnap = await db().collection('eventos').doc(eventoId).get();
-      const eventoTitulo = String(eventoSnap.data()?.titulo || 'Evento');
 
       const basePedido = {
         tipo: 'upgrade',
@@ -216,7 +466,7 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         valorUnitario: diff,
         valorTotal: diff,
         status: 'pendente',
-        formaPagamento: 'mercadopago',
+        formaPagamento: 'pix',
         estoqueReservado: true,
         reservaExpiraEm: reservaExpiraEm.toISOString(),
         ticketsEmitidos: true,
@@ -229,76 +479,8 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
-      const appUrl = getAppUrl();
-      const projectId =
-        process.env.GCLOUD_PROJECT ||
-        process.env.GCP_PROJECT ||
-        'eventosociais-c057d';
-      const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
-      const email = String(origem.email || '').toLowerCase();
-
-      const preference = await mpFetch<{
-        id: string;
-        init_point?: string;
-        sandbox_init_point?: string;
-      }>('/checkout/preferences', {
-        method: 'POST',
-        body: JSON.stringify({
-          items: [
-            {
-              id: toIngressoId.slice(0, 64),
-              title: `${eventoTitulo} — upgrade meia→inteira`.slice(0, 256),
-              quantity: 1,
-              unit_price: diff,
-              currency_id: 'BRL',
-              category_id: 'tickets',
-            },
-          ],
-          payer: {
-            email: getSandboxPayerEmail(email),
-            ...(isMercadoPagoSandbox()
-              ? {}
-              : {
-                  name: String(origem.nomeComprador || ''),
-                  identification: {
-                    type: 'CPF',
-                    number: String(origem.cpf || '').replace(/\D/g, ''),
-                  },
-                }),
-          },
-          external_reference: pedidoRef.id,
-          metadata: {
-            pedidoId: pedidoRef.id,
-            tipo: 'upgrade',
-            ticketId,
-            eventoId,
-            fromIngressoId,
-            toIngressoId,
-          },
-          back_urls: {
-            success: successUrl,
-            pending: successUrl,
-            failure: successUrl,
-          },
-          auto_return: 'approved',
-          notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
-          statement_descriptor: 'DELPHOS',
-          payment_methods: {
-            excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
-            installments: 1,
-            default_installments: 1,
-          },
-        }),
-      });
-
-      const initPoint =
-        preference.init_point || preference.sandbox_init_point || '';
-
-      await pedidoRef.set({
-        ...basePedido,
-        mpPreferenceId: preference.id,
-        linkPagamento: initPoint,
-      });
+      await pedidoRef.set(basePedido);
+      createdPedidoId = pedidoRef.id;
 
       await ticketRef.update({
         upgradePedidoId: pedidoRef.id,
@@ -306,22 +488,44 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
+      const pix = await createPixPayment({
+        ...pixPayer,
+        pedidoId: pedidoRef.id,
+        expiresAt,
+      });
+
+      await pedidoRef.update({
+        mpPaymentId: pix.paymentId,
+        pixQrCode: pix.qrCode,
+        pixQrCodeBase64: pix.qrCodeBase64 || '',
+        pixTicketUrl: pix.ticketUrl,
+        pixExpiresAt: pix.expiresAt || expiresAt,
+        reservaExpiraEm: pix.expiresAt || reservaExpiraEm.toISOString(),
+        linkPagamento: pix.ticketUrl || '',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
       reservedInteiraId = '';
 
-      res.json({
-        ok: true,
+      jsonPix(res, {
         pedidoId: pedidoRef.id,
         ticketId,
         diff,
         fromValor: meiaUnit,
         toValor: inteiraValor,
         toIngressoNome: String(toIngresso.nome || 'Inteira'),
-        initPoint,
-        accessToken,
+        qrCode: pix.qrCode,
+        qrCodeBase64: pix.qrCodeBase64,
+        ticketUrl: pix.ticketUrl,
+        expiresAt: pix.expiresAt || expiresAt,
         receiptUrl: `${appUrl}/pedido/${pedidoRef.id}/sucesso?token=${accessToken}`,
       });
     } catch (error) {
-      if (reservedInteiraId) {
+      if (createdPedidoId && ticketIdForCleanup) {
+        await expireUpgradePedido(createdPedidoId, ticketIdForCleanup).catch(
+          () => undefined
+        );
+      } else if (reservedInteiraId) {
         await releaseStock(reservedInteiraId, 1).catch(() => undefined);
       }
       functions.logger.error('[createTicketUpgradeSession]', error);
