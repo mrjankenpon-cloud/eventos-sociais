@@ -1,16 +1,65 @@
-import type { ReactNode } from 'react';
-import { createElement, Fragment } from 'react';
+import DOMPurify from 'dompurify';
 import { ORG, orgAddressLine } from './orgInfo';
 import type {
-  AboutSiteContent,
-  DonationsSiteContent,
-  LegalSiteContent,
+  LegacyAboutContent,
+  LegacyDonationsContent,
+  LegacyLegalContent,
+  LegacySiteContentSection,
   SiteContent,
-  SiteContentSection,
+  SitePageContent,
 } from '../types/models/siteContent';
 import { DEFAULT_SITE_CONTENT } from './siteContentDefaults';
 
-const ORG_VARS: Record<string, string> = {
+const ALLOWED_TAGS = [
+  'p', 'br', 'hr', 'div', 'span',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup', 'mark', 'small',
+  'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
+  'a', 'img', 'figure', 'figcaption',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+];
+
+const ALLOWED_ATTR = [
+  'href', 'target', 'rel', 'title',
+  'src', 'alt', 'width', 'height', 'loading',
+  'style', 'class', 'colspan', 'rowspan',
+];
+
+// Além dos esquemas usuais, aceita `img:{id}` do banco de imagens interno.
+const ALLOWED_URI_REGEXP =
+  /^(?:(?:https?|mailto|tel|data|img):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+
+/** Remove qualquer HTML perigoso antes de renderizar no site público. */
+export function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html ?? '', {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    ALLOWED_URI_REGEXP,
+    FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'button'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick'],
+  });
+}
+
+/** true quando o HTML não tem texto nem imagem (só marcação vazia). */
+export function isEmptyHtml(html: string | undefined | null): boolean {
+  if (!html) return true;
+  const withoutTags = html
+    .replace(/<(img|hr|br)[^>]*>/gi, 'x')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .trim();
+  return withoutTags.length === 0;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Variáveis {{chave}} usadas no formato antigo, agora resolvidas na migração. */
+const LEGACY_ORG_VARS: Record<string, string> = {
   razaoSocial: ORG.razaoSocial,
   cnpj: ORG.cnpj,
   endereco: orgAddressLine(),
@@ -20,143 +69,132 @@ const ORG_VARS: Record<string, string> = {
   shortBrand: ORG.shortBrand,
 };
 
-/** Substitui {{chave}} pelos dados institucionais fixos. */
-export function applyOrgPlaceholders(text: string): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => ORG_VARS[key] ?? '');
+/** Converte **negrito** e {{variáveis}} do formato antigo em HTML final. */
+function inlineToHtml(text: string): string {
+  const resolved = text.replace(
+    /\{\{(\w+)\}\}/g,
+    (_, key: string) => LEGACY_ORG_VARS[key] ?? ''
+  );
+  return escapeHtml(resolved).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
-/** Renderiza texto com **negrito** simples (sem HTML livre). */
-export function renderRichText(text: string): ReactNode {
-  const resolved = applyOrgPlaceholders(text);
-  const parts = resolved.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return createElement(
-        'strong',
-        { key: i, className: 'text-gray-900' },
-        part.slice(2, -2)
-      );
+function sectionToHtml(section: LegacySiteContentSection): string {
+  const parts: string[] = [];
+  if (section.title?.trim()) {
+    parts.push(`<h2>${inlineToHtml(section.title.trim())}</h2>`);
+  }
+  if (section.bullets?.length) {
+    const items = section.bullets
+      .filter((b) => b.trim())
+      .map((b) => `<li>${inlineToHtml(b.trim())}</li>`)
+      .join('');
+    if (items) parts.push(`<ul>${items}</ul>`);
+  }
+  for (const paragraph of section.paragraphs ?? []) {
+    if (paragraph.trim()) parts.push(`<p>${inlineToHtml(paragraph.trim())}</p>`);
+  }
+  return parts.join('\n');
+}
+
+function headerToHtml(title?: string, subtitle?: string): string {
+  const parts: string[] = [];
+  if (title?.trim()) parts.push(`<h1>${inlineToHtml(title.trim())}</h1>`);
+  if (subtitle?.trim()) {
+    parts.push(`<p><em>${inlineToHtml(subtitle.trim())}</em></p>`);
+  }
+  return parts.join('\n');
+}
+
+function legacyAboutToHtml(raw: LegacyAboutContent): string {
+  const parts = [headerToHtml(raw.title, raw.subtitle)];
+  parts.push(
+    sectionToHtml({
+      title: raw.introTitle,
+      paragraphs: raw.introParagraphs,
+    })
+  );
+  parts.push(
+    sectionToHtml({
+      title: raw.whatWeDoTitle,
+      bullets: raw.whatWeDoBullets,
+    })
+  );
+  parts.push(
+    sectionToHtml({
+      title: raw.partnersTitle,
+      paragraphs: raw.partnersIntro ? [raw.partnersIntro] : [],
+    })
+  );
+  return parts.filter(Boolean).join('\n');
+}
+
+function legacyLegalToHtml(raw: LegacyLegalContent): string {
+  const parts = [headerToHtml(raw.title, raw.subtitle)];
+  if (raw.intro?.trim()) parts.push(`<p>${inlineToHtml(raw.intro.trim())}</p>`);
+  for (const section of raw.sections ?? []) {
+    parts.push(sectionToHtml(section));
+  }
+  return parts.filter(Boolean).join('\n');
+}
+
+function legacyDonationsToHtml(raw: LegacyDonationsContent): string {
+  const parts = [headerToHtml(raw.title, raw.subtitle)];
+  if (raw.intro?.trim()) parts.push(`<p>${inlineToHtml(raw.intro.trim())}</p>`);
+  parts.push(
+    sectionToHtml({ title: raw.irTitle, paragraphs: raw.irParagraphs })
+  );
+  const aceite = [
+    raw.aceiteBeforeLink ?? '',
+    raw.aceiteLinkText ?? '',
+    raw.aceiteAfterLink ?? '',
+  ]
+    .join('')
+    .trim();
+  if (aceite) parts.push(`<p>${inlineToHtml(aceite)}</p>`);
+  return parts.filter(Boolean).join('\n');
+}
+
+type LegacyConverter = (raw: Record<string, unknown>) => string;
+
+const LEGACY_CONVERTERS: Record<keyof SiteContent, LegacyConverter> = {
+  about: (raw) => legacyAboutToHtml(raw as LegacyAboutContent),
+  terms: (raw) => legacyLegalToHtml(raw as LegacyLegalContent),
+  privacy: (raw) => legacyLegalToHtml(raw as LegacyLegalContent),
+  donations: (raw) => legacyDonationsToHtml(raw as LegacyDonationsContent),
+};
+
+function normalizePage(
+  raw: unknown,
+  key: keyof SiteContent
+): SitePageContent {
+  const fallback = DEFAULT_SITE_CONTENT[key];
+  if (!raw) return { html: fallback.html };
+
+  if (typeof raw === 'string') {
+    return { html: isEmptyHtml(raw) ? fallback.html : raw };
+  }
+
+  if (typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.html === 'string' && !isEmptyHtml(obj.html)) {
+      return { html: obj.html };
     }
-    return part ? createElement(Fragment, { key: i }, part) : null;
-  });
+    // Documento no formato antigo: converte para HTML sem perder o texto.
+    const converted = LEGACY_CONVERTERS[key](obj);
+    if (!isEmptyHtml(converted)) return { html: converted };
+  }
+
+  return { html: fallback.html };
 }
 
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean);
-}
-
-function normalizeSection(raw: unknown): SiteContentSection | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const s = raw as Record<string, unknown>;
-  const title = typeof s.title === 'string' ? s.title.trim() : '';
-  if (!title) return null;
-  return {
-    title,
-    paragraphs: asStringArray(s.paragraphs),
-    bullets: asStringArray(s.bullets),
-  };
-}
-
-function normalizeAbout(
-  raw: unknown,
-  fallback: AboutSiteContent
-): AboutSiteContent {
-  if (!raw || typeof raw !== 'object') return fallback;
-  const a = raw as Partial<AboutSiteContent>;
-  return {
-    title: a.title?.trim() || fallback.title,
-    subtitle: a.subtitle?.trim() || fallback.subtitle,
-    introTitle: a.introTitle?.trim() || fallback.introTitle,
-    introParagraphs:
-      asStringArray(a.introParagraphs).length > 0
-        ? asStringArray(a.introParagraphs)
-        : fallback.introParagraphs,
-    whatWeDoTitle: a.whatWeDoTitle?.trim() || fallback.whatWeDoTitle,
-    whatWeDoBullets:
-      asStringArray(a.whatWeDoBullets).length > 0
-        ? asStringArray(a.whatWeDoBullets)
-        : fallback.whatWeDoBullets,
-    partnersTitle: a.partnersTitle?.trim() || fallback.partnersTitle,
-    partnersIntro: a.partnersIntro?.trim() || fallback.partnersIntro,
-    ctaBeforeLink: a.ctaBeforeLink ?? fallback.ctaBeforeLink,
-    ctaLinkText: a.ctaLinkText?.trim() || fallback.ctaLinkText,
-    ctaAfterLink: a.ctaAfterLink ?? fallback.ctaAfterLink,
-  };
-}
-
-function normalizeLegal(
-  raw: unknown,
-  fallback: LegalSiteContent
-): LegalSiteContent {
-  if (!raw || typeof raw !== 'object') return fallback;
-  const l = raw as Partial<LegalSiteContent>;
-  const sections = Array.isArray(l.sections)
-    ? l.sections
-        .map(normalizeSection)
-        .filter((s): s is SiteContentSection => Boolean(s))
-    : [];
-  return {
-    title: l.title?.trim() || fallback.title,
-    subtitle: l.subtitle?.trim() || fallback.subtitle,
-    intro: l.intro?.trim() || fallback.intro,
-    sections: sections.length > 0 ? sections : fallback.sections,
-  };
-}
-
-function normalizeDonations(
-  raw: unknown,
-  fallback: DonationsSiteContent
-): DonationsSiteContent {
-  if (!raw || typeof raw !== 'object') return fallback;
-  const d = raw as Partial<DonationsSiteContent>;
-  return {
-    title: d.title?.trim() || fallback.title,
-    subtitle: d.subtitle?.trim() || fallback.subtitle,
-    intro: d.intro?.trim() || fallback.intro,
-    irTitle: d.irTitle?.trim() || fallback.irTitle,
-    irParagraphs:
-      asStringArray(d.irParagraphs).length > 0
-        ? asStringArray(d.irParagraphs)
-        : fallback.irParagraphs,
-    aceiteBeforeLink: d.aceiteBeforeLink ?? fallback.aceiteBeforeLink,
-    aceiteLinkText: d.aceiteLinkText?.trim() || fallback.aceiteLinkText,
-    aceiteAfterLink: d.aceiteAfterLink ?? fallback.aceiteAfterLink,
-  };
-}
-
-/** Mescla documento do Firestore com defaults (nunca deixa página em branco). */
+/** Mescla o documento do Firestore com os padrões e migra o formato antigo. */
 export function normalizeSiteContent(raw: unknown): SiteContent {
   const base =
-    raw && typeof raw === 'object' ? (raw as Partial<SiteContent>) : {};
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
-    about: normalizeAbout(base.about, DEFAULT_SITE_CONTENT.about),
-    terms: normalizeLegal(base.terms, DEFAULT_SITE_CONTENT.terms),
-    privacy: normalizeLegal(base.privacy, DEFAULT_SITE_CONTENT.privacy),
-    donations: normalizeDonations(base.donations, DEFAULT_SITE_CONTENT.donations),
+    about: normalizePage(base.about, 'about'),
+    terms: normalizePage(base.terms, 'terms'),
+    privacy: normalizePage(base.privacy, 'privacy'),
+    donations: normalizePage(base.donations, 'donations'),
   };
-}
-
-export function paragraphsFromTextarea(value: string): string[] {
-  return value
-    .split(/\n\s*\n/)
-    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
-    .filter(Boolean);
-}
-
-export function bulletsFromTextarea(value: string): string[] {
-  return value
-    .split('\n')
-    .map((line) => line.replace(/^\s*[-•*]\s*/, '').trim())
-    .filter(Boolean);
-}
-
-export function paragraphsToTextarea(paragraphs: string[]): string {
-  return paragraphs.join('\n\n');
-}
-
-export function bulletsToTextarea(bullets: string[]): string {
-  return bullets.join('\n');
 }

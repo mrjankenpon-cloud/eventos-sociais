@@ -1,50 +1,50 @@
-/** Conteúdo editável das páginas públicas institucionais. */
-
-export interface SiteContentSection {
-  title: string;
-  /** Parágrafos (texto simples; use **negrito** se precisar). */
-  paragraphs: string[];
-  /** Itens de lista; omitir ou deixar vazio quando não houver. */
-  bullets?: string[];
-}
-
-export interface AboutSiteContent {
-  title: string;
-  subtitle: string;
-  introTitle: string;
-  introParagraphs: string[];
-  whatWeDoTitle: string;
-  whatWeDoBullets: string[];
-  partnersTitle: string;
-  partnersIntro: string;
-  ctaBeforeLink: string;
-  ctaLinkText: string;
-  ctaAfterLink: string;
-}
-
-export interface LegalSiteContent {
-  title: string;
-  subtitle: string;
-  intro: string;
-  sections: SiteContentSection[];
-}
-
-export interface DonationsSiteContent {
-  title: string;
-  subtitle: string;
-  intro: string;
-  irTitle: string;
-  irParagraphs: string[];
-  aceiteBeforeLink: string;
-  aceiteLinkText: string;
-  aceiteAfterLink: string;
+/** Conteúdo livre (HTML do editor) de cada página institucional. */
+export interface SitePageContent {
+  /** HTML produzido pelo editor rico da área administrativa. */
+  html: string;
 }
 
 export interface SiteContent {
-  about: AboutSiteContent;
-  terms: LegalSiteContent;
-  privacy: LegalSiteContent;
-  donations: DonationsSiteContent;
+  about: SitePageContent;
+  terms: SitePageContent;
+  privacy: SitePageContent;
+  donations: SitePageContent;
 }
 
 export type SiteContentPageKey = keyof SiteContent;
+
+/** Formato antigo (campos separados), mantido só para migração automática. */
+export interface LegacySiteContentSection {
+  title?: string;
+  paragraphs?: string[];
+  bullets?: string[];
+}
+
+export interface LegacyLegalContent {
+  title?: string;
+  subtitle?: string;
+  intro?: string;
+  sections?: LegacySiteContentSection[];
+}
+
+export interface LegacyAboutContent {
+  title?: string;
+  subtitle?: string;
+  introTitle?: string;
+  introParagraphs?: string[];
+  whatWeDoTitle?: string;
+  whatWeDoBullets?: string[];
+  partnersTitle?: string;
+  partnersIntro?: string;
+}
+
+export interface LegacyDonationsContent {
+  title?: string;
+  subtitle?: string;
+  intro?: string;
+  irTitle?: string;
+  irParagraphs?: string[];
+  aceiteBeforeLink?: string;
+  aceiteLinkText?: string;
+  aceiteAfterLink?: string;
+}

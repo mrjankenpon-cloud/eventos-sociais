@@ -55,7 +55,7 @@ export default function Header() {
           >
             <Link
               to={ROUTES.PUBLIC.ABOUT}
-              className="text-white/80 hover:text-white text-[10px] font-black uppercase tracking-[0.14em] sm:tracking-[0.18em] transition-colors px-1.5 py-1"
+              className="hidden sm:inline-block text-white/80 hover:text-white text-[10px] font-black uppercase tracking-[0.14em] sm:tracking-[0.18em] transition-colors px-1.5 py-1"
             >
               Sobre
             </Link>
@@ -68,7 +68,7 @@ export default function Header() {
           </nav>
           <Link
             to="/"
-            className="flex items-center justify-end focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg shrink-0"
+            className="flex items-center justify-end gap-2 sm:gap-3 focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg shrink-0"
             aria-label={`${APP_CONFIG.name} — logotipo`}
           >
             <img
@@ -76,6 +76,13 @@ export default function Header() {
               alt=""
               className={`w-auto object-contain drop-shadow-md transition-all duration-500 ${
                 isScrolled ? 'h-10 sm:h-14' : 'h-12 sm:h-[4.25rem]'
+              }`}
+            />
+            <img
+              src="/frafem-logo.png"
+              alt="FRAFEM Delphos"
+              className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-all duration-500 ${
+                isScrolled ? 'h-9 sm:h-12' : 'h-10 sm:h-[3.75rem]'
               }`}
             />
           </Link>

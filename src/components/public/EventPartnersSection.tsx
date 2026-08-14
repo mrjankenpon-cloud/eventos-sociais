@@ -64,12 +64,12 @@ export function EventPartnersSection({
                 {institutions.map((inst) => (
                   <li
                     key={inst.id}
-                    className="flex items-start gap-3 p-2.5 sm:p-3 rounded-xl bg-gray-50/80 border border-gray-100"
+                    className="group relative z-0 hover:z-30 flex items-start gap-3 p-2.5 sm:p-3 rounded-xl bg-gray-50/80 border border-gray-100 transition-colors hover:border-brand/30 hover:bg-white"
                   >
                     <AppImage
                       src={inst.logo}
                       alt=""
-                      className="w-11 h-11 rounded-lg object-contain bg-white border border-gray-100 shrink-0"
+                      className="w-11 h-11 rounded-lg object-contain bg-white border border-gray-100 shrink-0 origin-top-left transition-[transform,box-shadow] duration-300 ease-out group-hover:scale-[2] group-hover:shadow-2xl group-hover:ring-2 group-hover:ring-brand/30 motion-reduce:group-hover:scale-100"
                     />
                     <div className="min-w-0 flex-1">
                       <h3 className="font-black text-gray-900 leading-snug text-sm sm:text-base">
@@ -121,14 +121,14 @@ export function EventPartnersSection({
                           setSelectedSponsor(sponsor);
                         }
                       }}
-                      className="w-full aspect-[5/3] rounded-xl bg-gray-50 border border-gray-100 hover:border-brand/25 hover:shadow-sm transition-all flex items-center justify-center p-3 focus-visible:ring-2 focus-visible:ring-brand/30"
+                      className="group relative z-0 hover:z-30 w-full aspect-[5/3] rounded-xl bg-gray-50 border border-gray-100 hover:border-brand/40 hover:bg-white hover:shadow-lg transition-all flex items-center justify-center p-3 focus-visible:ring-2 focus-visible:ring-brand/30"
                       aria-label={sponsor.nome}
                       title={sponsor.nome}
                     >
                       <AppImage
                         src={sponsor.logo}
                         alt={sponsor.nome}
-                        className="max-h-10 sm:max-h-12 w-auto max-w-full object-contain grayscale hover:grayscale-0 transition-all"
+                        className="max-h-10 sm:max-h-12 w-auto max-w-full object-contain grayscale transition-all duration-300 ease-out group-hover:grayscale-0 group-hover:scale-[2] group-hover:drop-shadow-2xl group-focus-visible:grayscale-0 group-focus-visible:scale-[2] motion-reduce:group-hover:scale-100"
                         loading="lazy"
                       />
                     </button>

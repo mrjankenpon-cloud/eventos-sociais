@@ -123,6 +123,90 @@ html.header-compact {
   }
 }
 
+/* Documento editável do admin e sua renderização no site público */
+.site-content-doc {
+  @apply text-[15px] leading-relaxed text-gray-600;
+}
+
+.site-content-doc > :first-child {
+  margin-top: 0;
+}
+
+.site-content-doc h1 {
+  @apply text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-8 mb-3;
+}
+
+.site-content-doc h2 {
+  @apply text-lg sm:text-xl font-black text-gray-900 mt-7 mb-2.5;
+}
+
+.site-content-doc h3 {
+  @apply text-base font-black text-gray-900 mt-6 mb-2;
+}
+
+.site-content-doc p {
+  @apply my-3;
+}
+
+.site-content-doc ul,
+.site-content-doc ol {
+  @apply my-3 pl-5 space-y-1.5;
+}
+
+.site-content-doc ul {
+  @apply list-disc;
+}
+
+.site-content-doc ol {
+  @apply list-decimal;
+}
+
+.site-content-doc li p {
+  @apply my-0;
+}
+
+.site-content-doc a {
+  @apply text-brand font-bold underline decoration-brand/30 underline-offset-2 hover:decoration-brand;
+}
+
+.site-content-doc strong {
+  @apply font-bold text-gray-900;
+}
+
+.site-content-doc blockquote {
+  @apply border-l-4 border-brand/20 pl-4 italic my-4 text-gray-500;
+}
+
+.site-content-doc hr {
+  @apply my-7 border-gray-100;
+}
+
+.site-content-doc img {
+  @apply my-4 rounded-2xl max-w-full h-auto;
+}
+
+.site-content-doc img.ProseMirror-selectednode {
+  @apply outline outline-2 outline-brand;
+}
+
+.site-content-doc table {
+  @apply my-4 w-full text-left border-collapse;
+}
+
+.site-content-doc th,
+.site-content-doc td {
+  @apply border border-gray-100 px-3 py-2 align-top;
+}
+
+.site-content-doc:focus {
+  outline: none;
+}
+
+.site-content-doc .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply text-gray-300 float-left h-0 pointer-events-none;
+}
+
 
 /* QR Scanner video fill */
 #qr-reader,

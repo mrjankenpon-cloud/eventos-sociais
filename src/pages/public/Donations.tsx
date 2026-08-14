@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HeartHandshake, Mail, Phone, User, Hash } from 'lucide-react';
-import { LegalPage, LegalSection } from '../../components/public/LegalPage';
+import { LegalPage } from '../../components/public/LegalPage';
+import { RichContent } from '../../components/public/RichContent';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { checkoutApi } from '../../services/checkout.api';
@@ -17,7 +18,6 @@ import {
 import { ROUTES } from '../../config';
 import { cn } from '../../lib/utils';
 import { useSiteContent } from '../../hooks/useSiteContent';
-import { renderRichText } from '../../lib/siteContent';
 
 const SUGGESTED = [30, 50, 100, 250, 500, 1000];
 const MIN_DONATION = 10;
@@ -111,8 +111,8 @@ export default function Donations() {
   }
 
   return (
-    <LegalPage title={donations.title} subtitle={donations.subtitle}>
-      <p>{renderRichText(donations.intro)}</p>
+    <LegalPage>
+      <RichContent html={donations.html} />
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6" noValidate>
         {error ? (
@@ -228,12 +228,6 @@ export default function Donations() {
           placeholder="Se quiser, deixe uma palavra de apoio."
         />
 
-        <LegalSection title={donations.irTitle}>
-          {donations.irParagraphs.map((paragraph, idx) => (
-            <p key={idx}>{renderRichText(paragraph)}</p>
-          ))}
-        </LegalSection>
-
         <label className="flex items-start gap-3 text-sm text-gray-600">
           <input
             type="checkbox"
@@ -242,11 +236,12 @@ export default function Donations() {
             onChange={(e) => setAceite(e.target.checked)}
           />
           <span>
-            {renderRichText(donations.aceiteBeforeLink)}
+            Declaro ciência das informações desta página e do{' '}
             <Link to={ROUTES.PUBLIC.TERMS} className="font-bold text-brand underline">
-              {donations.aceiteLinkText}
+              Termo de Uso
             </Link>
-            {renderRichText(donations.aceiteAfterLink)}
+            , entendendo que a doação é voluntária e que o certificado emitido
+            não garante dedução fiscal.
           </span>
         </label>
 

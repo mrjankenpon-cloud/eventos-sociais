@@ -8,7 +8,8 @@ export function LegalPage({
   subtitle,
   children,
 }: {
-  title: string;
+  /** Opcional: quando o conteúdo já traz o próprio título (editor). */
+  title?: string;
   subtitle?: string;
   children: ReactNode;
 }) {
@@ -24,11 +25,13 @@ export function LegalPage({
         </Link>
 
         <article className="card-surface overflow-hidden">
-          <header className="bg-brand p-5 sm:p-8 text-white">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70 mb-2">
+          <header className="bg-brand px-5 py-4 sm:px-8 sm:py-6 text-white">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70">
               Instituto Delphos
             </p>
-            <h1 className="text-2xl sm:text-3xl font-black">{title}</h1>
+            {title ? (
+              <h1 className="mt-2 text-2xl sm:text-3xl font-black">{title}</h1>
+            ) : null}
             {subtitle ? (
               <p className="mt-2 text-white/80 text-sm sm:text-base leading-relaxed">
                 {subtitle}

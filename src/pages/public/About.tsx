@@ -1,15 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { Building2, Hash, Mail, MapPin, Phone } from 'lucide-react';
-import { LegalPage, LegalSection } from '../../components/public/LegalPage';
+import { useEffect, useState } from 'react';
+import { LegalPage } from '../../components/public/LegalPage';
+import { RichContent } from '../../components/public/RichContent';
 import { AppImage } from '../../components/ui/AppImage';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { institutionService } from '../../services/institution.service';
 import type { Institution } from '../../types';
-import { ORG, orgAddressLine } from '../../lib/orgInfo';
-import { ROUTES } from '../../config';
 import { useSiteContent } from '../../hooks/useSiteContent';
-import { renderRichText } from '../../lib/siteContent';
 
 function institutionHref(inst: Institution): string | undefined {
   const site = inst.site?.trim();
@@ -19,7 +15,6 @@ function institutionHref(inst: Institution): string | undefined {
 
 export default function About() {
   const { content, loading } = useSiteContent();
-  const about = content.about;
   const [partners, setPartners] = useState<Institution[]>([]);
 
   useEffect(() => {
@@ -46,58 +41,14 @@ export default function About() {
   }
 
   return (
-    <LegalPage title={about.title} subtitle={about.subtitle}>
-      <LegalSection title={about.introTitle}>
-        {about.introParagraphs.map((paragraph, idx) => (
-          <p key={idx}>{renderRichText(paragraph)}</p>
-        ))}
-      </LegalSection>
-
-      <LegalSection title={about.whatWeDoTitle}>
-        <ul className="list-disc pl-5 space-y-2">
-          {about.whatWeDoBullets.map((item, idx) => (
-            <li key={idx}>{renderRichText(item)}</li>
-          ))}
-        </ul>
-      </LegalSection>
-
-      <LegalSection title="Dados institucionais">
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <OrgFact
-            icon={<Building2 size={18} aria-hidden="true" />}
-            label="Razão social"
-            value={ORG.razaoSocial}
-            wide
-          />
-          <OrgFact
-            icon={<Hash size={18} aria-hidden="true" />}
-            label="CNPJ"
-            value={ORG.cnpj}
-          />
-          <OrgFact
-            icon={<MapPin size={18} aria-hidden="true" />}
-            label="Endereço"
-            value={orgAddressLine()}
-            wide
-          />
-          <OrgFact
-            icon={<Phone size={18} aria-hidden="true" />}
-            label="Telefone"
-            value={ORG.telefone}
-            href={`tel:${ORG.telefone.replace(/\D/g, '')}`}
-          />
-          <OrgFact
-            icon={<Mail size={18} aria-hidden="true" />}
-            label="E-mail"
-            value={ORG.emailOperacional}
-            href={`mailto:${ORG.emailOperacional}`}
-          />
-        </ul>
-      </LegalSection>
+    <LegalPage>
+      <RichContent html={content.about.html} />
 
       {partners.length > 0 ? (
-        <LegalSection title={about.partnersTitle}>
-          <p>{renderRichText(about.partnersIntro)}</p>
+        <section className="space-y-3">
+          <h2 className="text-lg sm:text-xl font-black text-gray-900">
+            Instituições parceiras
+          </h2>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {partners.map((inst) => {
               const href = institutionHref(inst);
@@ -140,68 +91,8 @@ export default function About() {
               );
             })}
           </ul>
-        </LegalSection>
+        </section>
       ) : null}
-
-      <p className="text-sm">
-        {renderRichText(about.ctaBeforeLink)}
-        <Link
-          to={ROUTES.PUBLIC.DONATIONS}
-          className="font-bold text-brand underline"
-        >
-          {about.ctaLinkText}
-        </Link>
-        {renderRichText(about.ctaAfterLink)}
-      </p>
     </LegalPage>
-  );
-}
-
-function OrgFact({
-  icon,
-  label,
-  value,
-  href,
-  wide,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  href?: string;
-  wide?: boolean;
-}) {
-  const body = (
-    <>
-      <span className="shrink-0 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-muted text-brand">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-          {label}
-        </span>
-        <span className="mt-1 block text-sm sm:text-[15px] font-bold text-gray-900 leading-snug break-words">
-          {value}
-        </span>
-      </span>
-    </>
-  );
-
-  const className = `flex items-start gap-3.5 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 ${
-    wide ? 'sm:col-span-2' : ''
-  }`;
-
-  return (
-    <li className={className}>
-      {href ? (
-        <a
-          href={href}
-          className="flex items-start gap-3.5 min-w-0 w-full rounded-xl focus-visible:outline-none hover:opacity-90"
-        >
-          {body}
-        </a>
-      ) : (
-        body
-      )}
-    </li>
   );
 }

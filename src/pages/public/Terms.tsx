@@ -1,13 +1,10 @@
 import { LegalPage } from '../../components/public/LegalPage';
-import { SiteContentSections } from '../../components/public/SiteContentSections';
+import { RichContent } from '../../components/public/RichContent';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
-import { ROUTES } from '../../config';
 import { useSiteContent } from '../../hooks/useSiteContent';
-import { renderRichText } from '../../lib/siteContent';
 
 export default function Terms() {
   const { content, loading } = useSiteContent();
-  const terms = content.terms;
 
   if (loading) {
     return (
@@ -18,12 +15,8 @@ export default function Terms() {
   }
 
   return (
-    <LegalPage title={terms.title} subtitle={terms.subtitle}>
-      <p>{renderRichText(terms.intro)}</p>
-      <SiteContentSections
-        sections={terms.sections}
-        privacyLinkInSection={ROUTES.PUBLIC.PRIVACY}
-      />
+    <LegalPage>
+      <RichContent html={content.terms.html} />
     </LegalPage>
   );
 }
