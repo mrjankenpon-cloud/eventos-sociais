@@ -7,7 +7,6 @@ import { ProcessingOverlay } from './components/ui/ProcessingOverlay';
 
 import PublicLayout from './layouts/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
-import { PWAInstall } from './components/common/PWAInstall';
 
 /** Funil público: eager para evitar tela em branco no 1º clique (Suspense/lazy). */
 import Home from './pages/public/Home';
@@ -51,7 +50,6 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <PWAInstall />
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />

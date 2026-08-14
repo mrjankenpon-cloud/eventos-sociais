@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { APP_CONFIG, ROUTES } from '../../config';
 import { ORG, orgAddressLine } from '../../lib/orgInfo';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 
 const LEGAL_LINKS = [
   { to: ROUTES.PUBLIC.ABOUT, label: 'Sobre' },
@@ -10,6 +12,8 @@ const LEGAL_LINKS = [
 ] as const;
 
 export default function Footer() {
+  const { canInstall, install } = usePwaInstall();
+
   return (
     <footer className="bg-surface-muted pt-10 sm:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16">
       <div className="page-container">
@@ -47,6 +51,18 @@ export default function Footer() {
             >
               Área Restrita
             </Link>
+            {canInstall && (
+              <button
+                type="button"
+                onClick={() => {
+                  void install();
+                }}
+                className="inline-flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                Instalar aplicativo
+              </button>
+            )}
           </nav>
 
           <div className="text-center space-y-2 max-w-lg">
