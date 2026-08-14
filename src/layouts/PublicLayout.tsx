@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+import { PwaInstallPrompt } from '../components/common/PwaInstallPrompt';
 import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 import { PublicErrorBoundary } from '../components/public/PublicErrorBoundary';
 
@@ -27,6 +28,7 @@ export default function PublicLayout() {
         </PublicErrorBoundary>
       </main>
       <Footer />
+      <PwaInstallPrompt />
     </div>
   );
 }

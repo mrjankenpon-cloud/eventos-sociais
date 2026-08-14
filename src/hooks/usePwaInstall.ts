@@ -28,6 +28,30 @@ function isInstalled() {
   );
 }
 
+const SNOOZE_KEY = 'delphos:pwa-install-snooze';
+const SNOOZE_DAYS = 14;
+
+/** Guarda a recusa para o convite flutuante não reaparecer a cada visita. */
+export function snoozeInstallPrompt() {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now()));
+  } catch {
+    // Sem storage disponível: o convite volta na próxima visita.
+  }
+}
+
+export function isInstallPromptSnoozed() {
+  try {
+    const raw = localStorage.getItem(SNOOZE_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    if (!Number.isFinite(at)) return false;
+    return Date.now() - at < SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
     // Impede o convite automático do navegador; a instalação fica sob demanda.
