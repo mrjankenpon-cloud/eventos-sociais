@@ -6,10 +6,11 @@ import {
   DollarSign,
   Users,
   Clock,
+  Calendar as CalendarIcon,
   ArrowRight,
 } from 'lucide-react';
 import { Event } from '../../types';
-import { parseEventDate } from '../../lib/utils';
+import { formatEventDate } from '../../lib/utils';
 import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
 import { AppImage } from '../ui/AppImage';
@@ -19,17 +20,15 @@ interface BannerProps {
 }
 
 /**
- * Destaque em duas metades: foto sem sobreposição à esquerda,
- * dados do evento à direita.
+ * Destaque em 2/3 de foto sem sobreposição à esquerda e 1/3 de dados à direita.
  */
 export const Banner: React.FC<BannerProps> = ({ event }) => {
-  const dateObj = parseEventDate(event.data);
-  const day = dateObj.getDate().toString().padStart(2, '0');
-  const month = dateObj
-    .toLocaleDateString('pt-BR', { month: 'short' })
-    .replace('.', '')
-    .toUpperCase();
-  const year = dateObj.getFullYear();
+  const weekday = formatEventDate(event.data, { weekday: 'long' });
+  const fullDate = formatEventDate(event.data, {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
   const primaryColor = THEME.colors.primary;
   const description = (event.subtitulo || event.descricaoCurta)?.trim();
 
@@ -47,8 +46,8 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
         aria-hidden="true"
       />
 
-      <div className="relative grid grid-cols-1 md:grid-cols-2 rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
-        <div className="relative h-[240px] sm:h-[320px] md:h-auto md:min-h-[420px] overflow-hidden bg-black">
+      <div className="relative grid grid-cols-1 md:grid-cols-3 rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
+        <div className="relative md:col-span-2 h-[240px] sm:h-[320px] md:h-auto md:min-h-[420px] overflow-hidden bg-black">
           <AppImage
             src={event.banner}
             alt={event.titulo}
@@ -58,7 +57,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
         </div>
 
         <div
-          className="relative flex flex-col justify-center gap-5 p-6 sm:p-8 md:p-10 text-white overflow-hidden"
+          className="relative md:col-span-1 flex flex-col justify-center gap-5 p-6 sm:p-8 text-white overflow-hidden"
           style={{ backgroundColor: primaryColor }}
         >
           <div
@@ -66,40 +65,27 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
             aria-hidden="true"
           />
 
-          <div className="relative z-10 flex flex-wrap items-center gap-3">
-            <span className="flex items-baseline gap-1.5 rounded-2xl bg-white/10 border border-white/10 px-3.5 py-2">
-              <span className="text-3xl sm:text-4xl font-black leading-none tabular-nums">
-                {day}
-              </span>
-              <span className="flex flex-col leading-none">
-                <span className="text-[10px] font-black tracking-[0.25em] uppercase">
-                  {month}
-                </span>
-                <span className="text-[10px] font-bold tracking-[0.2em] opacity-60 mt-0.5">
-                  {year}
-                </span>
-              </span>
-            </span>
-            {event.horaInicio ? (
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-white/10 border border-white/10 px-3.5 py-2.5 text-sm font-bold tracking-wide">
-                <Clock size={16} className="opacity-60" aria-hidden="true" />
-                {event.horaInicio}
-              </span>
-            ) : null}
-          </div>
-
           <div className="relative z-10 min-w-0">
-            <h3 className="text-2xl sm:text-3xl md:text-[34px] font-bold tracking-tighter leading-tight line-clamp-3">
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight line-clamp-3">
               {event.titulo}
             </h3>
             {description ? (
-              <p className="text-white/85 text-sm font-medium leading-relaxed mt-2.5 line-clamp-3">
+              <p className="text-white/85 text-[13px] font-medium leading-relaxed mt-2 line-clamp-3">
                 {description}
               </p>
             ) : null}
           </div>
 
-          <div className="relative z-10 flex flex-col gap-3">
+          <div className="relative z-10 flex flex-col gap-3 border-t border-white/10 pt-5">
+            <Meta
+              icon={CalendarIcon}
+              label="Data"
+              value={fullDate}
+              detail={weekday}
+            />
+            {event.horaInicio ? (
+              <Meta icon={Clock} label="Horário" value={event.horaInicio} />
+            ) : null}
             {event.local?.trim() ? (
               <Meta icon={MapPin} label="Local" value={event.local} />
             ) : null}
@@ -117,12 +103,12 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
 
           <Link
             to={`/evento/${event.id}`}
-            className="relative z-10 group/btn w-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:border-transparent px-5 py-4 rounded-2xl transition-all duration-400 flex items-center justify-between gap-3 shadow-xl backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-white/50"
+            className="relative z-10 group/btn w-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:border-transparent px-4 py-3.5 rounded-2xl transition-all duration-400 flex items-center justify-between gap-3 shadow-xl backdrop-blur-sm focus-visible:ring-2 focus-visible:ring-white/50"
           >
-            <span className="font-black text-[10px] tracking-[0.2em] sm:tracking-[0.3em] uppercase truncate">
+            <span className="font-black text-[10px] tracking-[0.2em] uppercase truncate">
               {event.textoBotao || 'Participar'}
             </span>
-            <span className="w-10 h-10 shrink-0 rounded-xl bg-white/5 group-hover/btn:bg-black/5 flex items-center justify-center transition-transform group-hover/btn:translate-x-1">
+            <span className="w-9 h-9 shrink-0 rounded-xl bg-white/5 group-hover/btn:bg-black/5 flex items-center justify-center transition-transform group-hover/btn:translate-x-1">
               <ArrowRight size={18} aria-hidden="true" />
             </span>
           </Link>
@@ -136,23 +122,30 @@ function Meta({
   icon: Icon,
   label,
   value,
+  detail,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
+  detail?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <div className="flex items-start gap-3 min-w-0">
       <div className="p-2 rounded-lg bg-white/10 border border-white/10 text-yellow-400 shrink-0">
         <Icon size={16} aria-hidden="true" />
       </div>
-      <div className="flex flex-col min-w-0">
+      <div className="flex flex-col min-w-0 pt-0.5">
         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/50">
           {label}
         </span>
-        <span className="text-[13px] font-bold tracking-wide truncate">
+        <span className="text-[13px] font-bold tracking-wide leading-snug break-words first-letter:uppercase">
           {value}
         </span>
+        {detail ? (
+          <span className="text-[11px] font-medium text-white/60 leading-snug mt-0.5 first-letter:uppercase">
+            {detail}
+          </span>
+        ) : null}
       </div>
     </div>
   );
