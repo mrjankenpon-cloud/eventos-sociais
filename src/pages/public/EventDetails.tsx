@@ -1,7 +1,23 @@
-import { useEffect, useState, useCallback, type ElementType, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  type ElementType,
+  type ReactNode,
+} from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Share2, Check } from 'lucide-react';
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  ArrowLeft,
+  Share2,
+  Check,
+  Maximize2,
+} from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { sponsorService } from '../../services/sponsor.service';
 import { institutionService } from '../../services/institution.service';
@@ -12,6 +28,7 @@ import { Button } from '../../components/ui/Button';
 import { AppImage } from '../../components/ui/AppImage';
 import { EventPartnersSection } from '../../components/public/EventPartnersSection';
 import { EventTicketTypes } from '../../components/public/EventTicketTypes';
+import { ImageLightbox } from '../../components/public/ImageLightbox';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 import { getActiveTicketTypes } from '../../lib/eventData';
 import { prefetchEventRegistration } from '../../lib/prefetchPublic';
@@ -24,6 +41,7 @@ export default function EventDetails() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareCopied, setShareCopied] = useState(false);
+  const [openPhoto, setOpenPhoto] = useState<number | null>(null);
 
   const loadEvent = useCallback(async () => {
     if (!id) {
@@ -92,6 +110,12 @@ export default function EventDetails() {
   useEffect(() => {
     void prefetchEventRegistration();
   }, []);
+
+  const galleryImages = useMemo(() => {
+    if (!event || event.exibirGaleria === false) return [];
+    const fromImagens = event.imagens?.filter((i) => !i.isCover).map((i) => i.url);
+    return (fromImagens ?? event.galeria ?? []).filter(Boolean);
+  }, [event]);
 
   const handleShare = useCallback(async () => {
     if (!event) return;
@@ -205,24 +229,33 @@ export default function EventDetails() {
                 </div>
               )}
 
-              {event.exibirGaleria !== false &&
-                ((event.imagens?.filter((i) => !i.isCover).length ?? 0) > 0 ||
-                  (event.galeria?.length ?? 0) > 0) && (
+              {galleryImages.length > 0 && (
                 <div className="mt-5">
                   <h3 className="text-base font-black text-gray-900 mb-3">Galeria</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                    {(event.imagens?.filter((i) => !i.isCover).map((i) => i.url) ??
-                      event.galeria
-                    ).map((img, idx) => (
-                      <AppImage
+                    {galleryImages.map((img, idx) => (
+                      <button
                         key={idx}
-                        src={img}
-                        alt={`Foto ${idx + 1} do evento`}
-                        loading="lazy"
-                        className="w-full h-28 sm:h-32 object-cover rounded-xl"
-                      />
+                        type="button"
+                        onClick={() => setOpenPhoto(idx)}
+                        aria-label={`Ampliar foto ${idx + 1} do evento`}
+                        className="group relative block w-full overflow-hidden rounded-xl focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                      >
+                        <AppImage
+                          src={img}
+                          alt={`Foto ${idx + 1} do evento`}
+                          loading="lazy"
+                          className="w-full h-28 sm:h-32 object-cover transition-transform duration-300 group-hover:scale-[1.06]"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+                          <Maximize2 size={18} aria-hidden="true" />
+                        </span>
+                      </button>
                     ))}
                   </div>
+                  <p className="mt-2 text-xs text-gray-400">
+                    Clique em uma foto para ver a imagem completa.
+                  </p>
                 </div>
               )}
             </div>
@@ -347,6 +380,14 @@ export default function EventDetails() {
           </Link>
         </div>
       ) : null}
+
+      <ImageLightbox
+        images={galleryImages}
+        index={openPhoto}
+        onClose={() => setOpenPhoto(null)}
+        onNavigate={setOpenPhoto}
+        alt={(i) => `Foto ${i + 1} do evento ${event.titulo}`}
+      />
     </div>
   );
 }
