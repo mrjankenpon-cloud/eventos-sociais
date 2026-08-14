@@ -11,6 +11,8 @@ import {
   Handshake,
   HeartHandshake,
   Shield,
+  FileText,
+  Video,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,6 +50,8 @@ function AdminShell() {
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
+    { name: 'Vídeos', icon: Video, href: ROUTES.ADMIN.VIDEOS },
+    { name: 'Conteúdo', icon: FileText, href: ROUTES.ADMIN.SITE_CONTENT },
     { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
   ];
 

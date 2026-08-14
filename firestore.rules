@@ -177,6 +177,12 @@ service cloud.firestore {
       allow write: if isEditor();
     }
 
+    // ---- videos (carrossel da home) ----
+    match /videos/{id} {
+      allow read: if resource.data.ativo == true || isStaff();
+      allow write: if isEditor();
+    }
+
     // ---- ingressos (tipos) — estoque só via Admin SDK ----
     match /ingressos/{id} {
       allow read: if true;

@@ -3,6 +3,7 @@ import { Calendar } from 'lucide-react';
 import { EventCard } from '../../components/public/EventCard';
 import BannerList from '../../components/public/BannerList';
 import { InstitutionsStrip } from '../../components/public/InstitutionsStrip';
+import { VideosCarousel } from '../../components/public/VideosCarousel';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
@@ -93,6 +94,8 @@ export default function Home() {
             </div>
           ) : null}
         </section>
+
+        <VideosCarousel />
       </div>
     </div>
   );

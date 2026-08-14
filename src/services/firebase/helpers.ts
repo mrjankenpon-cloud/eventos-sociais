@@ -16,6 +16,7 @@ export const COLLECTIONS = {
   banners: 'banners',
   patrocinadores: 'patrocinadores',
   instituicoes: 'instituicoes',
+  videos: 'videos',
   /** Banco de imagens (logos, banners) — usado quando Storage não está disponível */
   imagens: 'imagens',
   ingressos: 'ingressos',

@@ -31,7 +31,9 @@ const CheckIn = lazy(() => import('./pages/admin/CheckIn'));
 const PurchaseDetails = lazy(() => import('./pages/admin/PurchaseDetails'));
 const Sponsors = lazy(() => import('./pages/admin/Sponsors'));
 const Institutions = lazy(() => import('./pages/admin/Institutions'));
+const Videos = lazy(() => import('./pages/admin/Videos'));
 const Permissions = lazy(() => import('./pages/admin/Permissions'));
+const SiteContentSettings = lazy(() => import('./pages/admin/SiteContentSettings'));
 const Health = lazy(() => import('./pages/admin/Health'));
 
 function RouteFallback({ detail }: { detail?: string }) {
@@ -99,6 +101,8 @@ export default function App() {
             <Route path="compras/:id" element={<PurchaseDetails />} />
             <Route path="patrocinadores" element={<Sponsors />} />
             <Route path="instituicoes" element={<Institutions />} />
+            <Route path="videos" element={<Videos />} />
+            <Route path="conteudo" element={<SiteContentSettings />} />
             <Route path="permissoes" element={<Permissions />} />
             <Route path="health" element={<Health />} />
           </Route>

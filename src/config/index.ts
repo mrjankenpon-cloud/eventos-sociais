@@ -33,7 +33,9 @@ export const ROUTES = {
     PURCHASE_DETAILS: '/controle/compras/:id',
     SPONSORS: '/controle/patrocinadores',
     INSTITUTIONS: '/controle/instituicoes',
+    VIDEOS: '/controle/videos',
     PERMISSIONS: '/controle/permissoes',
+    SITE_CONTENT: '/controle/conteudo',
     HEALTH: '/controle/health',
   }
 };

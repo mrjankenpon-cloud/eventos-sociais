@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { HeartHandshake, Mail, Phone, User, Hash } from 'lucide-react';
 import { LegalPage, LegalSection } from '../../components/public/LegalPage';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
+import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { checkoutApi } from '../../services/checkout.api';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
-import { ORG } from '../../lib/orgInfo';
 import { formatCurrency } from '../../lib/utils';
 import {
   maskCNPJ,
@@ -16,12 +16,16 @@ import {
 } from '../../lib/validation';
 import { ROUTES } from '../../config';
 import { cn } from '../../lib/utils';
+import { useSiteContent } from '../../hooks/useSiteContent';
+import { renderRichText } from '../../lib/siteContent';
 
 const SUGGESTED = [30, 50, 100, 250, 500, 1000];
 const MIN_DONATION = 10;
 
 export default function Donations() {
   const navigate = useNavigate();
+  const { content, loading: contentLoading } = useSiteContent();
+  const donations = content.donations;
   const [amount, setAmount] = useState(100);
   const [custom, setCustom] = useState('');
   const [docTipo, setDocTipo] = useState<'cpf' | 'cnpj'>('cpf');
@@ -98,16 +102,17 @@ export default function Donations() {
     }
   };
 
+  if (contentLoading) {
+    return (
+      <div className="min-h-[50vh]">
+        <ProcessingOverlay open label="Carregando" detail="Abrindo a página de doações..." />
+      </div>
+    );
+  }
+
   return (
-    <LegalPage
-      title="Doações"
-      subtitle="Sua contribuição fortalece eventos, convívio e o apoio às instituições parceiras."
-    >
-      <p>
-        Toda doação é voluntária e bem-vinda. Ao concluir o pagamento pelo
-        Mercado Pago, você recebe um <strong className="text-gray-900">certificado de doação</strong> —
-        um recibo para guardar e um gesto de agradecimento da {ORG.shortBrand}.
-      </p>
+    <LegalPage title={donations.title} subtitle={donations.subtitle}>
+      <p>{renderRichText(donations.intro)}</p>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6" noValidate>
         {error ? (
@@ -223,42 +228,10 @@ export default function Donations() {
           placeholder="Se quiser, deixe uma palavra de apoio."
         />
 
-        <LegalSection title="Doações e Imposto de Renda">
-          <p>
-            As informações abaixo são educativas, com base na legislação
-            brasileira vigente. <strong className="text-gray-900">Não constituem
-            aconselhamento jurídico ou contábil.</strong> Confirme com seu
-            contador ou advogado o enquadramento do seu caso.
-          </p>
-          <p>
-            A entidade é uma <strong className="text-gray-900">organização
-            religiosa</strong> (natureza jurídica 322-0), CNPJ {ORG.cnpj}.
-            Doações a entidades religiosas, em regra, <strong className="text-gray-900">não
-            são dedutíveis no IRPF</strong> da pessoa física. Deduções de
-            pessoa física costumam exigir leis de incentivo específicas
-            (por exemplo fundos da criança e do adolescente, do idoso, cultura,
-            esporte ou saúde), quando a entidade e o projeto estão
-            habilitados naquela norma — o que deve ser verificado caso a caso.
-          </p>
-          <p>
-            Para <strong className="text-gray-900">pessoa jurídica tributada
-            pelo lucro real</strong>, a Lei nº 9.249/1995, art. 13, inciso III,
-            admite, em certas hipóteses, a dedução de doações a entidades
-            civis de utilidade pública que atendam a requisitos legais,
-            limitado em geral a <strong className="text-gray-900">2% do lucro
-            operacional</strong>. Empresas no Simples Nacional ou no lucro
-            presumido normalmente não se beneficiam dessa dedução. A
-            qualificação da donatária (por exemplo CEBAS, títulos de
-            utilidade pública ou registros setoriais) também influi: a
-            natureza religiosa, por si só, não garante o benefício.
-          </p>
-          <p>
-            O certificado emitido aqui é um <strong className="text-gray-900">recibo
-            de doação</strong>: identifica doador, valor, data e a entidade
-            beneficiária. Serve para arquivo pessoal e, quando couber,
-            para a escrituração da empresa. Não substitui DARF, declaração
-            de IR nem recibo de lei de incentivo.
-          </p>
+        <LegalSection title={donations.irTitle}>
+          {donations.irParagraphs.map((paragraph, idx) => (
+            <p key={idx}>{renderRichText(paragraph)}</p>
+          ))}
         </LegalSection>
 
         <label className="flex items-start gap-3 text-sm text-gray-600">
@@ -269,12 +242,11 @@ export default function Donations() {
             onChange={(e) => setAceite(e.target.checked)}
           />
           <span>
-            Li as informações sobre Imposto de Renda e o{' '}
+            {renderRichText(donations.aceiteBeforeLink)}
             <Link to={ROUTES.PUBLIC.TERMS} className="font-bold text-brand underline">
-              Termo de Uso
+              {donations.aceiteLinkText}
             </Link>
-            . Entendo que a doação é voluntária e que o certificado não
-            garante dedução fiscal.
+            {renderRichText(donations.aceiteAfterLink)}
           </span>
         </label>
 

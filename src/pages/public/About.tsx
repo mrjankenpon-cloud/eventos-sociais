@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import { Building2, Hash, Mail, MapPin, Phone } from 'lucide-react';
 import { LegalPage, LegalSection } from '../../components/public/LegalPage';
 import { AppImage } from '../../components/ui/AppImage';
+import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { institutionService } from '../../services/institution.service';
 import type { Institution } from '../../types';
 import { ORG, orgAddressLine } from '../../lib/orgInfo';
 import { ROUTES } from '../../config';
+import { useSiteContent } from '../../hooks/useSiteContent';
+import { renderRichText } from '../../lib/siteContent';
 
 function institutionHref(inst: Institution): string | undefined {
   const site = inst.site?.trim();
@@ -15,6 +18,8 @@ function institutionHref(inst: Institution): string | undefined {
 }
 
 export default function About() {
+  const { content, loading } = useSiteContent();
+  const about = content.about;
   const [partners, setPartners] = useState<Institution[]>([]);
 
   useEffect(() => {
@@ -32,42 +37,27 @@ export default function About() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-[50vh]">
+        <ProcessingOverlay open label="Carregando" detail="Abrindo a página Sobre..." />
+      </div>
+    );
+  }
+
   return (
-    <LegalPage
-      title="Sobre"
-      subtitle="Quem somos, o que fazemos e com quem caminhamos."
-    >
-      <LegalSection title="O Instituto Delphos">
-        <p>
-          O <strong className="text-gray-900">Instituto Delphos</strong> é a
-          face pública da{' '}
-          <strong className="text-gray-900">{ORG.razaoSocial}</strong>,
-          organização religiosa com situação cadastral ativa, dedicada a
-          iniciativas de convívio, cultura e solidariedade. Desde{' '}
-          {ORG.dataAberturaLabel}, a entidade promove encontros e ações que
-          aproximam pessoas, instituições e causas sociais.
-        </p>
-        <p>
-          Este site reúne os eventos abertos ao público, a emissão de ingressos
-          e o canal de doações. Cada inscrição e cada contribuição ajudam a
-          manter a programação e o apoio às instituições parceiras cadastradas
-          na área administrativa.
-        </p>
+    <LegalPage title={about.title} subtitle={about.subtitle}>
+      <LegalSection title={about.introTitle}>
+        {about.introParagraphs.map((paragraph, idx) => (
+          <p key={idx}>{renderRichText(paragraph)}</p>
+        ))}
       </LegalSection>
 
-      <LegalSection title="O que fazemos">
+      <LegalSection title={about.whatWeDoTitle}>
         <ul className="list-disc pl-5 space-y-2">
-          <li>
-            Organizar e divulgar eventos institucionais e beneficentes, com
-            venda de ingressos e controle de acesso.
-          </li>
-          <li>
-            Dar visibilidade às instituições parceiras ativas, exatamente como
-            cadastradas na aba Instituições da área administrativa.
-          </li>
-          <li>
-            Receber doações voluntárias, com recibo/certificado para o doador.
-          </li>
+          {about.whatWeDoBullets.map((item, idx) => (
+            <li key={idx}>{renderRichText(item)}</li>
+          ))}
         </ul>
       </LegalSection>
 
@@ -106,11 +96,8 @@ export default function About() {
       </LegalSection>
 
       {partners.length > 0 ? (
-        <LegalSection title="Instituições parceiras">
-          <p>
-            Parceiros ativos no catálogo administrativo. A faixa da página
-            inicial exibe o mesmo conjunto.
-          </p>
+        <LegalSection title={about.partnersTitle}>
+          <p>{renderRichText(about.partnersIntro)}</p>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {partners.map((inst) => {
               const href = institutionHref(inst);
@@ -157,14 +144,14 @@ export default function About() {
       ) : null}
 
       <p className="text-sm">
-        Quer apoiar o trabalho? Conheça a página de{' '}
+        {renderRichText(about.ctaBeforeLink)}
         <Link
           to={ROUTES.PUBLIC.DONATIONS}
           className="font-bold text-brand underline"
         >
-          doações
+          {about.ctaLinkText}
         </Link>
-        .
+        {renderRichText(about.ctaAfterLink)}
       </p>
     </LegalPage>
   );
