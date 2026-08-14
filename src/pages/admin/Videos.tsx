@@ -146,8 +146,14 @@ export default function Videos() {
       }
       closeModal();
       await load();
-    } catch {
-      setFormError('Não foi possível salvar o vídeo.');
+    } catch (err) {
+      console.error('[Videos.save]', err);
+      const detail = err instanceof Error ? err.message : '';
+      setFormError(
+        detail.toLowerCase().includes('permission')
+          ? 'Sem permissão para salvar. Sua conta precisa ser admin ou editor.'
+          : `Não foi possível salvar o vídeo.${detail ? ` (${detail})` : ''}`
+      );
     } finally {
       setSaving(false);
     }

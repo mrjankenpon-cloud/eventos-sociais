@@ -136,6 +136,14 @@
         { "fieldPath": "ativo", "order": "ASCENDING" },
         { "fieldPath": "ordem", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "videos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ativo", "order": "ASCENDING" },
+        { "fieldPath": "ordem", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

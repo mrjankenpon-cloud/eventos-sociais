@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import type { SiteVideo, SiteVideoFormData } from '../../types/models/siteVideo';
 import {
@@ -91,8 +92,30 @@ export const videosService = {
   },
 
   async getActive(): Promise<SiteVideo[]> {
-    const all = await this.getAll();
-    return all.filter((v) => v.ativo);
+    // Query alinhada às rules (ativo==true); listagem sem filtro é negada
+    // para visitantes anônimos.
+    try {
+      const q = query(
+        col(COLLECTIONS.videos),
+        where('ativo', '==', true),
+        orderBy('ordem', 'asc')
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => toVideo(mapDoc<SiteVideo>(d)));
+    } catch {
+      try {
+        const q2 = query(col(COLLECTIONS.videos), where('ativo', '==', true));
+        const snap2 = await getDocs(q2);
+        return snap2.docs
+          .map((d) => toVideo(mapDoc<SiteVideo>(d)))
+          .sort(
+            (a, b) => a.ordem - b.ordem || a.titulo.localeCompare(b.titulo, 'pt-BR')
+          );
+      } catch (error) {
+        console.warn('[videos.getActive] falhou', error);
+        return [];
+      }
+    }
   },
 
   async update(id: string, data: Partial<SiteVideoFormData>): Promise<SiteVideo> {
