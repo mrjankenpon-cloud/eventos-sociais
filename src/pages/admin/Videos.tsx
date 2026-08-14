@@ -262,22 +262,22 @@ export default function Videos() {
           }
         />
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <ul className="space-y-2.5">
           {filtered.map((video, index) => {
             const thumb = resolveVideoThumbnail(video);
             return (
               <motion.li
                 key={video.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: THEME.motion.duration,
                   ease: THEME.motion.ease,
                   delay: Math.min(index * 0.03, 0.2),
                 }}
-                className="card-surface overflow-hidden flex flex-col"
+                className="card-surface overflow-hidden flex items-stretch gap-3 p-2.5 sm:p-3"
               >
-                <div className="relative aspect-video bg-gray-100">
+                <div className="relative w-24 sm:w-28 aspect-video shrink-0 rounded-xl overflow-hidden bg-gray-100">
                   {thumb ? (
                     <img
                       src={thumb}
@@ -287,26 +287,26 @@ export default function Videos() {
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                      <Video size={36} aria-hidden="true" />
+                      <Video size={20} aria-hidden="true" />
                     </div>
                   )}
-                  <span className="absolute top-2 left-2">
-                    <Badge variant={video.ativo ? 'success' : 'neutral'}>
-                      {video.ativo ? 'Visível' : 'Oculto'}
-                    </Badge>
-                  </span>
                 </div>
-                <div className="p-4 flex flex-col gap-3 flex-1">
-                  <div className="min-w-0">
-                    <p className="font-black text-gray-900 text-sm leading-snug truncate">
-                      {video.titulo}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1 truncate">{video.url}</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-300 mt-2">
+                <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-0.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-black text-gray-900 text-sm leading-snug truncate">
+                        {video.titulo}
+                      </p>
+                      <Badge variant={video.ativo ? 'success' : 'neutral'}>
+                        {video.ativo ? 'Visível' : 'Oculto'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{video.url}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-300 mt-1">
                       Ordem {video.ordem}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 mt-auto">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => void toggleActive(video)}
@@ -336,7 +336,7 @@ export default function Videos() {
                     <button
                       type="button"
                       onClick={() => setDeleteId(video.id)}
-                      className="w-9 h-9 inline-flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-auto"
+                      className="w-9 h-9 inline-flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                       aria-label="Excluir vídeo"
                     >
                       <Trash2 size={16} aria-hidden="true" />
@@ -419,7 +419,7 @@ export default function Videos() {
           </div>
 
           {previewThumb ? (
-            <div className="rounded-2xl overflow-hidden border border-gray-100 aspect-video bg-gray-50">
+            <div className="w-36 sm:w-44 rounded-xl overflow-hidden border border-gray-100 aspect-video bg-gray-50">
               <img
                 src={previewThumb}
                 alt=""
