@@ -3,6 +3,7 @@ import { Calendar } from 'lucide-react';
 import { EventCard } from '../../components/public/EventCard';
 import BannerList from '../../components/public/BannerList';
 import { InstitutionsStrip } from '../../components/public/InstitutionsStrip';
+import { InstituteIntroBanner } from '../../components/public/InstituteIntroBanner';
 import { VideosCarousel } from '../../components/public/VideosCarousel';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Alert } from '../../components/ui/Alert';
@@ -66,6 +67,8 @@ export default function Home() {
             {error}
           </Alert>
         )}
+
+        <InstituteIntroBanner />
 
         {!loading && featured.length > 0 && (
           <section aria-label="Eventos em destaque">
