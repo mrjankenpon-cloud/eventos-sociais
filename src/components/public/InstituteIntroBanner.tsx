@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Mail, Phone } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ROUTES } from '../../config';
@@ -82,6 +82,40 @@ export function InstituteIntroBanner() {
         <p className="text-[15px] sm:text-base text-gray-600 leading-relaxed">
           {ABOUT_SUMMARY}
         </p>
+        <ul className="mt-6 space-y-3">
+          <li>
+            <a
+              href="tel:+5511981805177"
+              className="inline-flex items-center gap-2.5 text-sm sm:text-[15px] font-bold text-gray-900 hover:text-brand transition-colors"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-muted text-brand">
+                <Phone size={16} aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
+                  Telefone
+                </span>
+                (11) 9 8180-5177
+              </span>
+            </a>
+          </li>
+          <li>
+            <a
+              href="mailto:lojadelphos3852@gmail.com"
+              className="inline-flex items-center gap-2.5 text-sm sm:text-[15px] font-bold text-gray-900 hover:text-brand transition-colors break-all"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-muted text-brand">
+                <Mail size={16} aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
+                  E-mail
+                </span>
+                lojadelphos3852@gmail.com
+              </span>
+            </a>
+          </li>
+        </ul>
         <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Fechar

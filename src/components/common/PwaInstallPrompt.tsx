@@ -51,7 +51,7 @@ export function PwaInstallPrompt() {
       {visible && canInstall ? (
         <motion.div
           role="dialog"
-          aria-label="Instalar aplicativo"
+          aria-label="Instalar App Delphos"
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}

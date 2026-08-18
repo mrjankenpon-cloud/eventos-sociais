@@ -60,7 +60,7 @@ export default function Footer() {
                 className="inline-flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                Instalar aplicativo
+                Instalar App Delphos
               </button>
             )}
           </nav>

@@ -109,7 +109,14 @@ export function EventPartnersSection({
               <h2 className="text-lg sm:text-xl font-black text-gray-900 mb-3">
                 Patrocinadores
               </h2>
-              <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 flex-1 content-start">
+              <ul
+                className={cn(
+                  'grid gap-3 sm:gap-4 flex-1 content-start',
+                  hasInstitutions
+                    ? 'grid-cols-2'
+                    : 'grid-cols-2 sm:grid-cols-3'
+                )}
+              >
                 {sponsors.map((sponsor) => (
                   <li key={sponsor.id}>
                     <button
@@ -121,14 +128,14 @@ export function EventPartnersSection({
                           setSelectedSponsor(sponsor);
                         }
                       }}
-                      className="group relative z-0 hover:z-30 w-full aspect-[5/3] rounded-xl bg-gray-50 border border-gray-100 hover:border-brand/40 hover:bg-white hover:shadow-lg transition-all flex items-center justify-center p-3 focus-visible:ring-2 focus-visible:ring-brand/30"
+                      className="group relative z-0 hover:z-20 w-full min-h-[5.75rem] sm:min-h-[7.25rem] rounded-2xl bg-white border border-gray-100 hover:border-brand/40 hover:shadow-md transition-all flex items-center justify-center px-4 py-4 sm:px-5 sm:py-5 focus-visible:ring-2 focus-visible:ring-brand/30"
                       aria-label={sponsor.nome}
                       title={sponsor.nome}
                     >
                       <AppImage
                         src={sponsor.logo}
                         alt={sponsor.nome}
-                        className="max-h-10 sm:max-h-12 w-auto max-w-full object-contain grayscale transition-all duration-300 ease-out group-hover:grayscale-0 group-hover:scale-[2] group-hover:drop-shadow-2xl group-focus-visible:grayscale-0 group-focus-visible:scale-[2] motion-reduce:group-hover:scale-100"
+                        className="max-h-16 sm:max-h-20 w-auto max-w-[92%] object-contain transition-transform duration-300 ease-out group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:group-hover:scale-100"
                         loading="lazy"
                       />
                     </button>
@@ -321,7 +328,7 @@ function SponsorModal({
             <AppImage
               src={sponsor.logo}
               alt={sponsor.nome}
-              className="max-h-20 w-auto object-contain"
+              className="max-h-24 w-auto object-contain"
             />
           </div>
           {sponsor.descricao && (
