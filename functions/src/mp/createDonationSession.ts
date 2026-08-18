@@ -2,15 +2,19 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
   PIX_MINUTES,
+  RESERVE_MINUTES,
+  checkoutProPaymentMethods,
+  createPixCharge,
   db,
   getAppUrl,
+  getSandboxPayerEmail,
   isoWithOffset,
-  isLiveMpAccessToken,
+  isMercadoPagoSandbox,
   mpFetch,
-  pixFromPayment,
+  mpWebhookUrl,
+  parseCheckoutMetodo,
   randomToken,
   roundMoney,
-  type MpPixPayment,
 } from './helpers';
 import { donationCertificateNumber } from '../orgInfo';
 
@@ -20,6 +24,7 @@ const MAX_DONATION = 50_000;
 type DonationBody = {
   valor?: number;
   mensagem?: string;
+  metodo?: string;
   doador?: {
     nome?: string;
     documento?: string;
@@ -68,69 +73,7 @@ function validateCnpj(cnpj: string): boolean {
   return calc(12) === Number(cnpj[12]) && calc(13) === Number(cnpj[13]);
 }
 
-async function createDonationPix(input: {
-  pedidoId: string;
-  valor: number;
-  email: string;
-  nome: string;
-  documento: string;
-  documentoTipo: 'cpf' | 'cnpj';
-  expiresAt: string;
-  notificationUrl: string;
-}) {
-  if (!isLiveMpAccessToken()) {
-    throw new Error(
-      'Doação via PIX exige credenciais de produção do Mercado Pago (APP_USR). Ative pagamentos PIX na aplicação.'
-    );
-  }
-
-  const email = String(input.email || '').trim().toLowerCase();
-  const digits = input.documento.replace(/\D/g, '');
-  const payer: Record<string, unknown> = {
-    email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
-    first_name: (input.nome || 'Doador').slice(0, 60),
-  };
-  if (input.documentoTipo === 'cnpj' && digits.length === 14) {
-    payer.identification = { type: 'CNPJ', number: digits };
-  } else if (digits.length === 11) {
-    payer.identification = { type: 'CPF', number: digits };
-  }
-
-  try {
-    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
-      method: 'POST',
-      headers: { 'X-Idempotency-Key': `donation-pix-${input.pedidoId}` },
-      body: JSON.stringify({
-        transaction_amount: input.valor,
-        description: 'Doação — Instituto Delphos'.slice(0, 255),
-        payment_method_id: 'pix',
-        payer,
-        external_reference: input.pedidoId,
-        notification_url: input.notificationUrl,
-        date_of_expiration: input.expiresAt,
-        metadata: {
-          pedido_id: input.pedidoId,
-          tipo: 'doacao',
-        },
-      }),
-    });
-    const pix = pixFromPayment(payment);
-    if (!pix.qrCode) {
-      throw new Error('Mercado Pago não devolveu o código PIX da doação');
-    }
-    return pix;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (/401|unauthorized|live credentials/i.test(msg)) {
-      throw new Error(
-        'O Mercado Pago recusou gerar PIX com estas credenciais. Ative PIX/pagamentos via API na aplicação de produção.'
-      );
-    }
-    throw error;
-  }
-}
-
-/** Cria doação pendente e devolve QR PIX (Checkout Transparente). */
+/** Cria doação pendente: PIX no site ou cartão via Checkout Pro. */
 export const createDonationSession = functions.https.onRequest(
   async (req, res) => {
     cors(res);
@@ -146,6 +89,7 @@ export const createDonationSession = functions.https.onRequest(
     try {
       const body = (req.body || {}) as DonationBody;
       const doador = body.doador || {};
+      const metodo = parseCheckoutMetodo(body.metodo);
       const nome = String(doador.nome || '').trim();
       const documento = String(doador.documento || '').replace(/\D/g, '');
       const documentoTipo =
@@ -181,7 +125,8 @@ export const createDonationSession = functions.https.onRequest(
 
       const accessToken = randomToken(32);
       const agora = new Date();
-      const pixExpira = new Date(agora.getTime() + PIX_MINUTES * 60 * 1000);
+      const holdMinutes = metodo === 'pix' ? PIX_MINUTES : RESERVE_MINUTES;
+      const expira = new Date(agora.getTime() + holdMinutes * 60 * 1000);
       const pedidoRef = db().collection('pedidos').doc();
       const certificadoNumero = donationCertificateNumber(
         pedidoRef.id,
@@ -189,14 +134,10 @@ export const createDonationSession = functions.https.onRequest(
       );
 
       const appUrl = getAppUrl();
-      const projectId =
-        process.env.GCLOUD_PROJECT ||
-        process.env.GCP_PROJECT ||
-        'eventosociais-c057d';
-      const notificationUrl = `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
+      const notificationUrl = mpWebhookUrl();
       const successUrl = `${appUrl}/doacao/${pedidoRef.id}/sucesso`;
 
-      await pedidoRef.set({
+      const basePedido: Record<string, unknown> = {
         tipo: 'doacao',
         nomeComprador: nome,
         cpf: documento,
@@ -224,56 +165,133 @@ export const createDonationSession = functions.https.onRequest(
         valorTotal: valor,
         status: 'pendente',
         dataCompra: agora.toISOString(),
-        formaPagamento: 'pix',
+        formaPagamento: metodo === 'pix' ? 'pix' : 'mercadopago',
         estoqueReservado: false,
-        reservaExpiraEm: pixExpira.toISOString(),
+        reservaExpiraEm: expira.toISOString(),
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
 
-      let pix: ReturnType<typeof pixFromPayment>;
-      try {
-        pix = await createDonationPix({
-          pedidoId: pedidoRef.id,
-          valor,
-          email,
-          nome,
-          documento,
-          documentoTipo,
-          expiresAt: isoWithOffset(pixExpira),
-          notificationUrl,
-        });
-        await pedidoRef.update({
-          qrCode: pix.qrCode,
-          pixQrCode: pix.qrCode,
-          pixQrCodeBase64: pix.qrCodeBase64,
-          pixTicketUrl: pix.ticketUrl || null,
-          pixExpiresAt: pix.expiresAt || pixExpira.toISOString(),
-          mpPaymentId: pix.paymentId,
-          mpStatus: pix.status || 'pending',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } catch (pixError) {
-        await pedidoRef.update({
-          status: 'cancelado',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        throw pixError;
+      await pedidoRef.set(basePedido);
+
+      if (metodo === 'pix') {
+        try {
+          const pix = await createPixCharge({
+            pedidoId: pedidoRef.id,
+            valor,
+            description: 'Doação — Instituto Delphos',
+            email,
+            nome,
+            documento,
+            documentoTipo,
+            expiresAt: isoWithOffset(expira),
+            notificationUrl,
+            idempotencyKey: `donation-pix-${pedidoRef.id}`,
+            metadata: {
+              pedido_id: pedidoRef.id,
+              tipo: 'doacao',
+            },
+          });
+          await pedidoRef.update({
+            qrCode: pix.qrCode,
+            pixQrCode: pix.qrCode,
+            pixQrCodeBase64: pix.qrCodeBase64,
+            pixTicketUrl: pix.ticketUrl || null,
+            pixExpiresAt: pix.expiresAt || expira.toISOString(),
+            mpPaymentId: pix.paymentId,
+            mpStatus: pix.status || 'pending',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          res.json({
+            ok: true,
+            pix: true,
+            pedidoId: pedidoRef.id,
+            accessToken,
+            qrCode: pix.qrCode,
+            qrCodeBase64: pix.qrCodeBase64,
+            ticketUrl: pix.ticketUrl || undefined,
+            expiresAt: pix.expiresAt || expira.toISOString(),
+            receiptUrl: `${successUrl}?token=${accessToken}`,
+          });
+          return;
+        } catch (pixError) {
+          await pedidoRef.update({
+            status: 'cancelado',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          throw pixError;
+        }
       }
+
+      const preferenceBody: Record<string, unknown> = {
+        items: [
+          {
+            id: 'doacao',
+            title: 'Doação — Instituto Delphos',
+            quantity: 1,
+            unit_price: valor,
+            currency_id: 'BRL',
+            category_id: 'donations',
+          },
+        ],
+        payer: {
+          email: getSandboxPayerEmail(email),
+          ...(isMercadoPagoSandbox()
+            ? {}
+            : {
+                name: nome,
+                identification: {
+                  type: documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF',
+                  number: documento,
+                },
+              }),
+        },
+        external_reference: pedidoRef.id,
+        metadata: {
+          pedidoId: pedidoRef.id,
+          tipo: 'doacao',
+          eventoId: '',
+        },
+        back_urls: {
+          success: successUrl,
+          pending: successUrl,
+          failure: successUrl,
+        },
+        auto_return: 'approved',
+        notification_url: notificationUrl,
+        statement_descriptor: 'DELPHOS',
+        payment_methods: checkoutProPaymentMethods(),
+      };
+
+      const preference = (await mpFetch('/checkout/preferences', {
+        method: 'POST',
+        body: JSON.stringify(preferenceBody),
+      })) as {
+        id: string;
+        init_point?: string;
+        sandbox_init_point?: string;
+      };
+
+      const initPoint =
+        preference.init_point || preference.sandbox_init_point || '';
+
+      await pedidoRef.update({
+        mpPreferenceId: preference.id,
+        linkPagamento: initPoint,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
       res.json({
         ok: true,
-        pix: true,
+        pix: false,
         pedidoId: pedidoRef.id,
         accessToken,
-        qrCode: pix.qrCode,
-        qrCodeBase64: pix.qrCodeBase64,
-        ticketUrl: pix.ticketUrl || undefined,
-        expiresAt: pix.expiresAt || pixExpira.toISOString(),
+        preferenceId: preference.id,
+        initPoint,
         receiptUrl: `${successUrl}?token=${accessToken}`,
       });
     } catch (error) {

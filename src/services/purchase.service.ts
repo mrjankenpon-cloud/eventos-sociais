@@ -12,11 +12,13 @@ export const purchaseService = {
   create: async (
     data: Parameters<typeof pedidosService.create>[0] & {
       itens?: Array<{ ingressoId: string; quantidade: number }>;
+      metodo?: 'pix' | 'checkout_pro';
     }
   ): Promise<{
     id: string;
     accessToken: string;
     initPoint?: string;
+    pix?: boolean;
     gratuito: boolean;
     receiptUrl: string;
   }> => {
@@ -34,6 +36,7 @@ export const purchaseService = {
     const result = await checkoutApi.createSession({
       eventoId: data.eventId,
       itens,
+      metodo: data.metodo,
       comprador: {
         nome: data.compradorNome,
         cpf: data.compradorCPF,
@@ -45,6 +48,7 @@ export const purchaseService = {
       id: result.pedidoId,
       accessToken: result.accessToken,
       initPoint: result.initPoint,
+      pix: result.pix,
       gratuito: result.gratuito,
       receiptUrl: result.receiptUrl,
     };

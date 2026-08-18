@@ -1,12 +1,18 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
+  PIX_MINUTES,
   RESERVE_MINUTES,
+  checkoutProPaymentMethods,
+  createPixCharge,
   db,
   getAppUrl,
   getSandboxPayerEmail,
+  isoWithOffset,
   isMercadoPagoSandbox,
   mpFetch,
+  mpWebhookUrl,
+  parseCheckoutMetodo,
   randomToken,
   roundMoney,
 } from './helpers';
@@ -25,6 +31,8 @@ type CheckoutBody = {
   quantidade?: number;
   /** Carrinho: vários tipos no mesmo pagamento */
   itens?: CheckoutItemInput[];
+  /** pix = QR no site; checkout_pro = cartão no Mercado Pago */
+  metodo?: string;
   comprador?: {
     nome?: string;
     cpf?: string;
@@ -259,8 +267,11 @@ export const createCheckoutSession = functions.https.onRequest(
 
       const accessToken = randomToken(32);
       const agora = new Date();
+      const metodo =
+        valorTotal === 0 ? 'checkout_pro' : parseCheckoutMetodo(body.metodo);
+      const holdMinutes = metodo === 'pix' ? PIX_MINUTES : RESERVE_MINUTES;
       const reservaExpiraEm = new Date(
-        agora.getTime() + RESERVE_MINUTES * 60 * 1000
+        agora.getTime() + holdMinutes * 60 * 1000
       );
 
       await reserveStockLines(
@@ -301,7 +312,12 @@ export const createCheckoutSession = functions.https.onRequest(
         status: valorTotal === 0 ? 'confirmado' : 'pendente',
         qrCode: '',
         dataCompra: agora.toISOString(),
-        formaPagamento: valorTotal === 0 ? 'gratuito' : 'mercadopago',
+        formaPagamento:
+          valorTotal === 0
+            ? 'gratuito'
+            : metodo === 'pix'
+              ? 'pix'
+              : 'mercadopago',
         estoqueReservado: true,
         reservaExpiraEm: reservaExpiraEm.toISOString(),
         ticketsEmitidos: false,
@@ -343,10 +359,64 @@ export const createCheckoutSession = functions.https.onRequest(
       }
 
       const appUrl = getAppUrl();
-      const projectId =
-        process.env.GCLOUD_PROJECT ||
-        process.env.GCP_PROJECT ||
-        'eventosociais-c057d';
+      const notificationUrl = mpWebhookUrl();
+      const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
+
+      if (metodo === 'pix') {
+        await pedidoRef.set(basePedido);
+        try {
+          const pix = await createPixCharge({
+            pedidoId: pedidoRef.id,
+            valor: valorTotal,
+            description: `${String(evento.titulo || 'Evento')} — ${ingressoNomeResumo}`,
+            email,
+            nome,
+            documento: cpf,
+            documentoTipo: 'cpf',
+            expiresAt: isoWithOffset(reservaExpiraEm),
+            notificationUrl,
+            idempotencyKey: `ticket-pix-${pedidoRef.id}`,
+            metadata: {
+              pedido_id: pedidoRef.id,
+              evento_id: eventoId,
+              tipo: 'ingresso',
+            },
+          });
+          await pedidoRef.update({
+            qrCode: pix.qrCode,
+            pixQrCode: pix.qrCode,
+            pixQrCodeBase64: pix.qrCodeBase64,
+            pixTicketUrl: pix.ticketUrl || null,
+            pixExpiresAt: pix.expiresAt || reservaExpiraEm.toISOString(),
+            mpPaymentId: pix.paymentId,
+            mpStatus: pix.status || 'pending',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          reserved.length = 0;
+          res.json({
+            ok: true,
+            pix: true,
+            gratuito: false,
+            pedidoId: pedidoRef.id,
+            accessToken,
+            qrCode: pix.qrCode,
+            qrCodeBase64: pix.qrCodeBase64,
+            ticketUrl: pix.ticketUrl || undefined,
+            expiresAt: pix.expiresAt || reservaExpiraEm.toISOString(),
+            receiptUrl: `${successUrl}?token=${accessToken}`,
+          });
+          return;
+        } catch (pixError) {
+          await releaseReserved(reserved);
+          reserved.length = 0;
+          await pedidoRef.update({
+            status: 'cancelado',
+            estoqueReservado: false,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          throw pixError;
+        }
+      }
 
       let preference: {
         id: string;
@@ -354,16 +424,8 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
-        // Checkout Pro atual: com credenciais de teste, usar init_point (www),
-        // não sandbox_init_point (legado — costuma cair em congrats/recover/error).
+        // Checkout Pro: cartão (PIX fica no Transparente).
         // back_urls sem query: o token fica no sessionStorage; o MP acrescenta payment_id.
-        const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
-        const paymentMethods: Record<string, unknown> = {
-          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
-          installments: 1,
-          default_installments: 1,
-        };
-
         const preferenceBody: Record<string, unknown> = {
           items: resolved.map((l) => ({
             id: l.ingressoId.slice(0, 64),
@@ -399,9 +461,9 @@ export const createCheckoutSession = functions.https.onRequest(
             failure: successUrl,
           },
           auto_return: 'approved',
-          notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
+          notification_url: notificationUrl,
           statement_descriptor: 'DELPHOS',
-          payment_methods: paymentMethods,
+          payment_methods: checkoutProPaymentMethods(),
         };
 
         preference = await mpFetch('/checkout/preferences', {

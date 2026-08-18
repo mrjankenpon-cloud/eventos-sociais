@@ -25,6 +25,10 @@ import {
 } from '../../lib/eventData';
 import { prefetchOrderSuccess } from '../../lib/prefetchPublic';
 import { TicketTypeInfo } from '../../components/public/TicketTypeInfo';
+import {
+  PaymentMethodPicker,
+  type CheckoutMetodo,
+} from '../../components/public/PaymentMethodPicker';
 
 function maxQtyForType(
   type: TicketType,
@@ -47,6 +51,7 @@ export default function EventRegistration() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
+  const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
   /** Quantidade por tipo de ingresso (começa em 0). */
   const [qtyByType, setQtyByType] = useState<Record<string, number>>({});
 
@@ -200,11 +205,12 @@ export default function EventRegistration() {
         quantidadeIngressos: totalQty,
         valorTotal: total,
         itens,
+        metodo: total === 0 ? undefined : metodo,
       });
 
       persistGuestCheckoutSession(result.id, result.accessToken);
 
-      if (result.gratuito || !result.initPoint) {
+      if (result.gratuito || result.pix || !result.initPoint) {
         navigate(
           `/pedido/${result.id}/sucesso?token=${encodeURIComponent(result.accessToken)}`
         );
@@ -469,6 +475,10 @@ export default function EventRegistration() {
               </div>
             )}
 
+            {cartLines.length > 0 && total > 0 ? (
+              <PaymentMethodPicker value={metodo} onChange={setMetodo} />
+            ) : null}
+
             <div
               className={`flex items-start gap-3 p-4 rounded-2xl transition-all border ${
                 formData.termosAceitos
@@ -507,7 +517,13 @@ export default function EventRegistration() {
               disabled={!isFormValid}
               className="w-full h-14 sm:h-16 rounded-2xl text-lg"
             >
-              {isSubmitting ? 'Processando...' : event.textoBotao || 'Confirmar Inscrição'}
+              {isSubmitting
+                ? 'Processando...'
+                : total === 0
+                  ? event.textoBotao || 'Confirmar Inscrição'
+                  : metodo === 'pix'
+                    ? `Pagar ${formatCurrency(total)} via PIX`
+                    : `Pagar ${formatCurrency(total)} com cartão`}
             </Button>
           </form>
         </div>

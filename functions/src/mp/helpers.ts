@@ -198,3 +198,91 @@ export function pixFromPayment(payment: MpPixPayment) {
   };
 }
 
+export type CheckoutMetodo = 'pix' | 'checkout_pro';
+
+export function parseCheckoutMetodo(raw: unknown): CheckoutMetodo {
+  return String(raw || '').trim().toLowerCase() === 'pix'
+    ? 'pix'
+    : 'checkout_pro';
+}
+
+export function mpWebhookUrl(): string {
+  const projectId =
+    process.env.GCLOUD_PROJECT ||
+    process.env.GCP_PROJECT ||
+    'eventosociais-c057d';
+  return `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
+}
+
+/** Checkout Pro: cartão (e saldo MP). PIX fica no Transparente. */
+export function checkoutProPaymentMethods() {
+  return {
+    excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
+    excluded_payment_methods: [{ id: 'pix' }],
+    installments: 1,
+    default_installments: 1,
+  };
+}
+
+export async function createPixCharge(input: {
+  pedidoId: string;
+  valor: number;
+  description: string;
+  email: string;
+  nome: string;
+  documento: string;
+  documentoTipo?: 'cpf' | 'cnpj';
+  expiresAt: string;
+  notificationUrl: string;
+  idempotencyKey: string;
+  metadata: Record<string, unknown>;
+}) {
+  if (!isLiveMpAccessToken()) {
+    throw new Error(
+      'PIX exige credenciais de produção do Mercado Pago (APP_USR). Ative pagamentos PIX na aplicação.'
+    );
+  }
+
+  const email = String(input.email || '').trim().toLowerCase();
+  const digits = String(input.documento || '').replace(/\D/g, '');
+  const payer: Record<string, unknown> = {
+    email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
+    first_name: (input.nome || 'Pagador').slice(0, 60),
+  };
+  if (input.documentoTipo === 'cnpj' && digits.length === 14) {
+    payer.identification = { type: 'CNPJ', number: digits };
+  } else if (digits.length === 11) {
+    payer.identification = { type: 'CPF', number: digits };
+  }
+
+  try {
+    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
+      method: 'POST',
+      headers: { 'X-Idempotency-Key': input.idempotencyKey },
+      body: JSON.stringify({
+        transaction_amount: input.valor,
+        description: input.description.slice(0, 255),
+        payment_method_id: 'pix',
+        payer,
+        external_reference: input.pedidoId,
+        notification_url: input.notificationUrl,
+        date_of_expiration: input.expiresAt,
+        metadata: input.metadata,
+      }),
+    });
+    const pix = pixFromPayment(payment);
+    if (!pix.qrCode) {
+      throw new Error('Mercado Pago não devolveu o código PIX');
+    }
+    return pix;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/401|unauthorized|live credentials/i.test(msg)) {
+      throw new Error(
+        'O Mercado Pago recusou gerar PIX com estas credenciais. Ative PIX/pagamentos via API na aplicação de produção.'
+      );
+    }
+    throw error;
+  }
+}
+

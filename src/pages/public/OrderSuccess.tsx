@@ -15,6 +15,7 @@ import {
 import { Button, Alert, Badge, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TicketPassList } from '../../components/public/TicketPass';
+import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { formatCurrency } from '../../lib/utils';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
@@ -229,10 +230,29 @@ export default function OrderSuccess() {
 
           {isPending && (
             <Alert variant="info">
-              Após a confirmação do Mercado Pago, você também receberá um e-mail
-              com link seguro para os ingressos (quando o Resend estiver ativo).
+              {pedido.pixQrCode
+                ? 'Pague o PIX abaixo. Após a confirmação, os ingressos aparecem aqui e no e-mail.'
+                : 'Após a confirmação do Mercado Pago, você também receberá um e-mail com link seguro para os ingressos (quando o Resend estiver ativo).'}
             </Alert>
           )}
+
+          {isPending && (pedido.pixQrCode || pedido.pixQrCodeBase64) ? (
+            <PixCheckoutPanel
+              amount={pedido.valorTotal}
+              qrCode={pedido.pixQrCode}
+              qrCodeBase64={pedido.pixQrCodeBase64}
+              expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
+              hint="Abra o app do banco, escaneie o QR ou cole o código. Os ingressos são emitidos automaticamente após a confirmação."
+            />
+          ) : null}
+
+          {isPending && !pedido.pixQrCode && pedido.linkPagamento ? (
+            <a href={pedido.linkPagamento} className="block print:hidden">
+              <Button className="w-full rounded-2xl">
+                Continuar pagamento no Mercado Pago
+              </Button>
+            </a>
+          ) : null}
 
           {isPending && receipt.sandbox && (
             <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">

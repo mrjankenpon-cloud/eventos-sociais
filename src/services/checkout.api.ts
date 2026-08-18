@@ -48,10 +48,15 @@ async function postJson<T>(
 export type CheckoutSessionResult = {
   ok: boolean;
   gratuito: boolean;
+  pix?: boolean;
   pedidoId: string;
   accessToken: string;
   preferenceId?: string;
   initPoint?: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  ticketUrl?: string;
+  expiresAt?: string;
   receiptUrl: string;
 };
 
@@ -150,6 +155,7 @@ export const checkoutApi = {
   createSession(input: {
     eventoId: string;
     itens: CheckoutCartItem[];
+    metodo?: 'pix' | 'checkout_pro';
     comprador: {
       nome: string;
       cpf: string;
@@ -235,6 +241,7 @@ export const checkoutApi = {
 
   createDonationSession(input: {
     valor: number;
+    metodo?: 'pix' | 'checkout_pro';
     doador: {
       nome: string;
       documento: string;

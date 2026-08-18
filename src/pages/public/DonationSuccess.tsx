@@ -187,7 +187,9 @@ export default function DonationSuccess() {
             {isConfirmed
               ? `Recebemos ${formatCurrency(pedido.valorTotal)}. Obrigado — boas ações são sempre bem-vindas.`
               : isPending
-                ? 'Pague o PIX abaixo. Quando o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
+                ? pedido.pixQrCode
+                  ? 'Pague o PIX abaixo. Quando o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
+                  : 'Conclua o pagamento no Mercado Pago. Quando confirmar, o certificado aparece aqui e no seu e-mail.'
                 : 'Esta doação não está ativa. Você pode tentar novamente.'}
           </p>
         </div>
@@ -256,10 +258,16 @@ export default function DonationSuccess() {
                 qrCodeBase64={pedido.pixQrCodeBase64}
                 expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
               />
+            ) : pedido.linkPagamento ? (
+              <a href={pedido.linkPagamento} className="block mb-6 print:hidden">
+                <Button className="w-full rounded-2xl">
+                  Continuar pagamento no Mercado Pago
+                </Button>
+              </a>
             ) : (
               <p className="text-sm text-gray-500 text-center mb-6 print:hidden">
-                Não foi possível carregar o QR PIX. Atualize a página ou inicie
-                uma nova doação.
+                Aguardando confirmação do pagamento. Atualize a página em
+                instantes.
               </p>
             )}
             <Button

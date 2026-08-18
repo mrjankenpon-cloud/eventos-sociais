@@ -3,6 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { HeartHandshake, Mail, Phone, User, Hash } from 'lucide-react';
 import { LegalPage } from '../../components/public/LegalPage';
 import { RichContent } from '../../components/public/RichContent';
+import {
+  PaymentMethodPicker,
+  type CheckoutMetodo,
+} from '../../components/public/PaymentMethodPicker';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { checkoutApi } from '../../services/checkout.api';
@@ -36,6 +40,7 @@ export default function Donations() {
   const [mensagem, setMensagem] = useState('');
   const [aceite, setAceite] = useState(false);
   const [phoneOk, setPhoneOk] = useState(false);
+  const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +79,7 @@ export default function Donations() {
     try {
       const result = await checkoutApi.createDonationSession({
         valor: effectiveAmount,
+        metodo,
         doador: {
           nome: nome.trim(),
           documento: docDigits,
@@ -84,9 +90,13 @@ export default function Donations() {
         mensagem: mensagem.trim() || undefined,
       });
       persistGuestCheckoutSession(result.pedidoId, result.accessToken);
-      navigate(
-        `/doacao/${result.pedidoId}/sucesso?token=${encodeURIComponent(result.accessToken)}`
-      );
+      if (result.pix || !result.initPoint) {
+        navigate(
+          `/doacao/${result.pedidoId}/sucesso?token=${encodeURIComponent(result.accessToken)}`
+        );
+        return;
+      }
+      window.location.href = result.initPoint;
     } catch (err) {
       setError(
         err instanceof Error
@@ -247,6 +257,8 @@ export default function Donations() {
           </p>
         ) : null}
 
+        <PaymentMethodPicker value={metodo} onChange={setMetodo} />
+
         <Button
           type="submit"
           className="w-full rounded-2xl"
@@ -254,7 +266,9 @@ export default function Donations() {
           disabled={!canSubmit}
         >
           <HeartHandshake className="w-4 h-4 mr-2" aria-hidden="true" />
-          Doar {formatCurrency(effectiveAmount)} via PIX
+          {metodo === 'pix'
+            ? `Doar ${formatCurrency(effectiveAmount)} via PIX`
+            : `Doar ${formatCurrency(effectiveAmount)} com cartão`}
         </Button>
       </form>
     </LegalPage>

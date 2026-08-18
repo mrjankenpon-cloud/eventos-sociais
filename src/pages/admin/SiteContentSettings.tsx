@@ -178,8 +178,9 @@ export default function SiteContentSettings() {
 
       {tab === 'donations' ? (
         <Alert variant="info">
-          Os valores sugeridos, o mínimo da doação e o formulário PIX
-          não são editáveis aqui. Este texto aparece acima do formulário.
+          Os valores sugeridos, o mínimo da doação e o formulário de pagamento
+          (PIX ou cartão) não são editáveis aqui. Este texto aparece acima do
+          formulário.
         </Alert>
       ) : null}
 
