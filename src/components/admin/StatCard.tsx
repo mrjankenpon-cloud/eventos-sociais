@@ -30,8 +30,8 @@ export function StatCard({
   const hidden = sensitive && !revealed;
   const interactive = Boolean(onClick);
   const classNames = cn(
-    'card-surface p-4 sm:p-5 text-left w-full h-full min-h-[136px]',
-    'grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_1fr] gap-x-3 gap-y-3',
+    'card-surface p-5 text-left w-full h-full min-h-[152px]',
+    'grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_1fr] gap-x-4 gap-y-4',
     'transition-all hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5',
     interactive &&
       'cursor-pointer focus-visible:ring-2 focus-visible:ring-brand/30 active:scale-[0.99]',
@@ -77,11 +77,9 @@ export function StatCard({
         >
           {hidden ? '••••••' : value}
         </p>
-        {hint ? (
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-1.5 truncate">
-            {hint}
-          </p>
-        ) : null}
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-1.5 truncate min-h-[1rem]">
+          {hint || '\u00a0'}
+        </p>
       </div>
     </>
   );

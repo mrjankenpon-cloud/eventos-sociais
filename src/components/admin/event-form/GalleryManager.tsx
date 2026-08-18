@@ -3,6 +3,7 @@ import { GripVertical, Star, Trash2 } from 'lucide-react';
 import type { GalleryImage } from '../../../types/models/event';
 import { createId } from '../../../lib/eventForm';
 import { ImageUploadZone, readFileAsDataUrl } from './ImageUploadZone';
+import { AppImage } from '../../ui/AppImage';
 import { cn } from '../../../lib/utils';
 
 interface GalleryManagerProps {
@@ -18,7 +19,7 @@ export function GalleryManager({ images, onChange }: GalleryManagerProps) {
   const handleFiles = async (files: File[]) => {
     const next = [...sorted];
     for (const file of files) {
-      const url = await readFileAsDataUrl(file);
+      const url = await readFileAsDataUrl(file, 'gallery');
       next.push({
         id: createId('img'),
         url,
@@ -91,7 +92,17 @@ export function GalleryManager({ images, onChange }: GalleryManagerProps) {
                 dragId === img.id && 'opacity-60'
               )}
             >
-              <img src={img.url} alt={img.name || 'Imagem'} className="h-full w-full object-cover" />
+              <AppImage
+                src={img.url}
+                alt={img.name || 'Imagem'}
+                className="h-full w-full object-cover"
+                fallbackClassName="h-full w-full bg-gray-100"
+              />
+              {img.name ? (
+                <p className="absolute bottom-0 left-0 right-0 truncate bg-black/55 px-2 py-1 text-[10px] font-bold text-white">
+                  {img.name}
+                </p>
+              ) : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="absolute left-2 top-2 flex items-center gap-1">
                 <span className="rounded-lg bg-black/50 p-1.5 text-white cursor-grab" title="Arrastar">
@@ -103,7 +114,7 @@ export function GalleryManager({ images, onChange }: GalleryManagerProps) {
                   </span>
                 )}
               </div>
-              <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute bottom-8 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                 {!img.isCover && (
                   <button
                     type="button"

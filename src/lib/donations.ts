@@ -9,6 +9,15 @@ export function isTicketPurchase(p: Purchase): boolean {
   return p.tipo !== 'doacao' && p.tipo !== 'upgrade';
 }
 
+/** Identifica a mesma pessoa em compras/doações (documento, senão e-mail). */
+export function purchasePayerKey(p: Purchase): string {
+  const digits = (p.compradorCPF || '').replace(/\D/g, '');
+  if (digits.length >= 11) return `doc:${digits}`;
+  const email = (p.compradorEmail || '').trim().toLowerCase();
+  if (email) return `email:${email}`;
+  return `id:${p.id}`;
+}
+
 export function donationDate(p: Purchase): Date {
   const raw = p.dataCompra || p.createdAt;
   const d = new Date(raw);
@@ -49,9 +58,7 @@ export function computeDonationStats(donations: Purchase[]): DonationStats {
   const valorPendente = pending.reduce((s, d) => s + (d.valorTotal || 0), 0);
   const ticketMedio =
     confirmed.length > 0 ? valorConfirmado / confirmed.length : 0;
-  const doadoresUnicos = new Set(
-    confirmed.map((d) => d.compradorEmail.trim().toLowerCase()).filter(Boolean)
-  ).size;
+  const doadoresUnicos = new Set(confirmed.map(purchasePayerKey)).size;
 
   const monthStart = new Date();
   monthStart.setDate(1);

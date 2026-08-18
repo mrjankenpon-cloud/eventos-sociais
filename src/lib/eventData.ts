@@ -30,6 +30,15 @@ export function getEventSalonRemaining(event: Event): number {
   return Math.max(0, (event.vagas || 0) - getEventSalonSold(event));
 }
 
+/** Ingressos oferecidos: vagas do salão + cotas que não disputam o salão. */
+export function getEventTicketsOffered(event: Event): number {
+  const salon = Math.max(0, event.vagas || 0);
+  const extra = (event.tiposIngresso ?? [])
+    .filter((t) => t.ativo && !typeCompetesForEventSeats(t))
+    .reduce((s, t) => s + Math.max(0, t.quantidade || 0), 0);
+  return salon + extra;
+}
+
 /** Quantidade ainda disponível para compra deste tipo. */
 export function getTicketAvailableQty(type: TicketType, event?: Event): number {
   const sold = Math.max(0, type.quantidadeVendida || 0);

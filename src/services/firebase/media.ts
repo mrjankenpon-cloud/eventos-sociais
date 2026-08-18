@@ -27,15 +27,14 @@ export async function persistEventMedia(
       })
     );
 
-    // Remove imagens que saíram da galeria
+    next.galeria = next.imagens.filter((i) => !i.isCover).map((i) => i.url);
+
     for (const old of previous?.imagens ?? []) {
       if (!next.imagens.some((i) => i.id === old.id) && old.url) {
         await deleteImage(old.url);
       }
     }
-  }
-
-  if (Array.isArray(next.galeria)) {
+  } else if (Array.isArray(next.galeria)) {
     next.galeria = await Promise.all(
       next.galeria.map((url, index) =>
         ensureStoredImage(url, 'eventos/galeria', previous?.galeria?.[index], 'gallery')

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Edit2,
@@ -37,6 +37,16 @@ export default function Events() {
   const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'published' || status === 'draft') {
+      setStatusFilter(status);
+    } else {
+      setStatusFilter('all');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadEvents();
@@ -112,7 +122,7 @@ export default function Events() {
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'published' && e.publicado && !archived) ||
-        (statusFilter === 'draft' && !e.publicado && !archived);
+        (statusFilter === 'draft' && !e.publicado);
       return matchesSearch && matchesStatus;
     });
   }, [events, searchTerm, statusFilter]);
@@ -172,7 +182,7 @@ export default function Events() {
               archived ? 'danger' : event.publicado ? 'published' : 'draft'
             }
           >
-            {archived ? 'Arquivado' : event.publicado ? 'Publicado' : 'Rascunho'}
+            {archived ? 'Arquivado' : event.publicado ? 'Publicado' : 'Encerrado'}
           </Badge>
         );
       },
@@ -257,13 +267,18 @@ export default function Events() {
             [
               { id: 'all', label: 'Todos' },
               { id: 'published', label: 'Publicados' },
-              { id: 'draft', label: 'Rascunhos' },
+              { id: 'draft', label: 'Encerrados' },
             ] as const
           ).map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              onClick={() => setStatusFilter(chip.id)}
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    if (chip.id === 'all') next.delete('status');
+                    else next.set('status', chip.id);
+                    setSearchParams(next, { replace: true });
+                  }}
               className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-colors ${
                 statusFilter === chip.id
                   ? 'bg-brand text-white'

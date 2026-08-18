@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -7,7 +7,6 @@ import {
   XCircle,
   Wallet,
   Ticket,
-  PieChart,
   UserCheck,
   CheckCircle,
   Calendar,
@@ -15,16 +14,11 @@ import {
   LayoutDashboard,
   Star,
   Eye,
-  Printer,
   Users,
   Clock,
   List,
-  HeartHandshake,
-  TrendingUp,
-  Download,
-  ChevronDown,
-  EyeOff,
   Smartphone,
+  Printer,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -40,73 +34,31 @@ import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
 import { Badge, Button, PageLoader, Alert, AppImage } from '../../components/ui';
 import { formatEventDate, formatCurrency } from '../../lib/utils';
-import { getEventSalonRemaining } from '../../lib/eventData';
-import {
-  computeDonationStats,
-  donationDate,
-  donationStatusBadgeVariant,
-  donationStatusLabel,
-  exportDonationsCsv,
-  formatDonorDocument,
-  donorDocumentLabel,
-  isDonationPurchase,
-  isTicketPurchase,
-} from '../../lib/donations';
+import { getEventSalonRemaining, getEventTicketsOffered } from '../../lib/eventData';
+import { isTicketPurchase, purchasePayerKey } from '../../lib/donations';
 
 type ViewMode = 'general' | 'event' | 'report';
-type ReportType =
-  | 'pendentes'
-  | 'confirmados'
-  | 'checkin'
-  | 'ausentes'
-  | 'cancelados'
-  | 'total'
-  | 'vagas'
-  | 'publicados'
-  | 'encerrados'
-  | 'proximo'
-  | 'doacoes'
-  | 'doacoes_confirmadas'
-  | 'doacoes_pendentes';
+type ReportType = 'vendidos' | 'pagantes' | 'checkin' | 'arrecadacao' | 'apps';
 
 const REPORT_TITLES: Record<ReportType, string> = {
-  pendentes: 'Pagamentos Pendentes',
-  confirmados: 'Ingressos Confirmados',
-  checkin: 'Check-ins Realizados',
-  ausentes: 'Ingressos Disponíveis',
-  cancelados: 'Ingressos Cancelados',
-  total: 'Todos os Ingressos',
-  vagas: 'Vagas Disponíveis',
-  publicados: 'Eventos Publicados',
-  encerrados: 'Eventos Encerrados',
-  proximo: 'Próximo Evento',
-  doacoes: 'Todas as Doações',
-  doacoes_confirmadas: 'Doações Confirmadas',
-  doacoes_pendentes: 'Doações Pendentes',
+  vendidos: 'Ingressos vendidos',
+  pagantes: 'Pagantes nos eventos',
+  checkin: 'Check-ins efetivados',
+  arrecadacao: 'Arrecadação dos eventos',
+  apps: 'Aplicativos e avisos',
 };
 
-function isDonationReport(type: ReportType | null): boolean {
-  return (
-    type === 'doacoes' ||
-    type === 'doacoes_confirmadas' ||
-    type === 'doacoes_pendentes'
-  );
-}
-
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Navigation State
   const [viewMode, setViewMode] = useState<ViewMode>('general');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [donationsOpen, setDonationsOpen] = useState(false);
-  const [showDonationAmounts, setShowDonationAmounts] = useState(false);
   const [appInstalls, setAppInstalls] = useState(0);
   const [pushActive, setPushActive] = useState(0);
 
@@ -147,21 +99,9 @@ export default function Dashboard() {
     void loadAppStats();
   }, []);
 
-  // --- Lookup maps (pre-aggregated, avoid O(n*m) filters inside renders) ---
-
-  const donations = useMemo(
-    () => purchases.filter(isDonationPurchase),
-    [purchases]
-  );
-
   const ticketPurchases = useMemo(
     () => purchases.filter(isTicketPurchase),
     [purchases]
-  );
-
-  const donationStats = useMemo(
-    () => computeDonationStats(donations),
-    [donations]
   );
 
   const purchasesById = useMemo(() => {
@@ -175,6 +115,35 @@ export default function Dashboard() {
     events.forEach((e) => map.set(e.id, e));
     return map;
   }, [events]);
+
+  const confirmedPurchases = useMemo(
+    () => ticketPurchases.filter((p) => p.statusPagamento === 'confirmado'),
+    [ticketPurchases]
+  );
+
+  const confirmedPurchaseIds = useMemo(
+    () => new Set(confirmedPurchases.map((p) => p.id)),
+    [confirmedPurchases]
+  );
+
+  const soldTickets = useMemo(
+    () =>
+      tickets.filter(
+        (t) =>
+          confirmedPurchaseIds.has(t.compraId) &&
+          t.status !== 'Cancelado' &&
+          t.status !== 'Reembolsado'
+      ),
+    [tickets, confirmedPurchaseIds]
+  );
+
+  const checkedInTickets = useMemo(
+    () =>
+      tickets.filter(
+        (t) => t.checkinRealizado === true || t.status === 'Utilizado'
+      ),
+    [tickets]
+  );
 
   const eventAggregates = useMemo(() => {
     const map = new Map<
@@ -199,75 +168,29 @@ export default function Dashboard() {
     return map;
   }, [events, ticketPurchases, tickets]);
 
-  const pendingPurchaseIds = useMemo(
-    () =>
-      new Set(
-        ticketPurchases
-          .filter((p) => p.statusPagamento === 'pendente')
-          .map((p) => p.id)
-      ),
-    [ticketPurchases]
-  );
-
-  const publishedEventIds = useMemo(
-    () => new Set(events.filter((e) => e.publicado).map((e) => e.id)),
-    [events]
-  );
-
-  const closedEventIds = useMemo(
-    () => new Set(events.filter((e) => !e.publicado).map((e) => e.id)),
-    [events]
-  );
-
-  // --- Calculations ---
-
   const generalStats = useMemo(() => {
     const published = events.filter((e) => e.publicado).length;
     const closed = events.filter((e) => !e.publicado).length;
-
-    const totalPurchases = ticketPurchases.length;
-    const totalTickets = tickets.length;
-    const vagasDisponiveis = events.reduce(
-      (acc, e) => acc + getEventSalonRemaining(e),
+    const disponibilizados = events.reduce(
+      (acc, e) => acc + getEventTicketsOffered(e),
       0
     );
-
-    const cancelados = tickets.filter((t) => t.status === 'Cancelado').length;
-    const utilizados = tickets.filter((t) => t.status === 'Utilizado').length;
-    const disponiveis = tickets.filter((t) => t.status === 'Disponível').length;
-    const pendentes = ticketPurchases.filter(
-      (p) => p.statusPagamento === 'pendente'
-    );
-    const confirmadas = ticketPurchases.filter(
-      (p) => p.statusPagamento === 'confirmado'
-    );
-    const arrecadado = confirmadas.reduce(
+    const pagantes = new Set(confirmedPurchases.map(purchasePayerKey)).size;
+    const arrecadado = confirmedPurchases.reduce(
       (acc, p) => acc + (p.valorTotal || 0),
       0
     );
-    const valorPendente = pendentes.reduce(
-      (acc, p) => acc + (p.valorTotal || 0),
-      0
-    );
-    const ticketMedio =
-      confirmadas.length > 0 ? arrecadado / confirmadas.length : 0;
 
     return {
       published,
       closed,
-      totalPurchases,
-      totalTickets,
-      vagasDisponiveis,
-      pendentes: pendentes.length,
-      utilizados,
-      disponiveis,
-      cancelados,
+      disponibilizados,
+      vendidos: soldTickets.length,
+      pagantes,
+      checkins: checkedInTickets.length,
       arrecadado,
-      valorPendente,
-      comprasConfirmadas: confirmadas.length,
-      ticketMedio,
     };
-  }, [events, ticketPurchases, tickets]);
+  }, [events, confirmedPurchases, soldTickets, checkedInTickets]);
 
   const eventStats = useMemo(() => {
     if (!selectedEvent) return null;
@@ -280,7 +203,6 @@ export default function Dashboard() {
     );
     const pagos = eventPurchases.filter((p) => p.statusPagamento === 'confirmado');
     const pendentes = eventPurchases.filter((p) => p.statusPagamento === 'pendente');
-
     const ingressosPagos = pagos.reduce(
       (acc, p) => acc + (p.quantidadeIngressos || 0),
       0
@@ -300,77 +222,16 @@ export default function Dashboard() {
     };
   }, [selectedEvent, ticketPurchases]);
 
-  const filteredDonations = useMemo(() => {
-    let list = [...donations].sort(
-      (a, b) => donationDate(b).getTime() - donationDate(a).getTime()
-    );
-
-    switch (activeReport) {
-      case 'doacoes_confirmadas':
-        list = list.filter((d) => d.statusPagamento === 'confirmado');
-        break;
-      case 'doacoes_pendentes':
-        list = list.filter((d) => d.statusPagamento === 'pendente');
-        break;
-      default:
-        break;
-    }
-
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      list = list.filter(
-        (d) =>
-          d.compradorNome.toLowerCase().includes(q) ||
-          d.compradorCPF.includes(q.replace(/\D/g, '')) ||
-          d.compradorEmail.toLowerCase().includes(q) ||
-          (d.certificadoNumero || '').toLowerCase().includes(q) ||
-          (d.mensagemDoador || '').toLowerCase().includes(q)
-      );
-    }
-
-    return list;
-  }, [donations, activeReport, searchTerm]);
-
-  const recentDonations = useMemo(
-    () =>
-      [...donations]
-        .sort((a, b) => donationDate(b).getTime() - donationDate(a).getTime())
-        .slice(0, 12),
-    [donations]
-  );
-
   const filteredTickets = useMemo(() => {
-    let list = tickets;
+    let list =
+      activeReport === 'checkin'
+        ? checkedInTickets
+        : activeReport === 'vendidos'
+          ? soldTickets
+          : tickets;
 
     if (selectedEvent) {
       list = list.filter((t) => t.eventoId === selectedEvent.id);
-    }
-
-    switch (activeReport) {
-      case 'checkin':
-      case 'confirmados':
-        list = list.filter((t) => t.status === 'Utilizado');
-        break;
-      case 'ausentes':
-        list = list.filter((t) => t.status === 'Disponível');
-        break;
-      case 'cancelados':
-        list = list.filter((t) => t.status === 'Cancelado');
-        break;
-      case 'pendentes':
-        list = list.filter((t) => pendingPurchaseIds.has(t.compraId));
-        break;
-      case 'vagas':
-        list = list.filter((t) => t.status === 'Disponível');
-        break;
-      case 'publicados':
-        list = list.filter((t) => publishedEventIds.has(t.eventoId));
-        break;
-      case 'encerrados':
-        list = list.filter((t) => closedEventIds.has(t.eventoId));
-        break;
-      default:
-        break;
     }
 
     if (searchTerm) {
@@ -388,17 +249,33 @@ export default function Dashboard() {
 
     return list;
   }, [
+    activeReport,
+    checkedInTickets,
+    soldTickets,
     tickets,
     selectedEvent,
-    activeReport,
     searchTerm,
-    pendingPurchaseIds,
-    publishedEventIds,
-    closedEventIds,
     purchasesById,
   ]);
 
-  // --- Handlers ---
+  const filteredPayers = useMemo(() => {
+    let list = [...confirmedPurchases].sort((a, b) =>
+      String(b.createdAt).localeCompare(String(a.createdAt))
+    );
+    if (selectedEvent) {
+      list = list.filter((p) => p.eventId === selectedEvent.id);
+    }
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.compradorNome.toLowerCase().includes(q) ||
+          p.compradorCPF.includes(q.replace(/\D/g, '')) ||
+          p.compradorEmail.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [confirmedPurchases, selectedEvent, searchTerm]);
 
   const handleOpenEventDashboard = (event: Event) => {
     setSelectedEvent(event);
@@ -424,8 +301,6 @@ export default function Dashboard() {
     }
     setSearchTerm('');
   };
-
-  // --- Table columns ---
 
   const eventColumns: DataTableColumn<Event>[] = [
     {
@@ -453,7 +328,9 @@ export default function Dashboard() {
       header: 'Data',
       hideOnMobile: true,
       render: (event) => (
-        <span className="text-sm font-bold text-gray-600">{formatEventDate(event.data)}</span>
+        <span className="text-sm font-bold text-gray-600">
+          {formatEventDate(event.data)}
+        </span>
       ),
     },
     {
@@ -461,7 +338,7 @@ export default function Dashboard() {
       header: 'Status',
       render: (event) => (
         <Badge variant={event.publicado ? 'published' : 'draft'}>
-          {event.publicado ? 'Publicado' : 'Rascunho'}
+          {event.publicado ? 'Publicado' : 'Encerrado'}
         </Badge>
       ),
     },
@@ -503,7 +380,9 @@ export default function Dashboard() {
       render: (event) => {
         const remaining = getEventSalonRemaining(event);
         return (
-          <span className={`font-black ${remaining < 10 ? 'text-red-500' : 'text-gray-900'}`}>
+          <span
+            className={`font-black ${remaining < 10 ? 'text-red-500' : 'text-gray-900'}`}
+          >
             {remaining}
           </span>
         );
@@ -587,7 +466,9 @@ export default function Dashboard() {
               <p className="text-xs font-black text-gray-700 uppercase tracking-widest">
                 {purchase?.compradorCPF || '---'}
               </p>
-              <p className="text-xs text-gray-400 truncate">{purchase?.compradorEmail || '---'}</p>
+              <p className="text-xs text-gray-400 truncate">
+                {purchase?.compradorEmail || '---'}
+              </p>
             </div>
           );
         },
@@ -599,7 +480,11 @@ export default function Dashboard() {
         render: (t) => (
           <Badge
             variant={
-              t.status === 'Utilizado' ? 'used' : t.status === 'Cancelado' ? 'danger' : 'available'
+              t.status === 'Utilizado'
+                ? 'used'
+                : t.status === 'Cancelado'
+                  ? 'danger'
+                  : 'available'
             }
           >
             {t.status}
@@ -623,14 +508,6 @@ export default function Dashboard() {
 
     cols.push(
       {
-        key: 'emissao',
-        header: 'Emissão',
-        hideOnMobile: true,
-        render: (t) => (
-          <span className="text-xs font-bold text-gray-400">{formatEventDate(t.createdAt)}</span>
-        ),
-      },
-      {
         key: 'checkin',
         header: 'Check-in',
         render: (t) => (
@@ -638,11 +515,11 @@ export default function Dashboard() {
             <Badge variant={t.checkinRealizado ? 'success' : 'neutral'}>
               {t.checkinRealizado ? 'Confirmado' : 'Pendente'}
             </Badge>
-            {t.checkinEm && (
+            {t.checkinEm ? (
               <span className="text-[10px] text-gray-400 font-medium">
                 {new Date(t.checkinEm).toLocaleTimeString('pt-BR')}
               </span>
-            )}
+            ) : null}
           </div>
         ),
       },
@@ -666,79 +543,55 @@ export default function Dashboard() {
     return cols;
   }, [selectedEvent, purchasesById, eventsById]);
 
-  const donationColumns: DataTableColumn<Purchase>[] = useMemo(
+  const payerColumns: DataTableColumn<Purchase>[] = useMemo(
     () => [
       {
-        key: 'doador',
-        header: 'Doador / Certificado',
-        render: (d) => (
+        key: 'pagante',
+        header: 'Pagante',
+        render: (p) => (
           <div className="min-w-0">
-            <p className="font-black text-gray-900 truncate">{d.compradorNome}</p>
-            <p className="text-[10px] font-black text-brand uppercase tracking-widest mt-1 truncate">
-              {d.certificadoNumero || '—'}
-            </p>
+            <p className="font-black text-gray-900 truncate">{p.compradorNome}</p>
+            <p className="text-xs text-gray-400 truncate">{p.compradorEmail}</p>
           </div>
         ),
       },
       {
-        key: 'contato',
-        header: 'Documento / Contato',
+        key: 'documento',
+        header: 'Documento',
         hideOnMobile: true,
-        render: (d) => (
-          <div className="min-w-0">
-            <p className="text-xs font-black text-gray-700 uppercase tracking-widest tabular-nums">
-              {donorDocumentLabel(d)} {formatDonorDocument(d)}
-            </p>
-            <p className="text-xs text-gray-400 truncate">{d.compradorEmail}</p>
-            {d.compradorTelefone ? (
-              <p className="text-xs text-gray-400">{d.compradorTelefone}</p>
-            ) : null}
-          </div>
+        render: (p) => (
+          <span className="text-xs font-black text-gray-700 uppercase tracking-widest tabular-nums">
+            {p.compradorCPF || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'evento',
+        header: 'Evento',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="text-xs font-black text-brand uppercase tracking-widest line-clamp-1">
+            {eventsById.get(p.eventId)?.titulo || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'ingressos',
+        header: 'Ingressos',
+        className: 'text-center',
+        render: (p) => (
+          <span className="font-black tabular-nums">
+            {p.quantidadeIngressos}
+          </span>
         ),
       },
       {
         key: 'valor',
         header: 'Valor',
         className: 'text-right',
-        render: (d) => (
-          <span className="font-black text-brand tabular-nums">
-            {showDonationAmounts ? formatCurrency(d.valorTotal) : '••••'}
-          </span>
-        ),
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        className: 'text-center',
-        render: (d) => (
-          <Badge variant={donationStatusBadgeVariant(d.statusPagamento)}>
-            {donationStatusLabel(d.statusPagamento)}
-          </Badge>
-        ),
-      },
-      {
-        key: 'data',
-        header: 'Data',
-        hideOnMobile: true,
-        render: (d) => (
-          <span className="text-xs font-bold text-gray-400">
-            {donationDate(d).toLocaleString('pt-BR', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-        ),
-      },
-      {
-        key: 'mensagem',
-        header: 'Mensagem',
-        hideOnMobile: true,
-        render: (d) => (
-          <span className="text-xs text-gray-500 line-clamp-2">
-            {d.mensagemDoador?.trim() || '—'}
+        render: (p) => (
+          <span className="font-black text-gray-900 tabular-nums">
+            {formatCurrency(p.valorTotal)}
           </span>
         ),
       },
@@ -746,19 +599,19 @@ export default function Dashboard() {
         key: 'acoes',
         header: 'Ações',
         className: 'text-right',
-        render: (d) => (
+        render: (p) => (
           <Link
-            to={ROUTES.ADMIN.PURCHASE_DETAILS.replace(':id', d.id)}
+            to={ROUTES.ADMIN.PURCHASE_DETAILS.replace(':id', p.id)}
             className="p-2.5 bg-gray-50 text-gray-400 hover:text-brand hover:bg-brand-muted rounded-xl transition-all inline-flex"
-            title="Ver detalhes da doação"
-            aria-label="Ver detalhes da doação"
+            title="Ver detalhes da compra"
+            aria-label="Ver detalhes da compra"
           >
             <Eye size={16} />
           </Link>
         ),
       },
     ],
-    [showDonationAmounts]
+    [eventsById]
   );
 
   if (loading) return <PageLoader label="Carregando dashboard..." />;
@@ -768,216 +621,131 @@ export default function Dashboard() {
     value: string | number;
     icon: LucideIcon;
     accent: string;
-    type: ReportType;
+    hint?: string;
+    sensitive?: boolean;
+    href?: string;
+    report?: ReportType;
   }> = [
     {
-      title: 'Eventos Publicados',
+      title: 'Eventos publicados',
       value: generalStats.published,
       icon: Globe,
       accent: THEME.colors.status.active,
-      type: 'publicados',
+      href: `${ROUTES.ADMIN.EVENTS}?status=published`,
     },
     {
-      title: 'Eventos Encerrados',
+      title: 'Eventos encerrados',
       value: generalStats.closed,
       icon: XCircle,
       accent: THEME.colors.text.muted,
-      type: 'encerrados',
+      href: `${ROUTES.ADMIN.EVENTS}?status=draft`,
     },
     {
-      title: 'Compras de Ingressos',
-      value: generalStats.totalPurchases,
-      icon: Wallet,
-      accent: THEME.colors.primary,
-      type: 'total',
-    },
-    {
-      title: 'Total de Ingressos',
-      value: generalStats.totalTickets,
+      title: 'Ingressos disponibilizados',
+      value: generalStats.disponibilizados,
       icon: Ticket,
-      accent: '#9333ea',
-      type: 'total',
-    },
-    {
-      title: 'Vagas Disponíveis',
-      value: generalStats.vagasDisponiveis,
-      icon: PieChart,
       accent: THEME.colors.primary,
-      type: 'vagas',
+      hint: 'Vagas oferecidas nos eventos',
+      href: ROUTES.ADMIN.EVENTS,
     },
     {
-      title: 'Ingressos Utilizados',
-      value: generalStats.utilizados,
+      title: 'Ingressos vendidos',
+      value: generalStats.vendidos,
+      icon: CheckCircle,
+      accent: '#9333ea',
+      report: 'vendidos',
+    },
+    {
+      title: 'Pagantes nos eventos',
+      value: generalStats.pagantes,
+      icon: Users,
+      accent: THEME.colors.primary,
+      report: 'pagantes',
+    },
+    {
+      title: 'Check-ins efetivados',
+      value: generalStats.checkins,
       icon: UserCheck,
       accent: '#4f46e5',
-      type: 'checkin',
+      report: 'checkin',
     },
     {
-      title: 'Ingressos Disponíveis',
-      value: generalStats.disponiveis,
-      icon: CheckCircle,
-      accent: THEME.colors.status.active,
-      type: 'ausentes',
-    },
-    {
-      title: 'Ingressos Cancelados',
-      value: generalStats.cancelados,
-      icon: XCircle,
-      accent: THEME.colors.status.inactive,
-      type: 'cancelados',
-    },
-  ];
-
-  const eventRevenueCards: Array<{
-    title: string;
-    value: string | number;
-    icon: LucideIcon;
-    accent: string;
-    type: ReportType;
-    hint?: string;
-    sensitive?: boolean;
-  }> = [
-    {
-      title: 'Valor recebido',
+      title: 'Arrecadação dos eventos',
       value: formatCurrency(generalStats.arrecadado),
       icon: Wallet,
       accent: THEME.colors.status.active,
-      type: 'total',
-      hint: 'Ingressos pagos em todos os eventos',
       sensitive: true,
+      report: 'arrecadacao',
     },
     {
-      title: 'Valor pendente',
-      value: formatCurrency(generalStats.valorPendente),
-      icon: Clock,
-      accent: '#d97706',
-      type: 'pendentes',
-      hint: 'Compras aguardando pagamento',
-      sensitive: true,
-    },
-    {
-      title: 'Compras confirmadas',
-      value: generalStats.comprasConfirmadas,
-      icon: CheckCircle,
+      title: 'Ativos/Instalados',
+      value: `${pushActive} / ${appInstalls}`,
+      icon: Smartphone,
       accent: THEME.colors.primary,
-      type: 'total',
-    },
-    {
-      title: 'Ticket médio',
-      value:
-        generalStats.comprasConfirmadas > 0
-          ? formatCurrency(generalStats.ticketMedio)
-          : '—',
-      icon: TrendingUp,
-      accent: '#0d9488',
-      type: 'total',
-      hint: 'Por compra confirmada',
-      sensitive: true,
+      hint: 'Notificações ativas / app instalado',
+      report: 'apps',
     },
   ];
 
-  const donationCards: Array<{
-    title: string;
-    value: string | number;
-    icon: LucideIcon;
-    accent: string;
-    type: ReportType;
-    sensitive?: boolean;
-  }> = [
-    {
-      title: 'Doações Confirmadas',
-      value: donationStats.confirmadas,
-      icon: HeartHandshake,
-      accent: '#be185d',
-      type: 'doacoes_confirmadas',
-    },
-    {
-      title: 'Valor em Doações',
-      value: formatCurrency(donationStats.valorConfirmado),
-      icon: Wallet,
-      accent: THEME.colors.status.active,
-      type: 'doacoes_confirmadas',
-      sensitive: true,
-    },
-    {
-      title: 'Doações Pendentes',
-      value: donationStats.pendentes,
-      icon: Clock,
-      accent: '#d97706',
-      type: 'doacoes_pendentes',
-    },
-    {
-      title: 'Doadores Únicos',
-      value: donationStats.doadoresUnicos,
-      icon: Users,
-      accent: '#7c3aed',
-      type: 'doacoes_confirmadas',
-    },
-    {
-      title: 'Doações no Mês',
-      value: formatCurrency(donationStats.valorMesAtual),
-      icon: TrendingUp,
-      accent: THEME.colors.primary,
-      type: 'doacoes_confirmadas',
-      sensitive: true,
-    },
-    {
-      title: 'Ticket Médio',
-      value:
-        donationStats.confirmadas > 0
-          ? formatCurrency(donationStats.ticketMedio)
-          : '—',
-      icon: PieChart,
-      accent: '#0d9488',
-      type: 'doacoes_confirmadas',
-      sensitive: true,
-    },
-  ];
-
-  const eventCards = eventStats
-    ? [
-        {
-          title: 'Quantidade de vagas',
-          value: eventStats.vagas,
-          icon: PieChart,
-          accent: THEME.colors.primary,
-          sensitive: false,
-        },
-        {
-          title: 'Inscritos',
-          value: eventStats.inscritos,
-          icon: Users,
-          accent: THEME.colors.primary,
-          sensitive: false,
-        },
-        {
-          title: 'Ingressos Pagos',
-          value: eventStats.ingressosPagos,
-          icon: Ticket,
-          accent: THEME.colors.status.active,
-          sensitive: false,
-        },
-        {
-          title: 'Ingressos Pendentes',
-          value: eventStats.ingressosPendentes,
-          icon: Clock,
-          accent: '#d97706',
-          sensitive: false,
-        },
-        {
-          title: 'Valor Arrecadado',
-          value: formatCurrency(eventStats.arrecadado),
-          icon: Wallet,
-          accent: THEME.colors.status.active,
-          sensitive: true,
-        },
-      ]
-    : [];
+  const eventCards =
+    eventStats && selectedEvent
+      ? [
+          {
+            title: 'Quantidade de vagas',
+            value: eventStats.vagas,
+            icon: Ticket,
+            accent: THEME.colors.primary,
+            sensitive: false,
+            onClick: () =>
+              navigate(ROUTES.ADMIN.EVENT_EDIT.replace(':id', selectedEvent.id)),
+          },
+          {
+            title: 'Inscritos',
+            value: eventStats.inscritos,
+            icon: Users,
+            accent: THEME.colors.primary,
+            sensitive: false,
+            onClick: () =>
+              navigate(
+                ROUTES.ADMIN.EVENT_REPORTS.replace(':id', selectedEvent.id)
+              ),
+          },
+          {
+            title: 'Ingressos pagos',
+            value: eventStats.ingressosPagos,
+            icon: CheckCircle,
+            accent: THEME.colors.status.active,
+            sensitive: false,
+            onClick: () =>
+              navigate(
+                ROUTES.ADMIN.EVENT_REPORTS.replace(':id', selectedEvent.id)
+              ),
+          },
+          {
+            title: 'Ingressos pendentes',
+            value: eventStats.ingressosPendentes,
+            icon: Clock,
+            accent: '#d97706',
+            sensitive: false,
+            onClick: () =>
+              navigate(
+                ROUTES.ADMIN.EVENT_REPORTS.replace(':id', selectedEvent.id)
+              ),
+          },
+          {
+            title: 'Valor arrecadado',
+            value: formatCurrency(eventStats.arrecadado),
+            icon: Wallet,
+            accent: THEME.colors.status.active,
+            sensitive: true,
+            onClick: () => handleOpenReport('arrecadacao'),
+          },
+        ]
+      : [];
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 min-w-0">
       <AnimatePresence mode="wait">
-        {/* Nível 1: Dashboard Geral */}
         {viewMode === 'general' && (
           <motion.div
             key="general-dashboard"
@@ -988,7 +756,7 @@ export default function Dashboard() {
           >
             <PageHeader
               title="Dashboard Geral"
-              subtitle="Visão executiva consolidada da ONG."
+              subtitle="Indicadores dos eventos e do aplicativo."
             />
 
             {loadError && (
@@ -997,7 +765,7 @@ export default function Dashboard() {
               </Alert>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
               {generalCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -1005,145 +773,15 @@ export default function Dashboard() {
                   value={card.value}
                   icon={card.icon}
                   accent={card.accent}
-                  onClick={() => handleOpenReport(card.type)}
+                  hint={card.hint}
+                  sensitive={card.sensitive}
+                  onClick={() => {
+                    if (card.href) navigate(card.href);
+                    else if (card.report) handleOpenReport(card.report);
+                  }}
                 />
               ))}
-              <StatCard
-                title="Ativos/Instalados"
-                value={`${pushActive} / ${appInstalls}`}
-                icon={Smartphone}
-                accent={THEME.colors.primary}
-                hint="Notificações ativas / app instalado"
-              />
             </div>
-
-            <section className="space-y-3">
-              <div className="min-w-0">
-                <p className="label-micro text-brand mb-1">Eventos</p>
-                <h2 className="text-lg font-black text-gray-900">
-                  Valores recebidos
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">
-                  Soma consolidada das compras de ingressos em todos os eventos.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch">
-                {eventRevenueCards.map((card) => (
-                  <StatCard
-                    key={card.title}
-                    title={card.title}
-                    value={card.value}
-                    icon={card.icon}
-                    accent={card.accent}
-                    hint={card.hint}
-                    sensitive={card.sensitive}
-                    onClick={() => handleOpenReport(card.type)}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <section className="card-surface p-4 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="label-micro text-brand mb-1">Solidariedade</p>
-                  <h2 className="text-lg font-black text-gray-900">Doações</h2>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {donationsOpen
-                      ? 'Detalhes visíveis só nesta sessão, até você ocultar de novo.'
-                      : 'Valores e doadores ficam ocultos até você abrir as informações.'}
-                  </p>
-                </div>
-                <Button
-                  variant={donationsOpen ? 'secondary' : 'primary'}
-                  className="rounded-2xl shrink-0"
-                  onClick={() => setDonationsOpen((open) => !open)}
-                >
-                  <ChevronDown
-                    size={16}
-                    aria-hidden="true"
-                    className={donationsOpen ? 'rotate-180 transition-transform' : 'transition-transform'}
-                  />
-                  {donationsOpen ? 'Ocultar informações' : 'Ver informações'}
-                </Button>
-              </div>
-
-              {donationsOpen ? (
-                <>
-                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                    <p className="text-xs text-gray-500">
-                      {donationStats.ultimaDoacao
-                        ? `Última confirmada: ${donationStats.ultimaDoacao.compradorNome} · ${donationDate(donationStats.ultimaDoacao).toLocaleDateString('pt-BR')}`
-                        : 'Nenhuma doação confirmada ainda.'}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => setShowDonationAmounts((v) => !v)}
-                      >
-                        {showDonationAmounts ? (
-                          <EyeOff size={16} aria-hidden="true" />
-                        ) : (
-                          <Eye size={16} aria-hidden="true" />
-                        )}
-                        {showDonationAmounts ? 'Ocultar valores' : 'Mostrar valores'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => exportDonationsCsv(donations)}
-                        disabled={donations.length === 0}
-                      >
-                        <Download size={16} aria-hidden="true" />
-                        Exportar CSV
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className="rounded-2xl"
-                        onClick={() => handleOpenReport('doacoes')}
-                      >
-                        Ver todas
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-stretch">
-                    {donationCards.map((card) => (
-                      <StatCard
-                        key={card.title}
-                        title={card.title}
-                        value={card.value}
-                        icon={card.icon}
-                        accent={card.accent}
-                        sensitive={card.sensitive}
-                        onClick={() => handleOpenReport(card.type)}
-                      />
-                    ))}
-                  </div>
-
-                  <DataTable
-                    columns={donationColumns}
-                    data={recentDonations}
-                    rowKey={(d) => d.id}
-                    emptyTitle="Nenhuma doação registrada"
-                    emptyDescription="As contribuições feitas pela página pública aparecerão aqui."
-                    emptyIcon={HeartHandshake}
-                    toolbar={
-                      <div className="flex items-center justify-between gap-4">
-                        <h3 className="text-sm font-black text-gray-900">
-                          Doações recentes
-                        </h3>
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
-                          {donations.length}{' '}
-                          {donations.length === 1 ? 'registro' : 'registros'}
-                        </span>
-                      </div>
-                    }
-                  />
-                </>
-              ) : null}
-            </section>
 
             <DataTable
               columns={eventColumns}
@@ -1157,7 +795,8 @@ export default function Dashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h2 className="text-lg font-black text-gray-900">Eventos</h2>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-1.5 rounded-full whitespace-nowrap">
-                    {events.length} {events.length === 1 ? 'Evento' : 'Eventos'}
+                    {events.length}{' '}
+                    {events.length === 1 ? 'Evento' : 'Eventos'}
                   </span>
                 </div>
               }
@@ -1165,7 +804,6 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Nível 2: Dashboard do Evento */}
         {viewMode === 'event' && selectedEvent && eventStats && (
           <motion.div
             key="event-dashboard"
@@ -1183,7 +821,10 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <Badge variant="info">Dashboard do Evento</Badge>
                 {selectedEvent.eventoDestaque && (
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" aria-hidden="true" />
+                  <Star
+                    className="w-4 h-4 text-amber-500 fill-amber-500"
+                    aria-hidden="true"
+                  />
                 )}
               </div>
             </div>
@@ -1221,7 +862,7 @@ export default function Dashboard() {
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 items-stretch">
               {eventCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -1230,13 +871,13 @@ export default function Dashboard() {
                   icon={card.icon}
                   accent={card.accent}
                   sensitive={card.sensitive}
+                  onClick={card.onClick}
                 />
               ))}
             </div>
           </motion.div>
         )}
 
-        {/* Nível 3: Relatório Filtrado */}
         {viewMode === 'report' && (
           <motion.div
             key="report-view"
@@ -1251,79 +892,68 @@ export default function Dashboard() {
               onBack={handleBack}
               backLabel={`Voltar ao ${selectedEvent ? 'Dashboard do Evento' : 'Dashboard Geral'}`}
               actions={
-                <div className="flex flex-wrap gap-2">
-                  {isDonationReport(activeReport) ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => setShowDonationAmounts((v) => !v)}
-                      >
-                        {showDonationAmounts ? (
-                          <EyeOff size={18} aria-hidden="true" />
-                        ) : (
-                          <Eye size={18} aria-hidden="true" />
-                        )}
-                        {showDonationAmounts ? 'Ocultar valores' : 'Mostrar valores'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => exportDonationsCsv(filteredDonations)}
-                        disabled={filteredDonations.length === 0}
-                      >
-                        <Download size={18} aria-hidden="true" />
-                        Exportar CSV
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl"
-                    onClick={() => window.print()}
-                  >
-                    <Printer size={18} aria-hidden="true" />
-                    Imprimir
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={18} aria-hidden="true" />
+                  Imprimir
+                </Button>
               }
             />
 
-            <div className="sticky top-14 sm:top-20 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
-              <SearchField
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={
-                  isDonationReport(activeReport)
-                    ? 'Pesquisar doador, documento, e-mail ou certificado...'
-                    : 'Pesquisar por nome, CPF ou e-mail...'
-                }
-              />
-            </div>
-
-            {isDonationReport(activeReport) ? (
-              <DataTable
-                columns={donationColumns}
-                data={filteredDonations}
-                rowKey={(d) => d.id}
-                emptyTitle="Nenhuma doação encontrada"
-                emptyDescription="Ajuste os critérios de busca ou aguarde novas contribuições."
-                emptyIcon={HeartHandshake}
-              />
+            {activeReport === 'apps' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch max-w-3xl">
+                <StatCard
+                  title="Notificações ativas"
+                  value={pushActive}
+                  icon={Smartphone}
+                  accent="#7c3aed"
+                  hint="Aparelhos que permitiram avisos"
+                />
+                <StatCard
+                  title="App instalado"
+                  value={appInstalls}
+                  icon={Smartphone}
+                  accent={THEME.colors.primary}
+                  hint="Aparelhos que abriram o App Delphos"
+                />
+              </div>
             ) : (
-              <DataTable
-                columns={reportColumns}
-                data={filteredTickets}
-                rowKey={(t) => t.id}
-                emptyTitle="Nenhum registro encontrado"
-                emptyDescription="Ajuste os critérios de busca ou selecione outro relatório."
-                emptyIcon={FileText}
-              />
+              <>
+                <div className="sticky top-14 sm:top-20 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
+                  <SearchField
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Pesquisar por nome, CPF ou e-mail..."
+                  />
+                </div>
+
+                {activeReport === 'pagantes' || activeReport === 'arrecadacao' ? (
+                  <DataTable
+                    columns={payerColumns}
+                    data={filteredPayers}
+                    rowKey={(p) => p.id}
+                    emptyTitle="Nenhum pagante encontrado"
+                    emptyDescription="Compras confirmadas de ingressos aparecerão aqui."
+                    emptyIcon={Users}
+                  />
+                ) : (
+                  <DataTable
+                    columns={reportColumns}
+                    data={filteredTickets}
+                    rowKey={(t) => t.id}
+                    emptyTitle="Nenhum registro encontrado"
+                    emptyDescription="Ajuste os critérios de busca ou selecione outro relatório."
+                    emptyIcon={FileText}
+                  />
+                )}
+              </>
             )}
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

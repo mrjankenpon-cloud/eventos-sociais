@@ -13,6 +13,7 @@ import {
   Shield,
   FileText,
   Video,
+  HandCoins,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useInstalledAppPing } from '../lib/appInstallPing';
@@ -50,6 +51,7 @@ function AdminShell() {
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, href: ROUTES.ADMIN.DASHBOARD },
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
+    { name: 'Doações', icon: HandCoins, href: ROUTES.ADMIN.DONATIONS },
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
     { name: 'Vídeos', icon: Video, href: ROUTES.ADMIN.VIDEOS },

@@ -48,9 +48,14 @@ export function AppImage({
     }
 
     setUrl('');
-    void imagensService.resolve(src).then((resolved) => {
-      if (!cancelled) setUrl(resolved);
-    });
+    void imagensService
+      .resolve(src)
+      .then((resolved) => {
+        if (!cancelled) setUrl(resolved);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl('');
+      });
 
     return () => {
       cancelled = true;
