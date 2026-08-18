@@ -170,7 +170,7 @@ export function RichTextEditor({ value, onChange, label }: RichTextEditorProps) 
 
   return (
     <div className="card-surface overflow-hidden">
-      <div className="sticky top-14 sm:top-20 z-20 flex flex-wrap items-center gap-1 border-b border-gray-100 bg-white/95 backdrop-blur px-2.5 py-2">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b border-gray-100 bg-white/95 backdrop-blur px-2.5 py-2">
         <ToolButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}

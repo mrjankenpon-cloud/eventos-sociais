@@ -69,7 +69,7 @@ function AdminShell() {
   const avatar = live?.avatar || user?.avatar;
 
   return (
-    <div className="min-h-screen bg-surface-admin flex overflow-x-hidden min-w-0">
+    <div className="h-dvh bg-surface-admin flex overflow-hidden min-w-0">
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
@@ -85,7 +85,8 @@ function AdminShell() {
 
       <aside
         className={cn(
-          'bg-brand-deeper transition-all duration-300 fixed md:sticky inset-y-0 left-0 z-50 h-screen flex flex-col',
+          'bg-brand-deeper transition-all duration-300 z-50 flex flex-col shrink-0',
+          'fixed inset-y-0 left-0 h-dvh md:static md:h-full',
           isSidebarOpen
             ? 'w-64 translate-x-0'
             : 'w-20 -translate-x-full md:translate-x-0'
@@ -115,7 +116,7 @@ function AdminShell() {
           </button>
         </div>
 
-        <nav className="p-3 space-y-1 mt-2 flex-1" aria-label="Menu administrativo">
+        <nav className="p-3 space-y-1 mt-2 flex-1 min-h-0 overflow-y-auto" aria-label="Menu administrativo">
           {menuItems.map((item) => {
             const isActive = location.pathname.startsWith(item.href);
             return (
@@ -177,8 +178,8 @@ function AdminShell() {
         </div>
       </aside>
 
-      <div className="flex-grow flex flex-col min-h-screen min-w-0">
-        <header className="h-14 sm:h-20 bg-white border-b border-gray-100 px-3 sm:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 min-w-0">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+        <header className="h-14 sm:h-20 bg-white border-b border-gray-100 px-3 sm:px-6 flex items-center justify-between gap-2 shrink-0 z-30 min-w-0">
           <button
             type="button"
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
@@ -241,7 +242,7 @@ function AdminShell() {
           </div>
         </header>
 
-        <main className="flex-grow p-3 sm:p-6 lg:p-8 min-w-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <Suspense
             fallback={
               <ProcessingOverlay

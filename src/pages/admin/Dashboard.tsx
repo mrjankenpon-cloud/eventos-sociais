@@ -922,7 +922,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                <div className="sticky top-14 sm:top-20 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
+                <div className="sticky top-0 z-10 bg-surface-admin/95 backdrop-blur-sm py-3 -mx-1 px-1">
                   <SearchField
                     value={searchTerm}
                     onChange={setSearchTerm}
