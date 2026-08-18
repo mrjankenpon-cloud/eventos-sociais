@@ -16,7 +16,7 @@ export default defineConfig(() => {
           skipWaiting: true,
           cleanupOutdatedCaches: true,
         },
-        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+          includeAssets: ['favicon.png', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'push-sw.js'],
         manifest: {
           name: 'DELPHOS - Gestão de Eventos',
           short_name: 'DELPHOS',

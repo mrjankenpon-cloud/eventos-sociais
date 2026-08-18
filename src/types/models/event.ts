@@ -110,6 +110,10 @@ export interface Event {
   limitePorCpf?: number;
   /** Encerramento de vendas (ISO). Vendas param no primeiro entre isto e estoque zero. */
   vendasEncerramEm?: string;
+  /** Se true e o evento estiver publicado, avisa quem instalou o app. */
+  enviarNotificacao?: boolean;
+  /** ISO de quando o aviso já foi disparado (não reenvia). */
+  notificacaoEnviadaEm?: string;
   /** Soft-delete: arquivado não aparece no público nem aceita novas vendas */
   arquivado?: boolean;
   arquivadoEm?: string;

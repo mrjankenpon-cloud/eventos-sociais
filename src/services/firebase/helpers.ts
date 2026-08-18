@@ -28,6 +28,8 @@ export const COLLECTIONS = {
   checkins: 'checkins',
   configuracoes: 'configuracoes',
   logs: 'logs',
+  /** Inscrições Web Push de quem instalou o app */
+  pushTokens: 'pushTokens',
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

@@ -11,6 +11,7 @@ export { checkinsService, checkinService } from './checkins';
 export { configuracoesService } from './configuracoes';
 export { siteContentService } from './siteContent';
 export { logsService } from './logs';
+export { pushTokensService } from './pushTokens';
 export {
   storageService,
   uploadImage,

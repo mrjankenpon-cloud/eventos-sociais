@@ -105,6 +105,7 @@ export function createEmptyEventForm(): EventFormData {
     limitePorCompra: 10,
     limitePorCpf: 0,
     vendasEncerramEm: undefined,
+    enviarNotificacao: false,
     arquivado: false,
   };
 }

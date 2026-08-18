@@ -61,6 +61,8 @@ export interface Evento extends BaseDocument {
   /** Campos derivados para compatibilidade de preço */
   gratuito: boolean;
   valor: number;
+  enviarNotificacao?: boolean;
+  notificacaoEnviadaEm?: string;
 }
 
 export type EventoCreate = CreateInput<Evento>;

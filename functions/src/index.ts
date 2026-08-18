@@ -56,6 +56,7 @@ export { getOrderReceipt } from './mp/getOrderReceipt';
 export { refundPayment } from './mp/refundPayment';
 export { sandboxApproveOrder } from './mp/sandboxApproveOrder';
 export { createTicketUpgradeSession } from './mp/createTicketUpgradeSession';
+export { notifyNewEvent } from './notifyNewEvent';
 export {
   requestGuestTicketsEmail,
   getGuestTickets,

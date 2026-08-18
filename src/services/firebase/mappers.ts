@@ -96,6 +96,8 @@ export function eventFormToEventoPayload(
     limitePorCompra: Number(rest.limitePorCompra) || 10,
     limitePorCpf: Math.max(0, Number(rest.limitePorCpf) || 0),
     vendasEncerramEm: rest.vendasEncerramEm || null,
+    enviarNotificacao: Boolean(rest.enviarNotificacao),
+    notificacaoEnviadaEm: rest.notificacaoEnviadaEm || null,
     arquivado: Boolean(rest.arquivado),
     arquivadoEm: rest.arquivadoEm || null,
     gratuito: Boolean(rest.gratuito),
@@ -193,6 +195,11 @@ export function eventoToUiEvent(
       Number((raw as { limitePorCpf?: number }).limitePorCpf) || 0
     ),
     vendasEncerramEm: (raw as { vendasEncerramEm?: string }).vendasEncerramEm,
+    enviarNotificacao: Boolean(
+      (raw as { enviarNotificacao?: boolean }).enviarNotificacao
+    ),
+    notificacaoEnviadaEm: (raw as { notificacaoEnviadaEm?: string })
+      .notificacaoEnviadaEm,
     arquivado:
       status === 'arquivado' ||
       Boolean((raw as { arquivado?: boolean }).arquivado),

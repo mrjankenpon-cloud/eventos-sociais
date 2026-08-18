@@ -489,6 +489,17 @@ export default function EventForm() {
                 activeClass="bg-brand-muted border-brand/20"
               />
               <Toggle
+                title="Enviar notificação"
+                description={
+                  formData.notificacaoEnviadaEm
+                    ? 'Aviso já enviado para quem instalou o app.'
+                    : 'Avisa no celular de quem tem o App Delphos. Só dispara se o evento estiver publicado.'
+                }
+                checked={Boolean(formData.enviarNotificacao)}
+                onChange={(v) => update('enviarNotificacao', v)}
+                activeClass="bg-brand-muted border-brand/20"
+              />
+              <Toggle
                 title="Evento em destaque"
                 description="Aparece nos banners principais"
                 checked={formData.eventoDestaque}

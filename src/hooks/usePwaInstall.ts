@@ -20,7 +20,7 @@ function notify() {
   subscribers.forEach((fn) => fn());
 }
 
-function isInstalled() {
+export function isPwaInstalled() {
   if (typeof window === 'undefined') return false;
   return (
     window.matchMedia?.('(display-mode: standalone)').matches === true ||
@@ -69,11 +69,11 @@ if (typeof window !== 'undefined') {
 /** Expõe se o app pode ser instalado e dispara o convite nativo sob demanda. */
 export function usePwaInstall() {
   const [canInstall, setCanInstall] = useState(
-    () => Boolean(deferredPrompt) && !isInstalled()
+    () => Boolean(deferredPrompt) && !isPwaInstalled()
   );
 
   useEffect(() => {
-    const sync = () => setCanInstall(Boolean(deferredPrompt) && !isInstalled());
+    const sync = () => setCanInstall(Boolean(deferredPrompt) && !isPwaInstalled());
     subscribers.add(sync);
     sync();
     return () => {

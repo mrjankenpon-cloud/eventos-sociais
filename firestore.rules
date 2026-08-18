@@ -249,5 +249,15 @@ service cloud.firestore {
       allow create: if isValidLogCreate();
       allow update, delete: if isAdmin();
     }
+
+    // ---- pushTokens (app instalado) ----
+    match /pushTokens/{id} {
+      allow create, update: if request.resource.data.endpoint is string
+        && request.resource.data.endpoint.size() > 10
+        && request.resource.data.endpoint.size() < 2048
+        && request.resource.data.p256dh is string
+        && request.resource.data.auth is string;
+      allow read, delete: if isStaff();
+    }
   }
 }
