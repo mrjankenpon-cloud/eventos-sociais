@@ -3,7 +3,7 @@ import { Eye, RotateCcw, Save } from 'lucide-react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
-import { Alert, Button, PageLoader } from '../../components/ui';
+import { Alert, Button, Input, PageLoader } from '../../components/ui';
 import { siteContentService } from '../../services/firebase/siteContent';
 import type { SiteContent, SiteContentPageKey } from '../../types';
 import { DEFAULT_SITE_CONTENT } from '../../lib/siteContentDefaults';
@@ -12,6 +12,7 @@ import { ROUTES } from '../../config';
 
 const TABS: { id: SiteContentPageKey; label: string; publicPath: string }[] = [
   { id: 'about', label: 'Sobre', publicPath: ROUTES.PUBLIC.ABOUT },
+  { id: 'saibaMais', label: 'Saiba mais', publicPath: `${ROUTES.PUBLIC.HOME}#saiba-mais` },
   { id: 'terms', label: 'Termo de Uso', publicPath: ROUTES.PUBLIC.TERMS },
   { id: 'privacy', label: 'Privacidade', publicPath: ROUTES.PUBLIC.PRIVACY },
   { id: 'donations', label: 'Doações', publicPath: ROUTES.PUBLIC.DONATIONS },
@@ -78,7 +79,7 @@ export default function SiteContentSettings() {
   const resetCurrentTab = () => {
     setDraft((prev) => ({
       ...prev,
-      [tab]: { html: DEFAULT_SITE_CONTENT[tab].html },
+      [tab]: structuredClone(DEFAULT_SITE_CONTENT[tab]),
     }));
     setDirty(true);
     setConfirmReset(false);
@@ -91,7 +92,7 @@ export default function SiteContentSettings() {
       <div className="space-y-6">
         <PageHeader
           title="Conteúdo do site"
-          subtitle="Edite as páginas Sobre, Termo de Uso, Privacidade e Doações."
+          subtitle="Edite as páginas Sobre, Saiba mais, Termo de Uso, Privacidade e Doações."
         />
         <PageLoader label="Carregando conteúdo..." />
       </div>
@@ -176,6 +177,12 @@ export default function SiteContentSettings() {
         </div>
       </div>
 
+      {tab === 'saibaMais' ? (
+        <Alert variant="info">
+          O cartão aparece na página inicial. O texto abaixo abre ao clicar em
+          Saiba mais.
+        </Alert>
+      ) : null}
       {tab === 'donations' ? (
         <Alert variant="info">
           Os valores sugeridos, o mínimo da doação e o formulário de pagamento
@@ -184,12 +191,68 @@ export default function SiteContentSettings() {
         </Alert>
       ) : null}
 
+      {tab === 'saibaMais' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Linha pequena"
+            value={draft.saibaMais.kicker}
+            onChange={(e) => {
+              setDraft((prev) => ({
+                ...prev,
+                saibaMais: { ...prev.saibaMais, kicker: e.target.value },
+              }));
+              setDirty(true);
+            }}
+          />
+          <Input
+            label="Título do cartão"
+            value={draft.saibaMais.title}
+            onChange={(e) => {
+              setDraft((prev) => ({
+                ...prev,
+                saibaMais: { ...prev.saibaMais, title: e.target.value },
+              }));
+              setDirty(true);
+            }}
+          />
+          <div className="sm:col-span-2">
+            <Input
+              label="Frase do cartão"
+              value={draft.saibaMais.tagline}
+              onChange={(e) => {
+                setDraft((prev) => ({
+                  ...prev,
+                  saibaMais: { ...prev.saibaMais, tagline: e.target.value },
+                }));
+                setDirty(true);
+              }}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Input
+              label="Título da janela"
+              value={draft.saibaMais.modalTitle}
+              onChange={(e) => {
+                setDraft((prev) => ({
+                  ...prev,
+                  saibaMais: { ...prev.saibaMais, modalTitle: e.target.value },
+                }));
+                setDirty(true);
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       <RichTextEditor
         key={tab}
         label={`Conteúdo da página ${activeTab.label}`}
         value={draft[tab].html}
         onChange={(html) => {
-          setDraft((prev) => ({ ...prev, [tab]: { html } }));
+          setDraft((prev) => ({
+            ...prev,
+            [tab]: { ...prev[tab], html },
+          }));
           setDirty(true);
         }}
       />

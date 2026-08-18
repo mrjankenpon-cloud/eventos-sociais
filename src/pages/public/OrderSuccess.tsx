@@ -166,7 +166,7 @@ export default function OrderSuccess() {
 
   return (
     <div className="py-12 sm:py-20 min-h-[60vh] bg-surface-muted">
-      <div className="page-container max-w-lg">
+      <div className="page-container-readable">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-gray-500 hover:text-brand mb-6 transition-colors font-bold text-sm"

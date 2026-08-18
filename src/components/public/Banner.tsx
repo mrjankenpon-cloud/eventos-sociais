@@ -37,15 +37,15 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.7, ease: THEME.motion.ease }}
-      className="group relative mb-6 sm:mb-10 w-full max-w-6xl mx-auto"
+      className="group relative mb-6 sm:mb-8 lg:mb-10 w-full"
     >
       <div
-        className="absolute -inset-px rounded-[34px] bg-brand opacity-10 blur-[2px] transition-opacity duration-500 group-hover:opacity-25"
+        className="absolute -inset-px rounded-2xl sm:rounded-[30px] lg:rounded-[34px] bg-brand opacity-10 blur-[2px] transition-opacity duration-500 group-hover:opacity-25"
         aria-hidden="true"
       />
 
-      <div className="relative grid grid-cols-1 md:grid-cols-3 rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
-        <div className="relative md:col-span-2 h-[240px] sm:h-[320px] md:h-auto md:min-h-[420px] overflow-hidden bg-black">
+      <div className="relative grid grid-cols-1 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] overflow-hidden shadow-xl bg-[#030712] border border-white/5">
+        <div className="relative lg:col-span-2 h-[220px] sm:h-[280px] md:h-[340px] lg:h-auto lg:min-h-[420px] overflow-hidden bg-black">
           <AppImage
             src={event.banner}
             alt={event.titulo}
@@ -56,7 +56,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
 
         <div
           className={cn(
-            'relative md:col-span-1 flex flex-col justify-center gap-5 p-6 sm:p-8 text-white overflow-hidden',
+            'relative lg:col-span-1 flex flex-col justify-center gap-4 sm:gap-5 p-5 sm:p-7 lg:p-8 text-white overflow-hidden',
             THEME.gradient.header
           )}
         >

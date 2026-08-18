@@ -106,7 +106,7 @@ export function VideosCarousel() {
                   delay: Math.min(index * 0.04, 0.2),
                 }}
                 onClick={() => setActive(video)}
-                className="group relative shrink-0 w-[78%] sm:w-[42%] md:w-[32%] lg:w-[28%] snap-start text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-2xl"
+                className="group relative shrink-0 w-[min(20rem,82vw)] sm:w-[min(22rem,46%)] md:w-[min(24rem,38%)] lg:w-[31%] xl:w-[23.5%] snap-start text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-2xl"
                 aria-label={`Assistir: ${video.titulo}`}
               >
                 <span className="relative block aspect-video overflow-hidden rounded-2xl bg-gray-200 shadow-md shadow-black/5">
@@ -149,7 +149,7 @@ export function VideosCarousel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+            className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 lg:p-10"
             onClick={() => setActive(null)}
           >
             <button
@@ -169,7 +169,7 @@ export function VideosCarousel() {
                 duration: THEME.motion.duration,
                 ease: THEME.motion.ease,
               }}
-              className="w-full max-w-4xl"
+              className="w-full max-w-4xl xl:max-w-5xl"
               onClick={(e) => e.stopPropagation()}
             >
               <p className="text-white font-black text-sm sm:text-base mb-3 px-1">

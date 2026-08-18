@@ -14,8 +14,8 @@ export function LegalPage({
   children: ReactNode;
 }) {
   return (
-    <div className="pb-16 sm:pb-24 min-h-[60vh] bg-surface-muted">
-      <div className="page-container max-w-3xl pt-8 sm:pt-12">
+    <div className="pb-16 sm:pb-20 lg:pb-24 min-h-[60vh] bg-surface-muted">
+      <div className="page-container-readable pt-6 sm:pt-10 lg:pt-14">
         <Link
           to={ROUTES.PUBLIC.HOME}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-brand mb-6 transition-colors font-bold text-sm"
@@ -25,7 +25,7 @@ export function LegalPage({
         </Link>
 
         <article className="card-surface overflow-hidden">
-          <header className="bg-brand px-5 py-4 sm:px-8 sm:py-6 text-white">
+          <header className="bg-brand px-5 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-7 text-white">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70">
               Instituto Delphos
             </p>
@@ -38,7 +38,7 @@ export function LegalPage({
               </p>
             ) : null}
           </header>
-          <div className="p-4 sm:p-8 md:p-10 space-y-8 text-sm sm:text-[15px] text-gray-600 leading-relaxed">
+          <div className="p-4 sm:p-8 md:p-10 lg:p-12 space-y-8 text-sm sm:text-[15px] text-gray-600 leading-relaxed">
             {children}
           </div>
         </article>

@@ -158,6 +158,7 @@ type LegacyConverter = (raw: Record<string, unknown>) => string;
 
 const LEGACY_CONVERTERS: Record<keyof SiteContent, LegacyConverter> = {
   about: (raw) => legacyAboutToHtml(raw as LegacyAboutContent),
+  saibaMais: () => '',
   terms: (raw) => legacyLegalToHtml(raw as LegacyLegalContent),
   privacy: (raw) => legacyLegalToHtml(raw as LegacyLegalContent),
   donations: (raw) => legacyDonationsToHtml(raw as LegacyDonationsContent),
@@ -187,12 +188,30 @@ function normalizePage(
   return { html: fallback.html };
 }
 
+function asText(raw: unknown, fallback: string): string {
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : fallback;
+}
+
+function normalizeSaibaMais(raw: unknown): SiteContent['saibaMais'] {
+  const fallback = DEFAULT_SITE_CONTENT.saibaMais;
+  const page = normalizePage(raw, 'saibaMais');
+  const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    html: page.html,
+    kicker: asText(obj.kicker, fallback.kicker),
+    title: asText(obj.title, fallback.title),
+    tagline: asText(obj.tagline, fallback.tagline),
+    modalTitle: asText(obj.modalTitle, fallback.modalTitle),
+  };
+}
+
 /** Mescla o documento do Firestore com os padrões e migra o formato antigo. */
 export function normalizeSiteContent(raw: unknown): SiteContent {
   const base =
     raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
     about: normalizePage(base.about, 'about'),
+    saibaMais: normalizeSaibaMais(base.saibaMais),
     terms: normalizePage(base.terms, 'terms'),
     privacy: normalizePage(base.privacy, 'privacy'),
     donations: normalizePage(base.donations, 'donations'),

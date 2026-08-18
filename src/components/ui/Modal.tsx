@@ -86,7 +86,7 @@ export function Modal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-6 lg:p-10 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -105,12 +105,12 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              'relative w-full bg-white rounded-t-[1.75rem] sm:rounded-[var(--radius-dialog)] shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,800px)] my-auto',
+              'relative w-full bg-white rounded-t-[1.75rem] md:rounded-[var(--radius-dialog)] shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,800px)] my-auto',
               widths[maxWidth],
               className
             )}
           >
-            <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 flex items-start justify-between gap-4">
+            <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 md:pt-10 pb-4 flex items-start justify-between gap-4">
               {title ? (
                 <h2 id={titleId} className="text-xl sm:text-2xl font-black text-gray-900">
                   {title}
@@ -127,7 +127,7 @@ export function Modal({
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-            <div className="px-4 sm:px-10 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-10 overflow-y-auto min-w-0">
+            <div className="px-4 sm:px-6 md:px-10 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-8 md:pb-10 overflow-y-auto min-w-0">
               {children}
             </div>
           </motion.div>

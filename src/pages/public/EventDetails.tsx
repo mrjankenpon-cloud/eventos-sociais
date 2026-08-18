@@ -169,7 +169,7 @@ export default function EventDetails() {
 
   return (
     <div className="pb-24 lg:pb-16 min-h-screen bg-white">
-      <div className="relative h-[42vh] min-h-[280px] sm:min-h-[340px] max-h-[480px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
+      <div className="relative h-[38vh] min-h-[240px] sm:min-h-[320px] md:min-h-[380px] lg:min-h-[440px] max-h-[560px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
         <AppImage
           src={event.banner}
           alt=""
@@ -177,7 +177,7 @@ export default function EventDetails() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 md:p-6">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8">
           <div className="page-container">
             <Link
               to="/"
@@ -203,10 +203,10 @@ export default function EventDetails() {
         </div>
       </div>
 
-      <div className="page-container -mt-5 sm:-mt-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
-          <div className="lg:col-span-2 min-w-0">
-            <div className="card-surface p-4 sm:p-5 md:p-6">
+      <div className="page-container -mt-5 sm:-mt-8 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5 lg:gap-6">
+          <div className="md:col-span-7 lg:col-span-8 min-w-0">
+            <div className="card-surface p-4 sm:p-6 lg:p-8">
               <h2 className="text-lg sm:text-xl font-black text-gray-900 mb-3">
                 Sobre o Evento
               </h2>
@@ -232,7 +232,7 @@ export default function EventDetails() {
               {galleryImages.length > 0 && (
                 <div className="mt-5">
                   <h3 className="text-base font-black text-gray-900 mb-3">Galeria</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                     {galleryImages.map((img, idx) => (
                       <button
                         key={idx}
@@ -245,7 +245,7 @@ export default function EventDetails() {
                           src={img}
                           alt={`Foto ${idx + 1} do evento`}
                           loading="lazy"
-                          className="w-full h-28 sm:h-32 object-cover transition-transform duration-300 group-hover:scale-[1.06]"
+                          className="w-full h-28 sm:h-36 lg:h-40 object-cover transition-transform duration-300 group-hover:scale-[1.06]"
                         />
                         <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
                           <Maximize2 size={18} aria-hidden="true" />
@@ -261,8 +261,8 @@ export default function EventDetails() {
             </div>
           </div>
 
-          <aside className="min-w-0">
-            <div className="card-surface p-4 sm:p-5 lg:sticky lg:top-[calc(var(--header-height)+env(safe-area-inset-top)+0.75rem)]">
+          <aside className="md:col-span-5 lg:col-span-4 min-w-0">
+            <div className="card-surface p-4 sm:p-5 lg:p-6 md:sticky md:top-[calc(var(--header-height)+env(safe-area-inset-top)+0.75rem)]">
               <div className="space-y-3 mb-4">
                 {event.categoria && (
                   <p className="label-micro text-brand">{event.categoria}</p>

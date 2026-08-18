@@ -91,7 +91,7 @@ export function RichTextEditor({ value, onChange, label }: RichTextEditorProps) 
     content: value,
     editorProps: {
       attributes: {
-        class: 'site-content-doc focus:outline-none min-h-[60vh]',
+        class: 'site-content-doc focus:outline-none min-h-[40vh] sm:min-h-[55vh] lg:min-h-[60vh]',
         'aria-label': label ?? 'Conteúdo da página',
       },
     },

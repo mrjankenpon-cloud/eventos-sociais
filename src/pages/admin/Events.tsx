@@ -235,7 +235,7 @@ export default function Events() {
   ];
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto min-w-0">
+    <div className="space-y-6 min-w-0">
       <PageHeader
         title="Eventos"
         subtitle="Gerencie a listagem e os detalhes dos seus eventos."

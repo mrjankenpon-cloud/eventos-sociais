@@ -744,7 +744,7 @@ export default function Dashboard() {
       : [];
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 min-w-0">
+    <div className="space-y-8 min-w-0">
       <AnimatePresence mode="wait">
         {viewMode === 'general' && (
           <motion.div

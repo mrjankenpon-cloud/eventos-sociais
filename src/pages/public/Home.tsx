@@ -58,10 +58,10 @@ export default function Home() {
   const list = featured.length > 0 ? events.filter((e) => !e.eventoDestaque) : events;
 
   return (
-    <div className="pb-16 sm:pb-20 min-h-[60vh] bg-surface-muted">
+    <div className="pb-16 sm:pb-20 lg:pb-24 min-h-[60vh] bg-surface-muted">
       <InstitutionsStrip />
 
-      <div className="page-container pt-6 sm:pt-10 space-y-10 sm:space-y-14">
+      <div className="page-container pt-5 sm:pt-8 lg:pt-12 space-y-8 sm:space-y-12 lg:space-y-16">
         {error && (
           <Alert variant="error" onClose={() => setError(null)}>
             {error}
@@ -78,8 +78,8 @@ export default function Home() {
 
         <section aria-label="Lista de eventos">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
+            <div className="public-events-grid">
+              {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-[4/5] rounded-3xl" />
               ))}
             </div>
@@ -90,7 +90,7 @@ export default function Home() {
               description="Volte em breve para conferir as próximas ações."
             />
           ) : list.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="public-events-grid">
               {list.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}

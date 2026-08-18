@@ -129,7 +129,7 @@ export default function Donations() {
 
         <div className="space-y-3">
           <p className="label-micro">Escolha um valor</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {SUGGESTED.map((v) => {
               const selected = !custom.trim() && amount === v;
               return (

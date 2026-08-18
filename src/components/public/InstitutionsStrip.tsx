@@ -41,7 +41,7 @@ export function InstitutionsStrip() {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: THEME.motion.duration, ease: THEME.motion.ease }}
-        className="page-container py-4 sm:py-5"
+        className="page-container py-4 sm:py-5 md:py-6"
       >
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <div className="sm:shrink-0 text-center sm:text-left sm:border-r sm:border-gray-100 sm:pr-8">

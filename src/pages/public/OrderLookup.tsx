@@ -44,7 +44,7 @@ export default function OrderLookup() {
   };
 
   return (
-    <div className="page-container py-16 max-w-md">
+    <div className="page-container-readable py-10 sm:py-14 lg:py-16">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-3 rounded-2xl bg-brand-muted text-brand">
           <Mail size={22} aria-hidden="true" />

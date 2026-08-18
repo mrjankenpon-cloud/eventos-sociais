@@ -37,6 +37,17 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 <p>Quer apoiar o trabalho? Conheça a página de <a href="/doacoes">doações</a>.</p>
 `.trim(),
   },
+  saibaMais: {
+    kicker: 'Instituto',
+    title: 'Delphos',
+    tagline: 'Conectando Pessoas, Transformando Solidariedade em Ação',
+    modalTitle: 'Instituto Delphos',
+    html: `
+<p>O Instituto Delphos nasce com o propósito de transformar valores como fraternidade e responsabilidade social em ações concretas para quem mais precisa. Nosso foco é promover eventos beneficentes, mobilizar doações e arrecadar recursos para apoiar e fortalecer projetos de instituições parceiras que já realizam trabalhos de grande impacto na comunidade. Atuando de forma voluntária e coletiva, conectamos pessoas, famílias e empresas a causas nobres, garantindo que a união por um objetivo comum gere resultados reais para a sociedade.</p>
+<p><strong>Telefone:</strong> <a href="tel:+5511981805177">(11) 9 8180-5177</a></p>
+<p><strong>E-mail:</strong> <a href="mailto:lojadelphos3852@gmail.com">lojadelphos3852@gmail.com</a></p>
+`.trim(),
+  },
   terms: {
     html: `
 <h1>Termo de Uso</h1>

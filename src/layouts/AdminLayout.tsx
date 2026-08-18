@@ -179,7 +179,7 @@ function AdminShell() {
       </aside>
 
       <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-        <header className="h-14 sm:h-20 bg-white border-b border-gray-100 px-3 sm:px-6 flex items-center justify-between gap-2 shrink-0 z-30 min-w-0">
+        <header className="h-14 sm:h-16 md:h-20 bg-white border-b border-gray-100 px-3 sm:px-5 md:px-6 flex items-center justify-between gap-2 shrink-0 z-30 min-w-0">
           <button
             type="button"
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
@@ -242,7 +242,7 @@ function AdminShell() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <Suspense
             fallback={
               <ProcessingOverlay
@@ -252,7 +252,9 @@ function AdminShell() {
               />
             }
           >
-            <Outlet />
+            <div className="admin-page">
+              <Outlet />
+            </div>
           </Suspense>
         </main>
       </div>

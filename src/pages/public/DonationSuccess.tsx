@@ -147,7 +147,7 @@ export default function DonationSuccess() {
 
   return (
     <div className="py-12 sm:py-16 min-h-[60vh] bg-surface-muted print:bg-white print:py-0">
-      <div className="page-container max-w-lg">
+      <div className="page-container-readable">
         <Link
           to={ROUTES.PUBLIC.DONATIONS}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-brand mb-6 transition-colors font-bold text-sm print:hidden"

@@ -32,20 +32,54 @@
 }
 
 :root {
-  --header-height: 5.5rem;
+  --header-height: 4.75rem;
+  --page-max: 90rem;
+  --page-gutter: max(1rem, env(safe-area-inset-left));
+  --page-gutter-right: max(1rem, env(safe-area-inset-right));
 }
 
 @media (min-width: 640px) {
   :root {
+    --header-height: 6.25rem;
+    --page-gutter: max(1.5rem, env(safe-area-inset-left));
+    --page-gutter-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --header-height: 6.5rem;
+    --page-gutter: max(1.75rem, env(safe-area-inset-left));
+    --page-gutter-right: max(1.75rem, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
     --header-height: 7.1875rem;
+    --page-gutter: max(2rem, env(safe-area-inset-left));
+    --page-gutter-right: max(2rem, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --page-gutter: max(2.5rem, env(safe-area-inset-left));
+    --page-gutter-right: max(2.5rem, env(safe-area-inset-right));
   }
 }
 
 html.header-compact {
-  --header-height: 4.5rem;
+  --header-height: 4.25rem;
 }
 
 @media (min-width: 640px) {
+  html.header-compact {
+    --header-height: 5rem;
+  }
+}
+
+@media (min-width: 1024px) {
   html.header-compact {
     --header-height: 5.3125rem;
   }
@@ -55,16 +89,23 @@ html.header-compact {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   body {
     margin: 0;
     min-width: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
     color: var(--color-text-primary);
     background-color: var(--color-surface);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 
   *,
@@ -100,23 +141,43 @@ html.header-compact {
 
 @layer components {
   .page-container {
-    @apply w-full max-w-7xl mx-auto;
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter-right);
   }
 
-  @media (min-width: 640px) {
-    .page-container {
-      padding-left: max(1.5rem, env(safe-area-inset-left));
-      padding-right: max(1.5rem, env(safe-area-inset-right));
+  /* Textos longos e formulários: largura de leitura, ainda fluida. */
+  .page-container-readable {
+    width: 100%;
+    max-width: 42rem;
+    margin-inline: auto;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter-right);
+  }
+
+  @media (min-width: 768px) {
+    .page-container-readable {
+      max-width: 48rem;
     }
   }
 
   @media (min-width: 1024px) {
-    .page-container {
-      padding-left: max(2rem, env(safe-area-inset-left));
-      padding-right: max(2rem, env(safe-area-inset-right));
+    .page-container-readable {
+      max-width: 52rem;
     }
+  }
+
+  .admin-page {
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    min-width: 0;
+  }
+
+  .public-events-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6;
   }
 
   .card-surface {
@@ -136,7 +197,7 @@ html.header-compact {
 
 /* Documento editável do admin e sua renderização no site público */
 .site-content-doc {
-  @apply text-[15px] leading-relaxed text-gray-600;
+  @apply text-[15px] sm:text-base leading-relaxed text-gray-600;
 }
 
 .site-content-doc > :first-child {
@@ -144,11 +205,11 @@ html.header-compact {
 }
 
 .site-content-doc h1 {
-  @apply text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-8 mb-3;
+  @apply text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight mt-8 mb-3;
 }
 
 .site-content-doc h2 {
-  @apply text-lg sm:text-xl font-black text-gray-900 mt-7 mb-2.5;
+  @apply text-lg sm:text-xl lg:text-2xl font-black text-gray-900 mt-7 mb-2.5;
 }
 
 .site-content-doc h3 {

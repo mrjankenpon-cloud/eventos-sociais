@@ -213,7 +213,7 @@ export default function Institutions() {
   const modalOpen = creating || Boolean(editing);
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto min-w-0">
+    <div className="space-y-6 min-w-0">
       <PageHeader
         title="Instituições"
         subtitle="Cadastro de instituições beneficiadas pelos eventos."

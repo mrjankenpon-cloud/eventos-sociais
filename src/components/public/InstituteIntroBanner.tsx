@@ -1,24 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, Mail, Phone } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ROUTES } from '../../config';
 import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
-
-const ABOUT_SUMMARY =
-  'O Instituto Delphos nasce com o propósito de transformar valores como fraternidade e responsabilidade social em ações concretas para quem mais precisa. Nosso foco é promover eventos beneficentes, mobilizar doações e arrecadar recursos para apoiar e fortalecer projetos de instituições parceiras que já realizam trabalhos de grande impacto na comunidade. Atuando de forma voluntária e coletiva, conectamos pessoas, famílias e empresas a causas nobres, garantindo que a união por um objetivo comum gere resultados reais para a sociedade.';
+import { useSiteContent } from '../../hooks/useSiteContent';
+import { RichContent } from './RichContent';
 
 /** Banner institucional flutuante, com o degradê e a tipografia do cabeçalho. */
 export function InstituteIntroBanner() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { content } = useSiteContent();
+  const saibaMais = content.saibaMais;
 
   return (
     <>
-      <section aria-label="Instituto Delphos" className="w-full max-w-5xl mx-auto">
+      <section
+        id="saiba-mais"
+        aria-label="Instituto Delphos"
+        className="w-full"
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -42,13 +47,13 @@ export function InstituteIntroBanner() {
               aria-hidden="true"
             />
 
-            <div className="relative grid grid-cols-1 sm:grid-cols-2 items-center gap-6 sm:gap-0 px-7 sm:px-10 py-8 sm:py-9">
+            <div className="relative grid grid-cols-1 sm:grid-cols-2 items-center gap-5 sm:gap-0 px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
               <div className="text-center sm:text-left sm:pr-10 sm:border-r sm:border-white/15">
                 <p className="text-white/80 font-medium tracking-[0.28em] uppercase text-[10px] sm:text-xs">
-                  Instituto
+                  {saibaMais.kicker}
                 </p>
                 <h2 className="mt-1.5 text-white font-bold tracking-[0.28em] sm:tracking-[0.34em] uppercase text-2xl sm:text-[1.75rem] leading-none">
-                  Delphos
+                  {saibaMais.title}
                 </h2>
                 <span
                   className="mt-4 mx-auto sm:mx-0 block h-px w-12 bg-accent-gold/80"
@@ -58,7 +63,7 @@ export function InstituteIntroBanner() {
 
               <div className="flex flex-col items-center sm:items-start justify-center gap-3 sm:pl-10 text-center sm:text-left">
                 <p className="text-white/80 font-medium text-sm leading-relaxed max-w-sm">
-                  Conectando Pessoas, Transformando Solidariedade em Ação
+                  {saibaMais.tagline}
                 </p>
                 <button
                   type="button"
@@ -76,46 +81,10 @@ export function InstituteIntroBanner() {
       <Modal
         isOpen={open}
         onClose={() => setOpen(false)}
-        title="Instituto Delphos"
+        title={saibaMais.modalTitle}
         maxWidth="lg"
       >
-        <p className="text-[15px] sm:text-base text-gray-600 leading-relaxed">
-          {ABOUT_SUMMARY}
-        </p>
-        <ul className="mt-6 space-y-3">
-          <li>
-            <a
-              href="tel:+5511981805177"
-              className="inline-flex items-center gap-2.5 text-sm sm:text-[15px] font-bold text-gray-900 hover:text-brand transition-colors"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-muted text-brand">
-                <Phone size={16} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-                  Telefone
-                </span>
-                (11) 9 8180-5177
-              </span>
-            </a>
-          </li>
-          <li>
-            <a
-              href="mailto:lojadelphos3852@gmail.com"
-              className="inline-flex items-center gap-2.5 text-sm sm:text-[15px] font-bold text-gray-900 hover:text-brand transition-colors break-all"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-muted text-brand">
-                <Mail size={16} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-                  E-mail
-                </span>
-                lojadelphos3852@gmail.com
-              </span>
-            </a>
-          </li>
-        </ul>
+        <RichContent html={saibaMais.html} />
         <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Fechar

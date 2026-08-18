@@ -16,7 +16,7 @@ export default function Footer() {
   const { canInstall, install } = usePwaInstall();
 
   return (
-    <footer className="bg-surface-muted pt-10 sm:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16">
+    <footer className="bg-surface-muted pt-10 sm:pt-16 lg:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16 lg:pb-20">
       <div className="page-container">
         <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
 

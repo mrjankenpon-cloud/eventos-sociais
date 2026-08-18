@@ -77,8 +77,8 @@ export default function MyTickets() {
   const hasTickets = data.orders.some((o) => o.tickets.length > 0);
 
   return (
-    <div className="py-12 min-h-[60vh] bg-surface-muted">
-      <div className="page-container max-w-lg space-y-6">
+    <div className="py-10 sm:py-14 lg:py-16 min-h-[60vh] bg-surface-muted">
+      <div className="page-container-readable space-y-6">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-gray-500 hover:text-brand font-bold text-sm print:hidden"

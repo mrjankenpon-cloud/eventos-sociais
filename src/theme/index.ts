@@ -23,7 +23,7 @@ export const THEME = {
     },
   },
   spacing: {
-    container: 'max-w-7xl',
+    container: 'max-w-[90rem]',
     header: {
       height: '115px',
       scrolledHeight: '85px',

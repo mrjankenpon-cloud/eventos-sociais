@@ -4,8 +4,17 @@ export interface SitePageContent {
   html: string;
 }
 
+/** Cartão “Saiba mais” da home e texto do modal. */
+export interface SiteSaibaMaisContent extends SitePageContent {
+  kicker: string;
+  title: string;
+  tagline: string;
+  modalTitle: string;
+}
+
 export interface SiteContent {
   about: SitePageContent;
+  saibaMais: SiteSaibaMaisContent;
   terms: SitePageContent;
   privacy: SitePageContent;
   donations: SitePageContent;

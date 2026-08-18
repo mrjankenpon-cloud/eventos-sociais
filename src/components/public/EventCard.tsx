@@ -36,7 +36,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
           void prefetchEventDetails();
         }}
       >
-        <div className="relative h-48 sm:h-[60%] overflow-hidden shrink-0">
+        <div className="relative h-44 sm:h-[60%] overflow-hidden shrink-0">
           <AppImage
             src={event.banner}
             alt=""

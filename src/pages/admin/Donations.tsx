@@ -4,7 +4,6 @@ import {
   Clock,
   Download,
   Eye,
-  EyeOff,
   HeartHandshake,
   PieChart,
   TrendingUp,
@@ -40,7 +39,6 @@ export default function Donations() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [showAmounts, setShowAmounts] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -126,7 +124,7 @@ export default function Donations() {
         className: 'text-right',
         render: (d) => (
           <span className="font-black text-brand tabular-nums">
-            {showAmounts ? formatCurrency(d.valorTotal) : '••••'}
+            {formatCurrency(d.valorTotal)}
           </span>
         ),
       },
@@ -182,40 +180,25 @@ export default function Donations() {
         ),
       },
     ],
-    [showAmounts]
+    []
   );
 
   if (loading) return <PageLoader label="Carregando doações..." />;
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 min-w-0">
+    <div className="space-y-8 min-w-0">
       <PageHeader
         title="Doações"
-        subtitle="Contribuições recebidas pela página pública de doação."
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() => setShowAmounts((v) => !v)}
-            >
-              {showAmounts ? (
-                <EyeOff size={16} aria-hidden="true" />
-              ) : (
-                <Eye size={16} aria-hidden="true" />
-              )}
-              {showAmounts ? 'Ocultar valores' : 'Mostrar valores'}
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() => exportDonationsCsv(filtered)}
-              disabled={filtered.length === 0}
-            >
-              <Download size={16} aria-hidden="true" />
-              Exportar CSV
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={() => exportDonationsCsv(filtered)}
+            disabled={filtered.length === 0}
+          >
+            <Download size={16} aria-hidden="true" />
+            Exportar CSV
+          </Button>
         }
       />
 
@@ -224,15 +207,6 @@ export default function Donations() {
           {error}
         </Alert>
       ) : null}
-
-      <p className="text-sm text-gray-500">
-        {stats.ultimaDoacao
-          ? `Última confirmada: ${stats.ultimaDoacao.compradorNome} · ${donationDate(stats.ultimaDoacao).toLocaleDateString('pt-BR')}`
-          : 'Nenhuma doação confirmada ainda.'}
-        {stats.maiorDoacao && showAmounts
-          ? ` · Maior valor: ${formatCurrency(stats.maiorDoacao.valorTotal)}`
-          : ''}
-      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
         <StatCard

@@ -258,8 +258,8 @@ export default function EventRegistration() {
   }
 
   return (
-    <div className="pb-24 sm:pb-32 min-h-[60vh] bg-surface-muted">
-      <div className="page-container max-w-3xl pt-8 sm:pt-12">
+    <div className="pb-20 sm:pb-24 lg:pb-28 min-h-[60vh] bg-surface-muted">
+      <div className="page-container-readable pt-6 sm:pt-10 lg:pt-14">
         <Link
           to={`/evento/${event.id}`}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-brand mb-6 transition-colors font-bold text-sm"
@@ -280,7 +280,7 @@ export default function EventRegistration() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-4 sm:p-8 md:p-10 space-y-6" noValidate>
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 md:p-10 lg:p-12 space-y-6" noValidate>
             {submitError && (
               <Alert variant="error" onClose={() => setSubmitError(null)}>
                 {submitError}
