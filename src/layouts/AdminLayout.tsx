@@ -13,6 +13,7 @@ import {
   Shield,
   FileText,
   Video,
+  Bell,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,6 +52,7 @@ function AdminShell() {
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
     { name: 'Vídeos', icon: Video, href: ROUTES.ADMIN.VIDEOS },
+    { name: 'Avisos', icon: Bell, href: ROUTES.ADMIN.PUSH_DEVICES },
     { name: 'Conteúdo', icon: FileText, href: ROUTES.ADMIN.SITE_CONTENT },
     { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
   ];
