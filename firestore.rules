@@ -259,5 +259,13 @@ service cloud.firestore {
         && request.resource.data.auth is string;
       allow read, delete: if isStaff();
     }
+
+    match /pwaInstalls/{id} {
+      allow create, update: if request.resource.data.deviceId is string
+        && request.resource.data.deviceId.size() > 8
+        && request.resource.data.deviceId.size() < 128;
+      allow get: if true;
+      allow list, delete: if isStaff();
+    }
   }
 }

@@ -11,8 +11,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
-import { participantService } from '../../services/participant.service';
 import { purchaseService } from '../../services/purchase.service';
+import { ticketService } from '../../services/ticket.service';
 import { Event } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
@@ -62,14 +62,14 @@ export default function Events() {
     setError(null);
     try {
       if (disposition === 'export') {
-        const [participants, purchases] = await Promise.all([
-          participantService.getByEventId(target.id),
+        const [tickets, purchases] = await Promise.all([
+          ticketService.getByEventId(target.id),
           purchaseService.getByEventId(target.id),
         ]);
         exportEventReportCsv({
           event: target,
-          participants,
           purchases,
+          tickets,
         });
       }
 

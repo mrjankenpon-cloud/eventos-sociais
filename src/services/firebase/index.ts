@@ -12,6 +12,7 @@ export { configuracoesService } from './configuracoes';
 export { siteContentService } from './siteContent';
 export { logsService } from './logs';
 export { pushTokensService } from './pushTokens';
+export { pwaInstallsService } from './pwaInstalls';
 export {
   storageService,
   uploadImage,

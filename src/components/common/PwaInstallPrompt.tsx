@@ -10,6 +10,7 @@ import {
   usePwaInstall,
 } from '../../hooks/usePwaInstall';
 import { enableAppPush } from '../../lib/pushNotifications';
+import { pingInstalledApp } from '../../lib/appInstallPing';
 
 /** Aparece só depois que a pessoa rola a página, perto do rodapé. */
 const SCROLL_RATIO_TO_SHOW = 0.45;
@@ -89,7 +90,10 @@ export function PwaInstallPrompt() {
                     size="sm"
                     onClick={() => {
                       void enableAppPush();
-                      void install().then(() => setVisible(false));
+                      void install().then((accepted) => {
+                        setVisible(false);
+                        if (accepted) void pingInstalledApp();
+                      });
                     }}
                   >
                     Instalar

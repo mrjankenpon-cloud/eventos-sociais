@@ -24,10 +24,14 @@ import {
   Download,
   ChevronDown,
   EyeOff,
+  Smartphone,
+  Bell,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
 import { ticketService } from '../../services/ticket.service';
+import { pwaInstallsService } from '../../services/firebase/pwaInstalls';
+import { pushTokensService } from '../../services/firebase/pushTokens';
 import { Event, Purchase, Ticket as TicketType } from '../../types';
 import { ROUTES } from '../../config';
 import { THEME } from '../../theme';
@@ -104,6 +108,8 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [donationsOpen, setDonationsOpen] = useState(false);
   const [showDonationAmounts, setShowDonationAmounts] = useState(false);
+  const [appInstalls, setAppInstalls] = useState(0);
+  const [pushActive, setPushActive] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -124,6 +130,22 @@ export default function Dashboard() {
       }
     }
     loadData();
+  }, []);
+
+  useEffect(() => {
+    async function loadAppStats() {
+      try {
+        const [installs, notifications] = await Promise.all([
+          pwaInstallsService.count(),
+          pushTokensService.count(),
+        ]);
+        setAppInstalls(installs);
+        setPushActive(notifications);
+      } catch (err) {
+        console.warn('Não foi possível carregar as métricas do app.', err);
+      }
+    }
+    void loadAppStats();
   }, []);
 
   // --- Lookup maps (pre-aggregated, avoid O(n*m) filters inside renders) ---
@@ -493,31 +515,43 @@ export default function Dashboard() {
       header: 'Ações',
       className: 'text-right',
       render: (event) => (
-        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center justify-end gap-1.5 whitespace-nowrap"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             onClick={() => handleOpenEventDashboard(event)}
-            className="p-2.5 bg-brand/5 text-brand hover:bg-brand hover:text-white rounded-xl transition-all"
-            title="Dashboard do Evento"
-            aria-label="Dashboard do Evento"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-brand/5 text-brand hover:bg-brand hover:text-white rounded-xl transition-all"
+            title="Dashboard do evento"
+            aria-label="Dashboard do evento"
           >
-            <LayoutDashboard size={16} />
+            <LayoutDashboard size={16} aria-hidden="true" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Dashboard
+            </span>
           </button>
           <Link
             to={ROUTES.ADMIN.EVENT_REPORTS.replace(':id', event.id)}
-            className="p-2.5 bg-gray-50 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-            title="Abrir lista"
-            aria-label="Abrir lista de inscritos"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-gray-50 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+            title="Lista de inscritos"
+            aria-label="Lista de inscritos"
           >
-            <List size={16} />
+            <List size={16} aria-hidden="true" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Lista
+            </span>
           </Link>
           <Link
             to={ROUTES.ADMIN.EVENT_CHECKIN.replace(':id', event.id)}
-            className="p-2.5 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-            title="Check-in"
-            aria-label="Check-in"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-gray-50 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            title="Check-in do evento"
+            aria-label="Check-in do evento"
           >
-            <CheckCircle size={16} />
+            <CheckCircle size={16} aria-hidden="true" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Check-in
+            </span>
           </Link>
         </div>
       ),
@@ -802,6 +836,7 @@ export default function Dashboard() {
     accent: string;
     type: ReportType;
     hint?: string;
+    sensitive?: boolean;
   }> = [
     {
       title: 'Valor recebido',
@@ -810,6 +845,7 @@ export default function Dashboard() {
       accent: THEME.colors.status.active,
       type: 'total',
       hint: 'Ingressos pagos em todos os eventos',
+      sensitive: true,
     },
     {
       title: 'Valor pendente',
@@ -818,6 +854,7 @@ export default function Dashboard() {
       accent: '#d97706',
       type: 'pendentes',
       hint: 'Compras aguardando pagamento',
+      sensitive: true,
     },
     {
       title: 'Compras confirmadas',
@@ -836,6 +873,7 @@ export default function Dashboard() {
       accent: '#0d9488',
       type: 'total',
       hint: 'Por compra confirmada',
+      sensitive: true,
     },
   ];
 
@@ -960,6 +998,35 @@ export default function Dashboard() {
               </Alert>
             )}
 
+            <section className="space-y-3">
+              <div className="min-w-0">
+                <p className="label-micro text-brand mb-1">App Delphos</p>
+                <h2 className="text-lg font-black text-gray-900">
+                  Instalações e avisos
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Quantidade de aparelhos com o app instalado e com notificações
+                  ativas.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+                <StatCard
+                  title="App instalado"
+                  value={appInstalls}
+                  icon={Smartphone}
+                  accent={THEME.colors.primary}
+                  hint="Aparelhos que abriram o App Delphos"
+                />
+                <StatCard
+                  title="Notificações ativas"
+                  value={pushActive}
+                  icon={Bell}
+                  accent="#7c3aed"
+                  hint="Aparelhos que permitiram avisos"
+                />
+              </div>
+            </section>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
               {generalCards.map((card) => (
                 <StatCard
@@ -992,6 +1059,7 @@ export default function Dashboard() {
                     icon={card.icon}
                     accent={card.accent}
                     hint={card.hint}
+                    sensitive={card.sensitive}
                     onClick={() => handleOpenReport(card.type)}
                   />
                 ))}
@@ -1167,7 +1235,10 @@ export default function Dashboard() {
                       selectedEvent.id
                     )}
                   >
-                    <Button className="rounded-2xl">Realizar Check-in</Button>
+                    <Button className="rounded-2xl">
+                      <CheckCircle size={16} aria-hidden="true" />
+                      Realizar Check-in
+                    </Button>
                   </Link>
                 </div>
               }

@@ -34,7 +34,6 @@ const Institutions = lazy(() => import('./pages/admin/Institutions'));
 const Videos = lazy(() => import('./pages/admin/Videos'));
 const Permissions = lazy(() => import('./pages/admin/Permissions'));
 const SiteContentSettings = lazy(() => import('./pages/admin/SiteContentSettings'));
-const PushDevices = lazy(() => import('./pages/admin/PushDevices'));
 const Health = lazy(() => import('./pages/admin/Health'));
 
 function RouteFallback({ detail }: { detail?: string }) {
@@ -104,7 +103,7 @@ export default function App() {
             <Route path="instituicoes" element={<Institutions />} />
             <Route path="videos" element={<Videos />} />
             <Route path="conteudo" element={<SiteContentSettings />} />
-            <Route path="avisos" element={<PushDevices />} />
+            <Route path="avisos" element={<Navigate to={ROUTES.ADMIN.DASHBOARD} replace />} />
             <Route path="permissoes" element={<Permissions />} />
             <Route path="health" element={<Health />} />
           </Route>

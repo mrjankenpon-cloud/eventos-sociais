@@ -1,6 +1,6 @@
 import type { Event } from '../types/models/event';
-import type { Participant } from '../types/models/participant';
 import type { Purchase } from '../types/models/purchase';
+import type { Ticket } from '../types/models/ticket';
 
 function csvEscape(value: string | number | boolean | null | undefined): string {
   const s = String(value ?? '');
@@ -32,15 +32,97 @@ function safeFilePart(name: string): string {
   );
 }
 
+function ticketRows(
+  purchases: Purchase[],
+  tickets: Ticket[]
+): Array<Array<string | number>> {
+  const purchaseById = new Map(purchases.map((p) => [p.id, p]));
+  const byPurchase = new Map<string, Ticket[]>();
+  for (const t of tickets) {
+    const key = t.compraId || t.pedidoId || '';
+    if (!key) continue;
+    const list = byPurchase.get(key) || [];
+    list.push(t);
+    byPurchase.set(key, list);
+  }
+
+  const rows: Array<Array<string | number>> = [];
+  for (const p of purchases) {
+    if (p.statusPagamento !== 'confirmado' && p.statusPagamento !== 'pendente') {
+      continue;
+    }
+    const pts = (byPurchase.get(p.id) || [])
+      .slice()
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const pago = p.statusPagamento === 'confirmado' ? 'Pago' : 'Pendente';
+    if (pts.length > 0) {
+      for (const t of pts) {
+        const done =
+          t.natureza === 'retirada'
+            ? Boolean(t.retiradaRealizada)
+            : t.checkinRealizado === true || t.status === 'Utilizado';
+        rows.push([
+          p.compradorNome,
+          p.compradorEmail,
+          p.compradorTelefone,
+          t.codigo,
+          t.ingressoNome || p.ticketTypeNome || '',
+          pago,
+          done ? 'Sim' : 'Nao',
+          p.compradorCPF,
+          p.createdAt || p.dataCompra || '',
+        ]);
+      }
+      continue;
+    }
+    const total = Math.max(1, p.quantidadeIngressos || 1);
+    for (let i = 0; i < total; i += 1) {
+      rows.push([
+        p.compradorNome,
+        p.compradorEmail,
+        p.compradorTelefone,
+        '',
+        p.ticketTypeNome || '',
+        pago,
+        'Nao',
+        p.compradorCPF,
+        p.createdAt || p.dataCompra || '',
+      ]);
+    }
+  }
+
+  for (const t of tickets) {
+    const key = t.compraId || t.pedidoId || '';
+    if (key && purchaseById.has(key)) continue;
+    const done =
+      t.natureza === 'retirada'
+        ? Boolean(t.retiradaRealizada)
+        : t.checkinRealizado === true || t.status === 'Utilizado';
+    rows.push([
+      '',
+      '',
+      '',
+      t.codigo,
+      t.ingressoNome || '',
+      '',
+      done ? 'Sim' : 'Nao',
+      '',
+      t.createdAt,
+    ]);
+  }
+
+  return rows;
+}
+
 /**
- * Gera e baixa um CSV único do relatório (resumo + participantes + pedidos).
+ * Gera e baixa um CSV único do relatório (resumo + ingressos + pedidos).
  */
 export function exportEventReportCsv(input: {
   event: Event;
-  participants: Participant[];
   purchases: Purchase[];
+  tickets: Ticket[];
 }): void {
-  const { event, participants, purchases } = input;
+  const { event, purchases, tickets } = input;
   const confirmed = purchases.filter((p) => p.statusPagamento === 'confirmado');
   let bruto = 0;
   let taxas = 0;
@@ -86,33 +168,30 @@ export function exportEventReportCsv(input: {
       'Valor Arrecadado',
       confirmed.reduce((a, p) => a + p.valorTotal, 0).toFixed(2),
     ],
-    ['Check-ins', participants.filter((p) => p.checkinRealizado).length],
+    [
+      'Check-ins',
+      tickets.filter(
+        (t) => t.checkinRealizado === true || t.status === 'Utilizado'
+      ).length,
+    ],
     ['Bruto MP', bruto.toFixed(2)],
     ['Taxas MP', taxas.toFixed(2)],
     ['Liquido MP', liquido.toFixed(2)],
     ['Exportado em', new Date().toISOString()],
     [],
-    ['SECAO', 'PARTICIPANTES'],
+    ['SECAO', 'INGRESSOS'],
     [
       'Nome',
       'E-mail',
       'Telefone',
-      'Ingressos',
+      'Codigo',
+      'Tipo',
       'Pagamento',
       'Check-in',
       'CPF',
       'Data inscricao',
     ],
-    ...participants.map((p) => [
-      p.nome,
-      p.email,
-      p.telefone,
-      p.quantidadeIngressos,
-      p.statusPagamento === 'confirmado' ? 'Pago' : 'Pendente',
-      p.checkinRealizado ? 'Sim' : 'Nao',
-      p.cpf,
-      p.dataInscricao,
-    ]),
+    ...ticketRows(purchases, tickets),
     [],
     ['SECAO', 'PEDIDOS'],
     [

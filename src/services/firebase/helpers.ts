@@ -30,6 +30,8 @@ export const COLLECTIONS = {
   logs: 'logs',
   /** Inscrições Web Push de quem instalou o app */
   pushTokens: 'pushTokens',
+  /** App Delphos instalado (mesmo sem avisos ligados) */
+  pwaInstalls: 'pwaInstalls',
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

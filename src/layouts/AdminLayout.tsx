@@ -13,9 +13,9 @@ import {
   Shield,
   FileText,
   Video,
-  Bell,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useInstalledAppPing } from '../lib/appInstallPing';
 import { useAuth } from '../contexts/AuthContext';
 import { ROUTES, APP_CONFIG } from '../config';
 import { isMasterAdminUser } from '../config/masterAdmin';
@@ -37,6 +37,7 @@ function AdminShell() {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { onlineStaff, staff } = useAdminPresence();
+  useInstalledAppPing();
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
@@ -52,7 +53,6 @@ function AdminShell() {
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
     { name: 'Instituições', icon: HeartHandshake, href: ROUTES.ADMIN.INSTITUTIONS },
     { name: 'Vídeos', icon: Video, href: ROUTES.ADMIN.VIDEOS },
-    { name: 'Avisos', icon: Bell, href: ROUTES.ADMIN.PUSH_DEVICES },
     { name: 'Conteúdo', icon: FileText, href: ROUTES.ADMIN.SITE_CONTENT },
     { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
   ];

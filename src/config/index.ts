@@ -36,7 +36,6 @@ export const ROUTES = {
     VIDEOS: '/controle/videos',
     PERMISSIONS: '/controle/permissoes',
     SITE_CONTENT: '/controle/conteudo',
-    PUSH_DEVICES: '/controle/avisos',
     HEALTH: '/controle/health',
   }
 };

@@ -75,10 +75,21 @@ html.header-compact {
 
   img,
   video,
-  canvas,
-  svg {
+  canvas {
     max-width: 100%;
     height: auto;
+  }
+
+  /* height:auto em svg achata os ícones Lucide em células da tabela. */
+  svg:not(.lucide) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  svg.lucide {
+    max-width: none;
+    height: unset;
+    flex-shrink: 0;
   }
 
   :focus-visible {
