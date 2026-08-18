@@ -264,4 +264,18 @@ export const checkoutApi = {
   }> {
     return postJson('createDonationSession', input);
   },
+
+  sendEventNotification(eventoId: string): Promise<{
+    ok: boolean;
+    sent: number;
+    tokens: number;
+    removals: number;
+    errors?: string[];
+  }> {
+    return postJson(
+      'sendEventNotification',
+      { eventoId },
+      { auth: true }
+    );
+  },
 };

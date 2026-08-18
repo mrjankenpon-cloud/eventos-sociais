@@ -11,6 +11,14 @@ function vapidToBytes(base64: string): Uint8Array {
   return output;
 }
 
+function vapidApplicationServerKey(): BufferSource {
+  const bytes = vapidToBytes(VAPID_PUBLIC_KEY);
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+}
+
 export function canUseWebPush(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -36,13 +44,15 @@ export async function savePushSubscription(): Promise<boolean> {
     const registration = await getPushRegistration();
     if (!registration) return false;
 
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: vapidToBytes(VAPID_PUBLIC_KEY) as BufferSource,
-      });
+    const previous = await registration.pushManager.getSubscription();
+    if (previous) {
+      await previous.unsubscribe().catch(() => undefined);
     }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidApplicationServerKey(),
+    });
 
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;

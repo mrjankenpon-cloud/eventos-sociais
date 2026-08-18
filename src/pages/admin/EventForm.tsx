@@ -10,6 +10,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
+import { checkoutApi } from '../../services/checkout.api';
 import { sponsorService } from '../../services/sponsor.service';
 import { institutionService } from '../../services/institution.service';
 import type { EventFormData, Institution, Sponsor } from '../../types';
@@ -162,11 +163,23 @@ export default function EventForm() {
     setError(null);
     try {
       const payload = syncDerivedEventFields(formData);
-      if (id) {
-        await eventService.update(id, payload);
-      } else {
-        await eventService.create(payload);
+      const saved = id
+        ? await eventService.update(id, payload)
+        : await eventService.create(payload);
+
+      if (saved.publicado && payload.enviarNotificacao) {
+        const push = await checkoutApi.sendEventNotification(saved.id);
+        if (push.sent < 1) {
+          setError(
+            push.tokens < 1
+              ? 'Evento salvo, mas nenhum celular está inscrito. Abra o App Delphos no telefone (ícone instalado) com avisos permitidos e salve de novo.'
+              : 'Evento salvo, mas o aviso não chegou. Feche e abra o App Delphos no celular e tente salvar de novo.'
+          );
+          setIsSubmitting(false);
+          return;
+        }
       }
+
       navigate(ROUTES.ADMIN.EVENTS);
     } catch {
       setError('Erro ao salvar evento. Verifique os campos e tente novamente.');
