@@ -95,6 +95,10 @@ export type OrderReceiptResult = {
     reservaExpiraEm?: string | null;
     guestCheckout?: boolean;
     linkPagamento?: string | null;
+    pixQrCode?: string | null;
+    pixQrCodeBase64?: string | null;
+    pixTicketUrl?: string | null;
+    pixExpiresAt?: string | null;
     itens?: Array<{
       ingressoId: string;
       nome: string;
@@ -241,8 +245,13 @@ export const checkoutApi = {
     mensagem?: string;
   }): Promise<{
     ok: boolean;
+    pix?: boolean;
     pedidoId: string;
     accessToken: string;
+    qrCode?: string;
+    qrCodeBase64?: string;
+    ticketUrl?: string;
+    expiresAt?: string;
     initPoint?: string;
     receiptUrl: string;
   }> {

@@ -84,13 +84,9 @@ export default function Donations() {
         mensagem: mensagem.trim() || undefined,
       });
       persistGuestCheckoutSession(result.pedidoId, result.accessToken);
-      if (!result.initPoint) {
-        navigate(
-          `/doacao/${result.pedidoId}/sucesso?token=${encodeURIComponent(result.accessToken)}`
-        );
-        return;
-      }
-      window.location.href = result.initPoint;
+      navigate(
+        `/doacao/${result.pedidoId}/sucesso?token=${encodeURIComponent(result.accessToken)}`
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -258,7 +254,7 @@ export default function Donations() {
           disabled={!canSubmit}
         >
           <HeartHandshake className="w-4 h-4 mr-2" aria-hidden="true" />
-          Doar {formatCurrency(effectiveAmount)}
+          Doar {formatCurrency(effectiveAmount)} via PIX
         </Button>
       </form>
     </LegalPage>

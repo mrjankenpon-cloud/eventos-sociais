@@ -7,6 +7,7 @@ import {
   readGuestCheckoutToken,
 } from '../../lib/guestCheckout';
 import { DonationCertificate } from '../../components/public/DonationCertificate';
+import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { donationCertificateNumber } from '../../lib/orgInfo';
 import { Alert, Button, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -186,7 +187,7 @@ export default function DonationSuccess() {
             {isConfirmed
               ? `Recebemos ${formatCurrency(pedido.valorTotal)}. Obrigado — boas ações são sempre bem-vindas.`
               : isPending
-                ? 'Assim que o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
+                ? 'Pague o PIX abaixo. Quando o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
                 : 'Esta doação não está ativa. Você pode tentar novamente.'}
           </p>
         </div>
@@ -247,16 +248,31 @@ export default function DonationSuccess() {
             </div>
           </>
         ) : isPending ? (
-          <Button
-            className="w-full rounded-2xl print:hidden"
-            variant="secondary"
-            onClick={() => {
-              setLoading(true);
-              void load();
-            }}
-          >
-            Atualizar status
-          </Button>
+          <>
+            {pedido.pixQrCode || pedido.pixQrCodeBase64 ? (
+              <PixCheckoutPanel
+                amount={pedido.valorTotal}
+                qrCode={pedido.pixQrCode}
+                qrCodeBase64={pedido.pixQrCodeBase64}
+                expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
+              />
+            ) : (
+              <p className="text-sm text-gray-500 text-center mb-6 print:hidden">
+                Não foi possível carregar o QR PIX. Atualize a página ou inicie
+                uma nova doação.
+              </p>
+            )}
+            <Button
+              className="w-full rounded-2xl print:hidden"
+              variant="secondary"
+              onClick={() => {
+                setLoading(true);
+                void load();
+              }}
+            >
+              Atualizar status
+            </Button>
+          </>
         ) : (
           <Link to={ROUTES.PUBLIC.DONATIONS} className="print:hidden">
             <Button className="w-full rounded-2xl">Tentar outra doação</Button>

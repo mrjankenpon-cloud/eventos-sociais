@@ -1,14 +1,16 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
-  RESERVE_MINUTES,
+  PIX_MINUTES,
   db,
   getAppUrl,
-  getSandboxPayerEmail,
-  isMercadoPagoSandbox,
+  isoWithOffset,
+  isLiveMpAccessToken,
   mpFetch,
+  pixFromPayment,
   randomToken,
   roundMoney,
+  type MpPixPayment,
 } from './helpers';
 import { donationCertificateNumber } from '../orgInfo';
 
@@ -66,6 +68,69 @@ function validateCnpj(cnpj: string): boolean {
   return calc(12) === Number(cnpj[12]) && calc(13) === Number(cnpj[13]);
 }
 
+async function createDonationPix(input: {
+  pedidoId: string;
+  valor: number;
+  email: string;
+  nome: string;
+  documento: string;
+  documentoTipo: 'cpf' | 'cnpj';
+  expiresAt: string;
+  notificationUrl: string;
+}) {
+  if (!isLiveMpAccessToken()) {
+    throw new Error(
+      'Doação via PIX exige credenciais de produção do Mercado Pago (APP_USR). Ative pagamentos PIX na aplicação.'
+    );
+  }
+
+  const email = String(input.email || '').trim().toLowerCase();
+  const digits = input.documento.replace(/\D/g, '');
+  const payer: Record<string, unknown> = {
+    email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
+    first_name: (input.nome || 'Doador').slice(0, 60),
+  };
+  if (input.documentoTipo === 'cnpj' && digits.length === 14) {
+    payer.identification = { type: 'CNPJ', number: digits };
+  } else if (digits.length === 11) {
+    payer.identification = { type: 'CPF', number: digits };
+  }
+
+  try {
+    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
+      method: 'POST',
+      headers: { 'X-Idempotency-Key': `donation-pix-${input.pedidoId}` },
+      body: JSON.stringify({
+        transaction_amount: input.valor,
+        description: 'Doação — Instituto Delphos'.slice(0, 255),
+        payment_method_id: 'pix',
+        payer,
+        external_reference: input.pedidoId,
+        notification_url: input.notificationUrl,
+        date_of_expiration: input.expiresAt,
+        metadata: {
+          pedido_id: input.pedidoId,
+          tipo: 'doacao',
+        },
+      }),
+    });
+    const pix = pixFromPayment(payment);
+    if (!pix.qrCode) {
+      throw new Error('Mercado Pago não devolveu o código PIX da doação');
+    }
+    return pix;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/401|unauthorized|live credentials/i.test(msg)) {
+      throw new Error(
+        'O Mercado Pago recusou gerar PIX com estas credenciais. Ative PIX/pagamentos via API na aplicação de produção.'
+      );
+    }
+    throw error;
+  }
+}
+
+/** Cria doação pendente e devolve QR PIX (Checkout Transparente). */
 export const createDonationSession = functions.https.onRequest(
   async (req, res) => {
     cors(res);
@@ -116,16 +181,22 @@ export const createDonationSession = functions.https.onRequest(
 
       const accessToken = randomToken(32);
       const agora = new Date();
-      const reservaExpiraEm = new Date(
-        agora.getTime() + RESERVE_MINUTES * 60 * 1000
-      );
+      const pixExpira = new Date(agora.getTime() + PIX_MINUTES * 60 * 1000);
       const pedidoRef = db().collection('pedidos').doc();
       const certificadoNumero = donationCertificateNumber(
         pedidoRef.id,
         agora.toISOString()
       );
 
-      const basePedido: Record<string, unknown> = {
+      const appUrl = getAppUrl();
+      const projectId =
+        process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        'eventosociais-c057d';
+      const notificationUrl = `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
+      const successUrl = `${appUrl}/doacao/${pedidoRef.id}/sucesso`;
+
+      await pedidoRef.set({
         tipo: 'doacao',
         nomeComprador: nome,
         cpf: documento,
@@ -152,93 +223,57 @@ export const createDonationSession = functions.https.onRequest(
         valorUnitario: valor,
         valorTotal: valor,
         status: 'pendente',
-        qrCode: '',
         dataCompra: agora.toISOString(),
-        formaPagamento: 'mercadopago',
+        formaPagamento: 'pix',
         estoqueReservado: false,
-        reservaExpiraEm: reservaExpiraEm.toISOString(),
+        reservaExpiraEm: pixExpira.toISOString(),
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      const appUrl = getAppUrl();
-      const projectId =
-        process.env.GCLOUD_PROJECT ||
-        process.env.GCP_PROJECT ||
-        'eventosociais-c057d';
-      const successUrl = `${appUrl}/doacao/${pedidoRef.id}/sucesso`;
-
-      const preferenceBody: Record<string, unknown> = {
-        items: [
-          {
-            id: 'doacao',
-            title: 'Doação — Instituto Delphos',
-            quantity: 1,
-            unit_price: valor,
-            currency_id: 'BRL',
-          },
-        ],
-        payer: {
-          email: getSandboxPayerEmail(email),
-          ...(isMercadoPagoSandbox()
-            ? {}
-            : {
-                name: nome,
-                identification: {
-                  type: documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF',
-                  number: documento,
-                },
-              }),
-        },
-        external_reference: pedidoRef.id,
-        metadata: {
-          pedidoId: pedidoRef.id,
-          tipo: 'doacao',
-          eventoId: '',
-        },
-        back_urls: {
-          success: successUrl,
-          pending: successUrl,
-          failure: successUrl,
-        },
-        auto_return: 'approved',
-        notification_url: `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`,
-        statement_descriptor: 'DELPHOS',
-        payment_methods: {
-          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
-          installments: 1,
-          default_installments: 1,
-        },
-      };
-
-      const preference = (await mpFetch('/checkout/preferences', {
-        method: 'POST',
-        body: JSON.stringify(preferenceBody),
-      })) as {
-        id: string;
-        init_point?: string;
-        sandbox_init_point?: string;
-      };
-
-      const initPoint =
-        preference.init_point || preference.sandbox_init_point || '';
-
-      await pedidoRef.set({
-        ...basePedido,
-        mpPreferenceId: preference.id,
-        linkPagamento: initPoint,
       });
+
+      let pix: ReturnType<typeof pixFromPayment>;
+      try {
+        pix = await createDonationPix({
+          pedidoId: pedidoRef.id,
+          valor,
+          email,
+          nome,
+          documento,
+          documentoTipo,
+          expiresAt: isoWithOffset(pixExpira),
+          notificationUrl,
+        });
+        await pedidoRef.update({
+          qrCode: pix.qrCode,
+          pixQrCode: pix.qrCode,
+          pixQrCodeBase64: pix.qrCodeBase64,
+          pixTicketUrl: pix.ticketUrl || null,
+          pixExpiresAt: pix.expiresAt || pixExpira.toISOString(),
+          mpPaymentId: pix.paymentId,
+          mpStatus: pix.status || 'pending',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (pixError) {
+        await pedidoRef.update({
+          status: 'cancelado',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        throw pixError;
+      }
 
       res.json({
         ok: true,
+        pix: true,
         pedidoId: pedidoRef.id,
         accessToken,
-        preferenceId: preference.id,
-        initPoint,
+        qrCode: pix.qrCode,
+        qrCodeBase64: pix.qrCodeBase64,
+        ticketUrl: pix.ticketUrl || undefined,
+        expiresAt: pix.expiresAt || pixExpira.toISOString(),
         receiptUrl: `${successUrl}?token=${accessToken}`,
       });
     } catch (error) {

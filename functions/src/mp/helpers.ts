@@ -153,3 +153,48 @@ export function extractMpFees(payment: Record<string, unknown>): {
 export function db() {
   return admin.firestore();
 }
+
+/** PIX no MP exige no mínimo ~30 min. */
+export const PIX_MINUTES = 30;
+
+export function isoWithOffset(date: Date): string {
+  const pad = (n: number) => String(Math.trunc(n)).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const h = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  const offsetMin = -date.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const oh = pad(Math.floor(Math.abs(offsetMin) / 60));
+  const om = pad(Math.abs(offsetMin) % 60);
+  return `${y}-${m}-${d}T${h}:${min}:${s}.${ms}${sign}${oh}:${om}`;
+}
+
+export type MpPixPayment = {
+  id?: number | string;
+  status?: string;
+  date_of_expiration?: string;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string;
+      qr_code_base64?: string;
+      ticket_url?: string;
+    };
+  };
+};
+
+export function pixFromPayment(payment: MpPixPayment) {
+  const td = payment.point_of_interaction?.transaction_data || {};
+  return {
+    qrCode: String(td.qr_code || ''),
+    qrCodeBase64: String(td.qr_code_base64 || ''),
+    ticketUrl: String(td.ticket_url || ''),
+    paymentId: String(payment.id || ''),
+    expiresAt: String(payment.date_of_expiration || ''),
+    status: String(payment.status || ''),
+  };
+}
+

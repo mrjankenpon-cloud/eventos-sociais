@@ -147,7 +147,11 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         dataCompra: pedido.dataCompra,
         reservaExpiraEm: pedido.reservaExpiraEm || null,
         guestCheckout: pedido.guestCheckout !== false,
-        linkPagamento: pedido.linkPagamento || null,
+        linkPagamento: pedido.linkPagamento || pedido.pixTicketUrl || null,
+        pixQrCode: pedido.pixQrCode || pedido.qrCode || null,
+        pixQrCodeBase64: pedido.pixQrCodeBase64 || null,
+        pixTicketUrl: pedido.pixTicketUrl || null,
+        pixExpiresAt: pedido.pixExpiresAt || pedido.reservaExpiraEm || null,
       },
       tickets,
     });
