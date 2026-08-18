@@ -10,41 +10,51 @@ import { THEME } from '../../theme';
 const ABOUT_SUMMARY =
   'O Instituto Delphos nasce com o propósito de transformar valores como fraternidade e responsabilidade social em ações concretas para quem mais precisa. Nosso foco é promover eventos beneficentes, mobilizar doações e arrecadar recursos para apoiar e fortalecer projetos de instituições parceiras que já realizam trabalhos de grande impacto na comunidade. Atuando de forma voluntária e coletiva, conectamos pessoas, famílias e empresas a causas nobres, garantindo que a união por um objetivo comum gere resultados reais para a sociedade.';
 
-/** Banner institucional flutuante entre as instituições e os destaques de evento. */
+/** Banner institucional compacto: emblema original à esquerda e texto nítido à direita. */
 export function InstituteIntroBanner() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
     <>
-      <section aria-label="Instituto Delphos" className="w-full max-w-6xl mx-auto">
+      <section aria-label="Instituto Delphos" className="w-full max-w-3xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.7, ease: THEME.motion.ease }}
+          transition={{ duration: 0.6, ease: THEME.motion.ease }}
           className="group relative"
         >
           <div
-            className="absolute -inset-3 sm:-inset-4 rounded-[2rem] sm:rounded-[2.5rem] bg-brand/25 blur-2xl opacity-40 transition-opacity duration-500 group-hover:opacity-70"
+            className="absolute -inset-2 sm:-inset-3 rounded-[1.75rem] bg-brand/20 blur-xl opacity-40 transition-opacity duration-500 group-hover:opacity-70"
             aria-hidden="true"
           />
 
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="relative block w-full overflow-hidden rounded-[1.35rem] sm:rounded-[1.85rem] bg-[#050510] shadow-[0_24px_64px_-24px_rgba(5,21,41,0.7)] ring-1 ring-white/10 transition-transform duration-500 ease-out hover:-translate-y-0.5 hover:shadow-[0_32px_80px_-20px_rgba(22,85,163,0.55)] focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-muted"
-            aria-label="Saiba mais sobre o Instituto Delphos"
-          >
+          <div className="relative flex items-center overflow-hidden rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-r from-[#2743c0] via-[#16306e] to-[#070910] shadow-[0_18px_48px_-20px_rgba(5,21,41,0.75)] ring-1 ring-white/10">
             <img
-              src="/instituto-banner.png"
+              src="/delphos-emblem.png"
               alt=""
-              className="block w-full h-auto select-none"
-              width={829}
-              height={217}
+              width={194}
+              height={213}
+              className="h-[5.5rem] sm:h-[6.75rem] w-auto shrink-0 object-contain object-left select-none ml-2 sm:ml-3 my-2"
             />
-            <span className="sr-only">Saiba mais</span>
-          </button>
+
+            <div className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 text-center">
+              <p className="text-white font-black tracking-[0.14em] sm:tracking-[0.2em] uppercase text-[11px] sm:text-sm leading-tight">
+                Instituto Delphos
+              </p>
+              <p className="text-white/85 font-semibold text-[9px] sm:text-[11px] leading-snug max-w-[22rem]">
+                Conectando Pessoas, Transformando Solidariedade em Ação
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="mt-0.5 inline-flex items-center justify-center rounded-md bg-[#2a52d6] hover:bg-[#3b63e8] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] px-3.5 sm:px-4 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              >
+                Saiba mais
+              </button>
+            </div>
+          </div>
         </motion.div>
       </section>
 
