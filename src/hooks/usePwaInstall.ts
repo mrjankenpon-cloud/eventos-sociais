@@ -81,9 +81,9 @@ export function usePwaInstall() {
     };
   }, []);
 
-  const install = useCallback(async () => {
+  const install = useCallback(async (): Promise<boolean> => {
     const prompt = deferredPrompt;
-    if (!prompt) return;
+    if (!prompt) return false;
 
     // O mesmo evento não pode ser reutilizado; o navegador reemite em uma nova visita.
     deferredPrompt = null;
@@ -91,9 +91,11 @@ export function usePwaInstall() {
 
     try {
       await prompt.prompt();
-      await prompt.userChoice;
+      const { outcome } = await prompt.userChoice;
+      return outcome === 'accepted';
     } catch (error) {
       console.warn('Não foi possível abrir o instalador do app:', error);
+      return false;
     }
   }, []);
 

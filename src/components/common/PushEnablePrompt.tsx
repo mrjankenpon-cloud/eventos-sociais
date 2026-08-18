@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { isPwaInstalled } from '../../hooks/usePwaInstall';
 import {
   canUseWebPush,
-  enableInstalledAppPush,
+  enableAppPush,
   syncInstalledPushSubscription,
 } from '../../lib/pushNotifications';
 import { Button } from '../ui/Button';
@@ -11,12 +11,19 @@ import { Button } from '../ui/Button';
 /** Só aparece no app instalado, para ligar os avisos de eventos novos. */
 export function PushEnablePrompt() {
   const [show, setShow] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     if (!isPwaInstalled() || !canUseWebPush()) return;
 
     if (Notification.permission === 'granted') {
       void syncInstalledPushSubscription();
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      setBlocked(true);
+      setShow(true);
       return;
     }
 
@@ -36,22 +43,30 @@ export function PushEnablePrompt() {
           </span>
           <div className="min-w-0">
             <p className="font-black text-gray-900 text-sm leading-tight">
-              Avisar quando sair um evento novo?
+              {blocked
+                ? 'Avisos bloqueados neste aparelho'
+                : 'Avisar quando sair um evento novo?'}
             </p>
             <p className="text-gray-500 text-xs leading-relaxed mt-1">
-              Toque em Ativar avisos neste app instalado. Sem isso o celular
-              não recebe o aviso de evento novo.
+              {blocked
+                ? 'Abra as configurações do site ou do app, permita notificações e toque em Tentar de novo.'
+                : 'Toque em Ativar avisos. Sem isso o celular não recebe o aviso de evento novo.'}
             </p>
             <div className="flex items-center gap-2 mt-3">
               <Button
                 size="sm"
                 onClick={() => {
-                  void enableInstalledAppPush().then((ok) => {
-                    if (ok) setShow(false);
+                  void enableAppPush().then((ok) => {
+                    if (ok) {
+                      setShow(false);
+                      setBlocked(false);
+                      return;
+                    }
+                    if (Notification.permission === 'denied') setBlocked(true);
                   });
                 }}
               >
-                Ativar avisos
+                {blocked ? 'Tentar de novo' : 'Ativar avisos'}
               </Button>
               <button
                 type="button"

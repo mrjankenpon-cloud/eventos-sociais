@@ -9,6 +9,7 @@ import {
   snoozeInstallPrompt,
   usePwaInstall,
 } from '../../hooks/usePwaInstall';
+import { enableAppPush } from '../../lib/pushNotifications';
 
 /** Aparece só depois que a pessoa rola a página, perto do rodapé. */
 const SCROLL_RATIO_TO_SHOW = 0.45;
@@ -87,8 +88,11 @@ export function PwaInstallPrompt() {
                   <Button
                     size="sm"
                     onClick={() => {
-                      void install();
-                      setVisible(false);
+                      void (async () => {
+                        const accepted = await install();
+                        setVisible(false);
+                        if (accepted) await enableAppPush();
+                      })();
                     }}
                   >
                     Instalar

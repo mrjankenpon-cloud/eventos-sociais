@@ -27,9 +27,9 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration | null> 
   return navigator.serviceWorker.register('/sw.js');
 }
 
-/** Grava a inscrição se o app estiver instalado e a permissão já tiver sido dada. */
-export async function syncInstalledPushSubscription(): Promise<boolean> {
-  if (!isPwaInstalled() || !canUseWebPush()) return false;
+/** Grava a inscrição Web Push (mesmo origin do PWA). */
+export async function savePushSubscription(): Promise<boolean> {
+  if (!canUseWebPush()) return false;
   if (Notification.permission !== 'granted') return false;
 
   try {
@@ -59,13 +59,28 @@ export async function syncInstalledPushSubscription(): Promise<boolean> {
   }
 }
 
-/** Pede permissão (precisa de toque do usuário, principalmente no iOS). */
-export async function enableInstalledAppPush(): Promise<boolean> {
-  if (!isPwaInstalled() || !canUseWebPush()) return false;
+/** Grava a inscrição se o app estiver instalado e a permissão já tiver sido dada. */
+export async function syncInstalledPushSubscription(): Promise<boolean> {
+  if (!isPwaInstalled()) return false;
+  return savePushSubscription();
+}
+
+/**
+ * Pede permissão de notificação e grava o token.
+ * Chamar só após um toque (instalar / ativar avisos). Sem gesto o Chrome bloqueia.
+ */
+export async function enableAppPush(): Promise<boolean> {
+  if (!canUseWebPush()) return false;
   const permission =
     Notification.permission === 'granted'
       ? 'granted'
       : await Notification.requestPermission();
   if (permission !== 'granted') return false;
-  return syncInstalledPushSubscription();
+  return savePushSubscription();
+}
+
+/** Pede permissão (precisa de toque do usuário, principalmente no iOS). */
+export async function enableInstalledAppPush(): Promise<boolean> {
+  if (!isPwaInstalled() || !canUseWebPush()) return false;
+  return enableAppPush();
 }

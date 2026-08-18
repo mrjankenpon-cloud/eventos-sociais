@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import { APP_CONFIG, ROUTES } from '../../config';
 import { ORG, orgAddressLine } from '../../lib/orgInfo';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { enableAppPush } from '../../lib/pushNotifications';
 
 const LEGAL_LINKS = [
   { to: ROUTES.PUBLIC.ABOUT, label: 'Sobre' },
@@ -55,7 +56,10 @@ export default function Footer() {
               <button
                 type="button"
                 onClick={() => {
-                  void install();
+                  void (async () => {
+                    const accepted = await install();
+                    if (accepted) await enableAppPush();
+                  })();
                 }}
                 className="inline-flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
               >
