@@ -39,7 +39,8 @@ export function PushEnablePrompt() {
               Avisar quando sair um evento novo?
             </p>
             <p className="text-gray-500 text-xs leading-relaxed mt-1">
-              Quem tem o App Delphos instalado pode receber uma notificação.
+              Toque em Ativar avisos neste app instalado. Sem isso o celular
+              não recebe o aviso de evento novo.
             </p>
             <div className="flex items-center gap-2 mt-3">
               <Button

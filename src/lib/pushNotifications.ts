@@ -2,8 +2,6 @@ import { VAPID_PUBLIC_KEY } from './pushVapid';
 import { pushTokensService } from '../services/firebase/pushTokens';
 import { isPwaInstalled } from '../hooks/usePwaInstall';
 
-const PUSH_SW_URL = '/push-sw.js';
-
 function vapidToBytes(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
   const normalized = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -24,9 +22,9 @@ export function canUseWebPush(): boolean {
 
 async function getPushRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (!canUseWebPush()) return null;
-  const existing = await navigator.serviceWorker.getRegistration(PUSH_SW_URL);
-  if (existing) return existing;
-  return navigator.serviceWorker.register(PUSH_SW_URL);
+  const ready = await navigator.serviceWorker.ready;
+  if (ready) return ready;
+  return navigator.serviceWorker.register('/sw.js');
 }
 
 /** Grava a inscrição se o app estiver instalado e a permissão já tiver sido dada. */

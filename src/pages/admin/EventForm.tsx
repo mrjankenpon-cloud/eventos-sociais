@@ -492,8 +492,8 @@ export default function EventForm() {
                 title="Enviar notificação"
                 description={
                   formData.notificacaoEnviadaEm
-                    ? 'Aviso já enviado para quem instalou o app.'
-                    : 'Avisa no celular de quem tem o App Delphos. Só dispara se o evento estiver publicado.'
+                    ? 'Aviso já enviado. Para mandar de novo: desligue, salve, ligue e salve.'
+                    : 'Avisa no celular de quem tem o App Delphos e ativou os avisos. O evento precisa estar publicado. Salve o formulário para disparar.'
                 }
                 checked={Boolean(formData.enviarNotificacao)}
                 onChange={(v) => update('enviarNotificacao', v)}

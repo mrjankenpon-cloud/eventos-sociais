@@ -1,12 +1,4 @@
-/* Service worker só para Web Push — independente do Workbox da PWA. */
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
+/* Web Push — importado pelo service worker da PWA (Workbox). */
 self.addEventListener('push', (event) => {
   let payload = { title: 'DELPHOS', body: '', url: '/' };
   try {

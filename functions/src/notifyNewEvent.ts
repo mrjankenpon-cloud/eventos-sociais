@@ -4,6 +4,8 @@ import webpush from 'web-push';
 import { getAppUrl } from './mp/helpers';
 
 const TOPIC_MAIL = 'mailto:ingressos@institutodelphos.com.br';
+/** Mesma região do Firestore (senão o onWrite não dispara). */
+const FIRESTORE_REGION = 'southamerica-east1';
 
 type PushDoc = {
   endpoint?: string;
@@ -16,7 +18,9 @@ function configureVapid(): boolean {
   const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim();
   const subject = String(process.env.VAPID_SUBJECT || '').trim() || TOPIC_MAIL;
   if (!publicKey || !privateKey) {
-    console.warn('[notifyNewEvent] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY ausentes');
+    functions.logger.error(
+      '[notifyNewEvent] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY ausentes'
+    );
     return false;
   }
   webpush.setVapidDetails(subject, publicKey, privateKey);
@@ -29,17 +33,21 @@ function isPublished(data: admin.firestore.DocumentData | undefined): boolean {
   return data.status === 'publicado' || data.publicado === true;
 }
 
+function alreadySent(data: admin.firestore.DocumentData): boolean {
+  const raw = data.notificacaoEnviadaEm;
+  return typeof raw === 'string' && raw.trim().length > 0;
+}
+
 /** Dispara Web Push quando o admin marca "Enviar notificação" num evento publicado. */
-export const notifyNewEvent = functions.firestore
-  .document('eventos/{eventoId}')
+export const notifyNewEvent = functions
+  .region(FIRESTORE_REGION)
+  .firestore.document('eventos/{eventoId}')
   .onWrite(async (change, context) => {
     const after = change.after.exists ? change.after.data() : undefined;
     if (!after) return;
 
     if (!isPublished(after) || after.enviarNotificacao !== true) return;
-    if (typeof after.notificacaoEnviadaEm === 'string' && after.notificacaoEnviadaEm) {
-      return;
-    }
+    if (alreadySent(after)) return;
 
     if (!configureVapid()) return;
 
@@ -54,7 +62,16 @@ export const notifyNewEvent = functions.firestore
     });
 
     const snap = await admin.firestore().collection('pushTokens').get();
+    if (snap.empty) {
+      functions.logger.warn(
+        '[notifyNewEvent] nenhum token inscrito — não marco como enviado',
+        { eventoId }
+      );
+      return;
+    }
+
     const removals: string[] = [];
+    let sent = 0;
 
     for (const doc of snap.docs) {
       const data = doc.data() as PushDoc;
@@ -70,14 +87,36 @@ export const notifyNewEvent = functions.firestore
           },
           payload
         );
+        sent += 1;
       } catch (error) {
         const status = (error as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) {
           removals.push(doc.id);
         } else {
-          console.warn('[notifyNewEvent] falha ao enviar', doc.id, error);
+          functions.logger.warn('[notifyNewEvent] falha ao enviar', {
+            id: doc.id,
+            error,
+          });
         }
       }
+    }
+
+    functions.logger.info('[notifyNewEvent] resultado', {
+      eventoId,
+      tokens: snap.size,
+      sent,
+      removals: removals.length,
+    });
+
+    if (sent < 1) {
+      if (removals.length > 0) {
+        const stale = admin.firestore().batch();
+        for (const id of removals) {
+          stale.delete(admin.firestore().collection('pushTokens').doc(id));
+        }
+        await stale.commit();
+      }
+      return;
     }
 
     const batch = admin.firestore().batch();

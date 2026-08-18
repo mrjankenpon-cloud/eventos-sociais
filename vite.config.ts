@@ -15,6 +15,7 @@ export default defineConfig(() => {
           clientsClaim: true,
           skipWaiting: true,
           cleanupOutdatedCaches: true,
+          importScripts: ['/push-sw.js'],
         },
           includeAssets: ['favicon.png', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'push-sw.js'],
         manifest: {

@@ -97,7 +97,9 @@ export function eventFormToEventoPayload(
     limitePorCpf: Math.max(0, Number(rest.limitePorCpf) || 0),
     vendasEncerramEm: rest.vendasEncerramEm || null,
     enviarNotificacao: Boolean(rest.enviarNotificacao),
-    notificacaoEnviadaEm: rest.notificacaoEnviadaEm || null,
+    notificacaoEnviadaEm: rest.enviarNotificacao
+      ? rest.notificacaoEnviadaEm || null
+      : null,
     arquivado: Boolean(rest.arquivado),
     arquivadoEm: rest.arquivadoEm || null,
     gratuito: Boolean(rest.gratuito),
