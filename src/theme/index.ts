@@ -40,4 +40,9 @@ export const THEME = {
     ease: [0.22, 1, 0.36, 1] as const,
     duration: 0.35,
   },
+  /** Degradê institucional do cabeçalho — use em banners e faixas da marca. */
+  gradient: {
+    header:
+      'bg-gradient-to-r from-brand from-0% via-brand via-[28%] via-brand-dark via-[50%] via-brand-deeper via-[75%] to-[#050505]',
+  },
 } as const;

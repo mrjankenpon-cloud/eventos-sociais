@@ -10,7 +10,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Event } from '../../types';
-import { formatEventDate } from '../../lib/utils';
+import { formatEventDate, cn } from '../../lib/utils';
 import { getEventPriceLabel } from '../../lib/eventData';
 import { THEME } from '../../theme';
 import { AppImage } from '../ui/AppImage';
@@ -29,7 +29,6 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
     month: 'long',
     year: 'numeric',
   });
-  const primaryColor = THEME.colors.primary;
   const description = (event.subtitulo || event.descricaoCurta)?.trim();
 
   return (
@@ -41,8 +40,7 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
       className="group relative mb-6 sm:mb-10 w-full max-w-6xl mx-auto"
     >
       <div
-        className="absolute -inset-px rounded-[34px] opacity-10 blur-[2px] transition-opacity duration-500 group-hover:opacity-25"
-        style={{ backgroundColor: primaryColor }}
+        className="absolute -inset-px rounded-[34px] bg-brand opacity-10 blur-[2px] transition-opacity duration-500 group-hover:opacity-25"
         aria-hidden="true"
       />
 
@@ -57,8 +55,10 @@ export const Banner: React.FC<BannerProps> = ({ event }) => {
         </div>
 
         <div
-          className="relative md:col-span-1 flex flex-col justify-center gap-5 p-6 sm:p-8 text-white overflow-hidden"
-          style={{ backgroundColor: primaryColor }}
+          className={cn(
+            'relative md:col-span-1 flex flex-col justify-center gap-5 p-6 sm:p-8 text-white overflow-hidden',
+            THEME.gradient.header
+          )}
         >
           <div
             className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] -mr-32 -mt-32"

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { APP_CONFIG, ROUTES } from '../../config';
+import { THEME } from '../../theme';
+import { cn } from '../../lib/utils';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -18,9 +20,11 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        isScrolled ? 'shadow-2xl shadow-black/40' : ''
-      } bg-gradient-to-r from-brand from-0% via-brand via-[28%] via-brand-dark via-[50%] via-brand-deeper via-[75%] to-[#050505]`}
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
+        isScrolled ? 'shadow-2xl shadow-black/40' : '',
+        THEME.gradient.header
+      )}
       style={{
         height: 'calc(var(--header-height) + env(safe-area-inset-top))',
         paddingTop: 'env(safe-area-inset-top)',
