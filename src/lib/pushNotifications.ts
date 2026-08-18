@@ -44,15 +44,13 @@ export async function savePushSubscription(): Promise<boolean> {
     const registration = await getPushRegistration();
     if (!registration) return false;
 
-    const previous = await registration.pushManager.getSubscription();
-    if (previous) {
-      await previous.unsubscribe().catch(() => undefined);
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidApplicationServerKey(),
+      });
     }
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: vapidApplicationServerKey(),
-    });
 
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;

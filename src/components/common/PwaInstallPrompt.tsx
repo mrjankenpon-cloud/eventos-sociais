@@ -88,11 +88,8 @@ export function PwaInstallPrompt() {
                   <Button
                     size="sm"
                     onClick={() => {
-                      void (async () => {
-                        const accepted = await install();
-                        setVisible(false);
-                        if (accepted) await enableAppPush();
-                      })();
+                      void enableAppPush();
+                      void install().then(() => setVisible(false));
                     }}
                   >
                     Instalar

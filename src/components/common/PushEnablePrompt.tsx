@@ -44,36 +44,37 @@ export function PushEnablePrompt() {
           <div className="min-w-0">
             <p className="font-black text-gray-900 text-sm leading-tight">
               {blocked
-                ? 'Avisos bloqueados neste aparelho'
+                ? 'O Chrome bloqueou os avisos'
                 : 'Avisar quando sair um evento novo?'}
             </p>
             <p className="text-gray-500 text-xs leading-relaxed mt-1">
               {blocked
-                ? 'Abra as configurações do site ou do app, permita notificações e toque em Tentar de novo.'
+                ? 'Não é o DELPHOS. No Chrome, toque no cadeado ao lado do endereço → Notificações → Permitir. No Android: Ajustes → Apps → DELPHOS → Notificações.'
                 : 'Toque em Ativar avisos. Sem isso o celular não recebe o aviso de evento novo.'}
             </p>
             <div className="flex items-center gap-2 mt-3">
-              <Button
-                size="sm"
-                onClick={() => {
-                  void enableAppPush().then((ok) => {
-                    if (ok) {
-                      setShow(false);
-                      setBlocked(false);
-                      return;
-                    }
-                    if (Notification.permission === 'denied') setBlocked(true);
-                  });
-                }}
-              >
-                {blocked ? 'Tentar de novo' : 'Ativar avisos'}
-              </Button>
+              {!blocked ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    void enableAppPush().then((ok) => {
+                      if (ok) {
+                        setShow(false);
+                        return;
+                      }
+                      if (Notification.permission === 'denied') setBlocked(true);
+                    });
+                  }}
+                >
+                  Ativar avisos
+                </Button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setShow(false)}
                 className="text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-900 transition-colors px-2 py-2"
               >
-                Agora não
+                {blocked ? 'Entendi' : 'Agora não'}
               </button>
             </div>
           </div>

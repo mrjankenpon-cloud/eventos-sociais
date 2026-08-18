@@ -56,10 +56,8 @@ export default function Footer() {
               <button
                 type="button"
                 onClick={() => {
-                  void (async () => {
-                    const accepted = await install();
-                    if (accepted) await enableAppPush();
-                  })();
+                  void enableAppPush();
+                  void install();
                 }}
                 className="inline-flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
               >
