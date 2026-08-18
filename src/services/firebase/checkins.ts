@@ -8,6 +8,7 @@ import {
   runTransaction,
   serverTimestamp,
   updateDoc,
+  deleteField,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -375,6 +376,125 @@ export const checkinsService = {
         throw error;
       }
       wrapError('checkins.performCheckin', error);
+    }
+  },
+
+  /**
+   * Desfaz check-in ou retirada atômica, com o ingresso voltando a ficar disponível.
+   */
+  async undoCheckin(
+    ticketIdOrQr: string,
+    operator: string,
+    expectedEventoId?: string
+  ): Promise<Ticket> {
+    try {
+      let ticket =
+        (await pedidosService.getTicketById(ticketIdOrQr)) ||
+        (await pedidosService.getTicketByCode(ticketIdOrQr));
+
+      if (!ticket) throw new Error('QR/ticket não encontrado');
+
+      if (expectedEventoId && ticket.eventoId !== expectedEventoId) {
+        throw new Error('Ticket não pertence a este evento');
+      }
+
+      const ticketRef = docRef(COLLECTIONS.tickets, ticket.id);
+      const checkinRef = docRef(COLLECTIONS.checkins, `ck_${ticket.id}`);
+      const operadorNome =
+        operator || auth.currentUser?.displayName || 'Operador';
+
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ticketRef);
+        const checkinSnap = await tx.get(checkinRef);
+        if (!snap.exists()) throw new Error('Ticket não encontrado');
+        const current = snap.data();
+
+        if (
+          current.status === 'Cancelado' ||
+          current.status === 'Reembolsado' ||
+          current.status === 'Bloqueado'
+        ) {
+          throw new Error(
+            `Ticket ${current.status} — desfazer check-in bloqueado`
+          );
+        }
+        if (expectedEventoId && current.eventoId !== expectedEventoId) {
+          throw new Error('Ticket não pertence a este evento');
+        }
+
+        const isRetirada =
+          String(current.natureza || '') === 'retirada' ||
+          String(current.checkinModo || '') === 'retirada';
+
+        if (isRetirada) {
+          if (current.retiradaRealizada !== true) {
+            throw new Error('Não há retirada para desfazer');
+          }
+          tx.update(ticketRef, {
+            retiradaRealizada: false,
+            retiradaEm: deleteField(),
+            operador: operadorNome,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          if (
+            current.checkinRealizado !== true &&
+            current.status !== 'Utilizado'
+          ) {
+            throw new Error('Não há check-in para desfazer');
+          }
+          tx.update(ticketRef, {
+            status: 'Disponível',
+            checkinRealizado: false,
+            checkinEm: deleteField(),
+            operador: operadorNome,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        if (checkinSnap.exists()) {
+          tx.update(checkinRef, {
+            status: 'cancelado',
+            ativo: false,
+            observacao: `Desfeito por ${operadorNome}`,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      });
+
+      const isRetiradaTicket =
+        ticket.natureza === 'retirada' ||
+        (ticket as { checkinModo?: string }).checkinModo === 'retirada';
+
+      await logsService.record({
+        acao: isRetiradaTicket ? 'retirada_undo' : 'checkin_undo',
+        colecao: COLLECTIONS.tickets,
+        documentoId: ticket.id,
+        descricao: isRetiradaTicket
+          ? `Retirada desfeita por ${operadorNome}`
+          : `Check-in desfeito por ${operadorNome}`,
+        alteracoes: isRetiradaTicket
+          ? [{ campo: 'retiradaRealizada', de: true, para: false }]
+          : [
+              { campo: 'status', de: 'Utilizado', para: 'Disponível' },
+              { campo: 'checkinRealizado', de: true, para: false },
+            ],
+        metadata: {
+          eventoId: ticket.eventoId,
+          operador: operadorNome,
+          ingressoKey: ticket.ingressoKey,
+        },
+      });
+
+      const updated = await pedidosService.getTicketById(ticket.id);
+      if (!updated) throw new Error('Falha ao ler ticket após desfazer');
+      return updated;
+    } catch (error) {
+      if (error instanceof Error && !error.message.startsWith('[')) {
+        console.error('[checkins.undoCheckin]', error);
+        throw error;
+      }
+      wrapError('checkins.undoCheckin', error);
     }
   },
 };

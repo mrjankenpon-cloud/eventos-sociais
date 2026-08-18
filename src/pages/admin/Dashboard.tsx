@@ -25,7 +25,6 @@ import {
   ChevronDown,
   EyeOff,
   Smartphone,
-  Bell,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -998,35 +997,6 @@ export default function Dashboard() {
               </Alert>
             )}
 
-            <section className="space-y-3">
-              <div className="min-w-0">
-                <p className="label-micro text-brand mb-1">App Delphos</p>
-                <h2 className="text-lg font-black text-gray-900">
-                  Instalações e avisos
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">
-                  Quantidade de aparelhos com o app instalado e com notificações
-                  ativas.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-                <StatCard
-                  title="App instalado"
-                  value={appInstalls}
-                  icon={Smartphone}
-                  accent={THEME.colors.primary}
-                  hint="Aparelhos que abriram o App Delphos"
-                />
-                <StatCard
-                  title="Notificações ativas"
-                  value={pushActive}
-                  icon={Bell}
-                  accent="#7c3aed"
-                  hint="Aparelhos que permitiram avisos"
-                />
-              </div>
-            </section>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
               {generalCards.map((card) => (
                 <StatCard
@@ -1038,6 +1008,13 @@ export default function Dashboard() {
                   onClick={() => handleOpenReport(card.type)}
                 />
               ))}
+              <StatCard
+                title="Ativos/Instalados"
+                value={`${pushActive} / ${appInstalls}`}
+                icon={Smartphone}
+                accent={THEME.colors.primary}
+                hint="Notificações ativas / app instalado"
+              />
             </div>
 
             <section className="space-y-3">

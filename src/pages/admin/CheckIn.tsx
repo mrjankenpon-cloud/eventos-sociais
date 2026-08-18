@@ -22,6 +22,7 @@ import { QRScanner } from '../../components/admin/QRScanner';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
 import { Modal, Button, Badge, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
+import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
@@ -40,6 +41,8 @@ export default function CheckIn() {
   const [scannedPurchase, setScannedPurchase] = useState<Purchase | null>(null);
   const [siblingTickets, setSiblingTickets] = useState<TicketType[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [undoTicket, setUndoTicket] = useState<TicketType | null>(null);
+  const [undoing, setUndoing] = useState(false);
   const [pixOpen, setPixOpen] = useState(false);
   const [pixLoading, setPixLoading] = useState(false);
   const [pixPayload, setPixPayload] = useState<UpgradePixPayload | null>(null);
@@ -108,6 +111,45 @@ export default function CheckIn() {
         error instanceof Error ? error.message : 'Erro ao realizar check-in.';
       show('error', msg);
       throw error;
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoTicket || !id) return;
+    setUndoing(true);
+    try {
+      const isRetirada = undoTicket.natureza === 'retirada';
+      await ticketService.undoCheckin(undoTicket.id, 'Operador Admin', id);
+      const patch = isRetirada
+        ? { retiradaRealizada: false, retiradaEm: undefined }
+        : {
+            status: 'Disponível' as const,
+            checkinRealizado: false,
+            checkinEm: undefined,
+          };
+      setTickets((prev) =>
+        prev.map((t) => (t.id === undoTicket.id ? { ...t, ...patch } : t))
+      );
+      setSiblingTickets((prev) =>
+        prev.map((t) => (t.id === undoTicket.id ? { ...t, ...patch } : t))
+      );
+      if (scannedTicket?.id === undoTicket.id) {
+        setScannedTicket((prev) => (prev ? { ...prev, ...patch } : null));
+      }
+      setUndoTicket(null);
+      show(
+        'success',
+        isRetirada
+          ? `Retirada desfeita no ingresso ${undoTicket.codigo}.`
+          : `Check-in desfeito: ${undoTicket.codigo}.`
+      );
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Erro ao desfazer o check-in.'
+      );
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -476,6 +518,28 @@ export default function CheckIn() {
                           >
                             Confirmar
                           </Button>
+                        ) : canUndoTicket(t) ? (
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1">
+                              <CheckCircle size={14} aria-hidden="true" />
+                              {t.checkinEm || t.retiradaEm
+                                ? new Date(
+                                    t.checkinEm || t.retiradaEm || ''
+                                  ).toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : 'OK'}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-xl"
+                              onClick={() => setUndoTicket(t)}
+                            >
+                              Desfazer
+                            </Button>
+                          </div>
                         ) : (
                           <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1 shrink-0">
                             <CheckCircle size={14} aria-hidden="true" />
@@ -677,6 +741,15 @@ export default function CheckIn() {
                     : 'Confirmar só este ingresso'}
                 </Button>
               )}
+              {!scannedPending && canUndoTicket(scannedTicket) ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setUndoTicket(scannedTicket)}
+                  className="flex-[2]"
+                >
+                  Desfazer check-in
+                </Button>
+              ) : null}
             </div>
           </div>
         )}
@@ -692,6 +765,28 @@ export default function CheckIn() {
         onRetry={
           scannedTicket ? () => void openUpgradePix(scannedTicket) : undefined
         }
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(undoTicket)}
+        onClose={() => setUndoTicket(null)}
+        onConfirm={() => void handleUndo()}
+        title={
+          undoTicket?.natureza === 'retirada'
+            ? 'Desfazer retirada?'
+            : 'Desfazer check-in?'
+        }
+        description={
+          undoTicket
+            ? `Quer realmente desfazer ${
+                undoTicket.natureza === 'retirada' ? 'a retirada' : 'o check-in'
+              } do ingresso ${undoTicket.codigo}? O ingresso volta a ficar disponível para conferência.`
+            : ''
+        }
+        confirmLabel="Desfazer"
+        cancelLabel="Manter"
+        variant="danger"
+        isLoading={undoing}
       />
 
       <Toast message={message} onClose={clear} />
@@ -725,6 +820,18 @@ function isMeiaTicket(t: TicketType): boolean {
   const key = String(t.ingressoKey || '').toLowerCase();
   const nome = String(t.ingressoNome || '').toLowerCase();
   return key === 'meia' || nome.includes('meia');
+}
+
+function canUndoTicket(t: TicketType): boolean {
+  if (
+    t.status === 'Cancelado' ||
+    t.status === 'Reembolsado' ||
+    t.status === 'Bloqueado'
+  ) {
+    return false;
+  }
+  if (t.natureza === 'retirada') return Boolean(t.retiradaRealizada);
+  return t.checkinRealizado === true || t.status === 'Utilizado';
 }
 
 function isTicketDone(t: TicketType): boolean {

@@ -14,6 +14,11 @@ export const ticketService = {
     operator: string,
     expectedEventoId?: string
   ) => checkinsService.performCheckin(ticketId, operator, expectedEventoId),
+  undoCheckin: (
+    ticketId: string,
+    operator: string,
+    expectedEventoId?: string
+  ) => checkinsService.undoCheckin(ticketId, operator, expectedEventoId),
   getByCode: (code: string) => pedidosService.getTicketByCode(code),
   getAll: () => pedidosService.getAllTickets(),
   getById: (id: string) => pedidosService.getTicketById(id),

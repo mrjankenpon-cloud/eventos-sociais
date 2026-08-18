@@ -20,6 +20,7 @@ import { SearchField } from '../../components/admin/SearchField';
 import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
 import { Badge, Button, PageLoader, EmptyState, Toast } from '../../components/ui';
+import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { formatCurrency } from '../../lib/utils';
 import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
@@ -156,6 +157,7 @@ export default function EventReports() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
+  const [undoRow, setUndoRow] = useState<InscritoRow | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -262,6 +264,47 @@ export default function EventReports() {
     }
   };
 
+  const handleUndo = async () => {
+    const row = undoRow;
+    if (!row?.ticketId || !id) return;
+    setBusyTicketId(row.ticketId);
+    try {
+      await ticketService.undoCheckin(
+        row.ticketId,
+        user?.name || 'Operador Admin',
+        id
+      );
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === row.ticketId
+            ? row.retirada
+              ? { ...t, retiradaRealizada: false, retiradaEm: undefined }
+              : {
+                  ...t,
+                  status: 'Disponível',
+                  checkinRealizado: false,
+                  checkinEm: undefined,
+                }
+            : t
+        )
+      );
+      setUndoRow(null);
+      show(
+        'success',
+        row.retirada
+          ? `Retirada desfeita: ${row.codigo}.`
+          : `Check-in desfeito: ${row.codigo}.`
+      );
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Erro ao desfazer o check-in.'
+      );
+    } finally {
+      setBusyTicketId(null);
+    }
+  };
+
   const columns: DataTableColumn<InscritoRow>[] = [
     {
       key: 'nome',
@@ -317,12 +360,22 @@ export default function EventReports() {
         }
         if (p.done) {
           return (
-            <div className="flex flex-col items-end gap-0.5">
+            <div className="flex flex-col items-end gap-2">
               <Badge variant="success">{p.retirada ? 'Retirado' : 'Feito'}</Badge>
               {p.checkinEm ? (
                 <span className="text-[10px] text-gray-400 font-medium">
                   {new Date(p.checkinEm).toLocaleString('pt-BR')}
                 </span>
+              ) : null}
+              {p.ticketId ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => setUndoRow(p)}
+                >
+                  Desfazer
+                </Button>
               ) : null}
             </div>
           );
@@ -438,6 +491,23 @@ export default function EventReports() {
             />
           </div>
         }
+      />
+      <ConfirmDialog
+        isOpen={Boolean(undoRow)}
+        onClose={() => setUndoRow(null)}
+        onConfirm={() => void handleUndo()}
+        title={undoRow?.retirada ? 'Desfazer retirada?' : 'Desfazer check-in?'}
+        description={
+          undoRow
+            ? `Quer realmente desfazer ${
+                undoRow.retirada ? 'a retirada' : 'o check-in'
+              } do ingresso ${undoRow.codigo}? O ingresso volta a ficar disponível para conferência.`
+            : ''
+        }
+        confirmLabel="Desfazer"
+        cancelLabel="Manter"
+        variant="danger"
+        isLoading={Boolean(undoRow?.ticketId && busyTicketId === undoRow.ticketId)}
       />
     </div>
   );

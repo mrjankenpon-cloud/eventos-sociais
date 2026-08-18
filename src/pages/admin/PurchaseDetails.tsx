@@ -19,6 +19,7 @@ import { Purchase, Ticket, Event } from '../../types';
 import { ROUTES } from '../../config';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Badge, Button, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
+import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
@@ -64,6 +65,7 @@ export default function PurchaseDetails() {
   const [pixPayload, setPixPayload] = useState<UpgradePixPayload | null>(null);
   const [pixError, setPixError] = useState<string | null>(null);
   const [pixTicket, setPixTicket] = useState<Ticket | null>(null);
+  const [undoTicket, setUndoTicket] = useState<Ticket | null>(null);
   const { message, show, clear } = useFlashMessage();
 
   const reload = async (purchaseId: string) => {
@@ -120,6 +122,43 @@ export default function PurchaseDetails() {
       const msg =
         error instanceof Error ? error.message : 'Erro ao realizar check-in.';
       show('error', msg);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoTicket) return;
+    setBusyTicketId(undoTicket.id);
+    try {
+      const isRetirada = undoTicket.natureza === 'retirada';
+      await ticketService.undoCheckin(undoTicket.id, 'Operador Admin');
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === undoTicket.id
+            ? isRetirada
+              ? { ...t, retiradaRealizada: false, retiradaEm: undefined }
+              : {
+                  ...t,
+                  status: 'Disponível',
+                  checkinRealizado: false,
+                  checkinEm: undefined,
+                }
+            : t
+        )
+      );
+      setUndoTicket(null);
+      show(
+        'success',
+        isRetirada
+          ? 'Retirada desfeita. O ingresso voltou a ficar disponível.'
+          : 'Check-in desfeito. O ingresso voltou a ficar disponível.'
+      );
+    } catch (error: unknown) {
+      show(
+        'error',
+        error instanceof Error ? error.message : 'Erro ao desfazer o check-in.'
+      );
+    } finally {
+      setBusyTicketId(null);
     }
   };
 
@@ -513,9 +552,19 @@ export default function PurchaseDetails() {
                             Check-in
                           </Button>
                         ) : t.status === 'Utilizado' ? (
-                          <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1">
-                            <CheckCircle size={14} aria-hidden="true" />
-                            OK
+                          <div className="flex items-center gap-2">
+                            <div className="text-green-600 font-black uppercase tracking-widest text-[10px] flex items-center gap-1">
+                              <CheckCircle size={14} aria-hidden="true" />
+                              OK
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-xl"
+                              onClick={() => setUndoTicket(t)}
+                            >
+                              Desfazer
+                            </Button>
                           </div>
                         ) : (
                           <Badge variant="danger">{t.status}</Badge>
@@ -558,6 +607,21 @@ export default function PurchaseDetails() {
         </div>
       </section>
 
+      <ConfirmDialog
+        isOpen={Boolean(undoTicket)}
+        onClose={() => setUndoTicket(null)}
+        onConfirm={() => void handleUndo()}
+        title="Desfazer check-in?"
+        description={
+          undoTicket
+            ? `Quer realmente desfazer o check-in do ingresso ${undoTicket.codigo}? O ingresso volta a ficar disponível para conferência.`
+            : ''
+        }
+        confirmLabel="Desfazer"
+        cancelLabel="Manter"
+        variant="danger"
+        isLoading={Boolean(undoTicket && busyTicketId === undoTicket.id)}
+      />
       <Toast message={message} onClose={clear} />
       <UpgradePixModal
         open={pixOpen}
