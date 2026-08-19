@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { clientSafeMessage, db, mpFetch } from './helpers';
 import { transitionPedidoReleaseStock } from './stock';
+import { collectUsageSnapshot } from '../usage/collectUsageSnapshot';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
 
@@ -119,8 +120,17 @@ export const expirePendingOrders = functions.pubsub
   .schedule('every 5 minutes')
   .timeZone('America/Sao_Paulo')
   .onRun(async () => {
-    const result = await expireBatch();
-    functions.logger.info('[expirePendingOrders]', result);
+    try {
+      const result = await expireBatch();
+      functions.logger.info('[expirePendingOrders]', result);
+    } catch (err) {
+      functions.logger.error('[expirePendingOrders]', err);
+    }
+    try {
+      await collectUsageSnapshot();
+    } catch (err) {
+      functions.logger.warn('[expirePendingOrders] usage snapshot', err);
+    }
     return null;
   });
 

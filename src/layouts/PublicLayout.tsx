@@ -7,9 +7,11 @@ import { PushEnablePrompt } from '../components/common/PushEnablePrompt';
 import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 import { PublicErrorBoundary } from '../components/public/PublicErrorBoundary';
 import { useInstalledAppPing } from '../lib/appInstallPing';
+import { usePublicSiteVisitPing } from '../lib/siteVisitPing';
 
 export default function PublicLayout() {
   useInstalledAppPing();
+  usePublicSiteVisitPing();
 
   return (
     <div className="min-h-screen bg-surface-muted flex flex-col overflow-x-hidden min-w-0">

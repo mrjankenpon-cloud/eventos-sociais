@@ -33,6 +33,7 @@ export const COLLECTIONS = {
   /** App Delphos instalado (mesmo sem avisos ligados) */
   pwaInstalls: 'pwaInstalls',
   accessRequests: 'accessRequests',
+  usageStats: 'usageStats',
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

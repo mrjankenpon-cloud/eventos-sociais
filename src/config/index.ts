@@ -25,6 +25,7 @@ export const ROUTES = {
   ADMIN: {
     LOGIN: '/controle/login',
     DASHBOARD: '/controle/dashboard',
+    PAINEL: '/controle/painel',
     EVENTS: '/controle/eventos',
     EVENT_NEW: '/controle/eventos/novo',
     EVENT_EDIT: '/controle/eventos/editar/:id',

@@ -58,6 +58,8 @@ export { sandboxApproveOrder } from './mp/sandboxApproveOrder';
 export { createTicketUpgradeSession } from './mp/createTicketUpgradeSession';
 export { sendEventNotification } from './notifyNewEvent';
 export { requestPanelAccess } from './access/requestPanelAccess';
+export { recordSiteVisit } from './usage/recordSiteVisit';
+export { collectUsageSnapshotHttp } from './usage/collectUsageSnapshot';
 export {
   requestGuestTicketsEmail,
   getGuestTickets,

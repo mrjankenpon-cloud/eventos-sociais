@@ -57,9 +57,9 @@ export function ReportDoc() {
           ],
           [
             'Cloud Functions (Firebase)',
-            'Programas que rodam no servidor: pagamento, e-mail, webhook, reembolso, pedido de acesso, avisos push.',
+            'Programas que rodam no servidor: pagamento, e-mail, webhook, reembolso, pedido de acesso, avisos push, contagem de visitas e painel de uso.',
             'Checkout, QR PIX, e-mail de ingresso, certificado de doação.',
-            'Reembolso, upgrade meia→inteira, expirar reserva, notificar app.',
+            'Reembolso, upgrade meia→inteira, expirar reserva, notificar app, aba Painel (cota do dia).',
           ],
           [
             'Mercado Pago',

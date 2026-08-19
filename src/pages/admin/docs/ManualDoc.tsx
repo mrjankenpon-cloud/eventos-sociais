@@ -96,6 +96,11 @@ export function ManualDoc() {
             'Clique nos cartões para filtrar. Escolha um evento na lista para ver só aquele. Não “grava” configuração — é só consulta e atalho.',
           ],
           [
+            'Painel',
+            'Frequência de visitas no site e quanto o banco Firebase já usou da faixa gratuita do dia (leituras, escritas, exclusões). Avisa se está tranquilo, em atenção ou perto de cobrança extra no plano pago.',
+            'Abra a aba e leia o cartão colorido. “Atualizar agora” puxa as métricas oficiais na hora; o resto entra sozinho a cada 5 minutos.',
+          ],
+          [
             'Eventos',
             'Lista todos os eventos. Daqui você cria, edita, abre check-in, abre relatório ou arquiva/exclui.',
             'Botão Novo Evento; ícones em cada linha; filtros Publicado / Encerrado; busca pelo nome.',

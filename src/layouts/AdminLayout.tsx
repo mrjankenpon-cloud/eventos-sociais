@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
+  Gauge,
   Calendar,
   LogOut,
   Menu,
@@ -51,6 +52,7 @@ function AdminShell() {
 
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, href: ROUTES.ADMIN.DASHBOARD },
+    { name: 'Painel', icon: Gauge, href: ROUTES.ADMIN.PAINEL },
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
     { name: 'Doações', icon: HandCoins, href: ROUTES.ADMIN.DONATIONS },
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },

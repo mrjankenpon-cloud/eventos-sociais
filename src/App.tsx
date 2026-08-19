@@ -35,6 +35,7 @@ const Videos = lazy(() => import('./pages/admin/Videos'));
 const Permissions = lazy(() => import('./pages/admin/Permissions'));
 const SiteContentSettings = lazy(() => import('./pages/admin/SiteContentSettings'));
 const Documentation = lazy(() => import('./pages/admin/Documentation'));
+const UsagePanel = lazy(() => import('./pages/admin/UsagePanel'));
 const AdminDonations = lazy(() => import('./pages/admin/Donations'));
 const Health = lazy(() => import('./pages/admin/Health'));
 
@@ -95,6 +96,7 @@ export default function App() {
           >
             <Route index element={<Navigate to={ROUTES.ADMIN.DASHBOARD} replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="painel" element={<UsagePanel />} />
             <Route path="eventos" element={<Events />} />
             <Route path="eventos/novo" element={<EventForm />} />
             <Route path="eventos/editar/:id" element={<EventForm />} />

@@ -13,6 +13,7 @@ export { siteContentService } from './siteContent';
 export { logsService } from './logs';
 export { pushTokensService } from './pushTokens';
 export { pwaInstallsService } from './pwaInstalls';
+export { usageStatsService } from './usageStats';
 export {
   storageService,
   uploadImage,

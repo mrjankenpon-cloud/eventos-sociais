@@ -253,6 +253,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /usageStats/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
     // ---- configuracoes ----
     match /configuracoes/{id} {
       allow read: if true;
