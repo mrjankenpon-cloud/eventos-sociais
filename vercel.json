@@ -12,7 +12,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!robots.txt|sitemap.xml).*)",
+      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html).*)",
       "destination": "/index.html"
     }
   ]
