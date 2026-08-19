@@ -80,6 +80,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
           ordem: t.ordem || 0,
           natureza: t.natureza || pedido.natureza || 'entrada',
           ingressoNome: t.ingressoNome || pedido.ingressoNome,
+          upgradedToInteira: t.upgradedToInteira === true,
           checkinRealizado: Boolean(t.checkinRealizado),
           retiradaRealizada: Boolean(t.retiradaRealizada),
         };
@@ -148,7 +149,16 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         reservaExpiraEm: pedido.reservaExpiraEm || null,
         guestCheckout: pedido.guestCheckout !== false,
         linkPagamento: pedido.linkPagamento || pedido.pixTicketUrl || null,
-        pixQrCode: pedido.pixQrCode || pedido.qrCode || null,
+        pixQrCode:
+          String(pedido.status || '') === 'pendente' &&
+          String(pedido.formaPagamento || '') === 'pix'
+            ? String(pedido.pixQrCode || '').startsWith('{')
+              ? null
+              : pedido.pixQrCode ||
+                (String(pedido.qrCode || '').startsWith('{')
+                  ? null
+                  : pedido.qrCode || null)
+            : null,
         pixQrCodeBase64: pedido.pixQrCodeBase64 || null,
         pixTicketUrl: pedido.pixTicketUrl || null,
         pixExpiresAt: pedido.pixExpiresAt || pedido.reservaExpiraEm || null,

@@ -16,9 +16,9 @@ export default function Footer() {
   const { canInstall, install } = usePwaInstall();
 
   return (
-    <footer className="bg-surface-muted pt-10 sm:pt-16 lg:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16 lg:pb-20">
+    <footer className="bg-brand pt-10 sm:pt-16 lg:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16 lg:pb-20">
       <div className="page-container">
-        <div className="w-full h-px bg-gray-200 mb-10 opacity-60" />
+        <div className="w-full h-px bg-white/20 mb-10" />
 
         <div className="flex flex-col items-center gap-8">
           <nav
@@ -29,7 +29,7 @@ export default function Footer() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+                className="text-white text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
               >
                 {item.label}
               </Link>
@@ -42,13 +42,13 @@ export default function Footer() {
           >
             <Link
               to={ROUTES.PUBLIC.ORDER_LOOKUP}
-              className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+              className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
             >
               Já comprou? Receber ingressos
             </Link>
             <Link
               to={ROUTES.ADMIN.DASHBOARD}
-              className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+              className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
             >
               Área Restrita
             </Link>
@@ -59,7 +59,7 @@ export default function Footer() {
                   void enableAppPush();
                   void install();
                 }}
-                className="inline-flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-brand"
+                className="inline-flex items-center gap-1.5 text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
                 Instalar App Delphos
@@ -68,18 +68,26 @@ export default function Footer() {
           </nav>
 
           <div className="text-center space-y-2 max-w-lg">
-            <p className="text-gray-400 text-[11px] tracking-wide">
+            <p className="text-white text-[11px] tracking-wide">
               © {new Date().getFullYear()} {APP_CONFIG.name} • Todos os direitos
               reservados.
             </p>
-            <p className="text-gray-400 text-[11px] leading-relaxed">
+            <p className="text-white text-[11px] leading-relaxed">
               {ORG.razaoSocial} · CNPJ {ORG.cnpj}
               <br />
               {orgAddressLine()}
             </p>
-            <p className="text-gray-300 text-[10px] tracking-wider uppercase font-medium">
+            <p className="text-white text-[10px] tracking-wider uppercase font-medium">
               Este site foi desenvolvido por{' '}
-              <span className="text-gray-400">Herven Hub</span>.
+              <a
+                href="https://hervenhub.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent-gold font-black hover:underline"
+              >
+                Herven Hub
+              </a>
+              .
             </p>
           </div>
         </div>

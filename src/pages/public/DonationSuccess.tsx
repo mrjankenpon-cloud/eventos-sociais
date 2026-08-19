@@ -8,16 +8,18 @@ import {
 } from '../../lib/guestCheckout';
 import { DonationCertificate } from '../../components/public/DonationCertificate';
 import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
+import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { donationCertificateNumber } from '../../lib/orgInfo';
 import { Alert, Button, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { formatCurrency } from '../../lib/utils';
+import { readMpReturn } from '../../lib/mpReturn';
 import { ROUTES } from '../../config';
 
 export default function DonationSuccess() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token') || '';
+  const mpReturn = readMpReturn(searchParams);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,14 @@ export default function DonationSuccess() {
       if (data.accessToken) {
         persistGuestCheckoutSession(id, data.accessToken);
         if (!tokenFromUrl) {
-          setSearchParams({ token: data.accessToken }, { replace: true });
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('token', data.accessToken);
+              return next;
+            },
+            { replace: true }
+          );
         }
       }
     } catch (err) {
@@ -71,9 +80,9 @@ export default function DonationSuccess() {
 
   useEffect(() => {
     if (!receipt || receipt.pedido.status !== 'pendente') return;
-    const t = window.setInterval(() => void load(), 4000);
+    const t = window.setInterval(() => void load(), mpReturn.fromMp ? 2000 : 4000);
     return () => window.clearInterval(t);
-  }, [receipt, load]);
+  }, [receipt, load, mpReturn.fromMp]);
 
   const handleSandboxApprove = async () => {
     if (!id) return;
@@ -141,6 +150,8 @@ export default function DonationSuccess() {
   const status = pedido.status;
   const isConfirmed = status === 'confirmado';
   const isPending = status === 'pendente';
+  const showPaidThanks =
+    isConfirmed || (mpReturn.fromMp && mpReturn.approved && isPending);
   const numero =
     pedido.certificadoNumero ||
     donationCertificateNumber(pedido.id, pedido.dataCompra || new Date().toISOString());
@@ -160,14 +171,14 @@ export default function DonationSuccess() {
           <div className="flex justify-center">
             <div
               className={`p-4 rounded-full ${
-                isConfirmed
+                showPaidThanks
                   ? 'bg-green-100'
                   : isPending
                     ? 'bg-amber-100'
                     : 'bg-red-100'
               }`}
             >
-              {isConfirmed ? (
+              {showPaidThanks ? (
                 <CheckCircle2 className="w-12 h-12 text-green-500" aria-hidden="true" />
               ) : isPending ? (
                 <Clock className="w-12 h-12 text-amber-500" aria-hidden="true" />
@@ -177,21 +188,30 @@ export default function DonationSuccess() {
             </div>
           </div>
           <h1 className="text-2xl font-black text-gray-900">
-            {isConfirmed
+            {showPaidThanks
               ? 'Doação confirmada'
               : isPending
-                ? 'Aguardando pagamento'
+                ? mpReturn.fromMp
+                  ? 'Confirmando sua doação'
+                  : 'Aguardando pagamento'
                 : 'Doação não concluída'}
           </h1>
-          <p className="text-sm text-gray-600">
-            {isConfirmed
-              ? `Recebemos ${formatCurrency(pedido.valorTotal)}. Obrigado — boas ações são sempre bem-vindas.`
-              : isPending
+          <PaymentThankYou
+            kind="doacao"
+            nome={pedido.nomeComprador}
+            confirmed={isConfirmed}
+            fromMp={mpReturn.fromMp}
+            mpApproved={mpReturn.approved}
+          />
+          {!showPaidThanks ? (
+            <p className="text-sm text-gray-600">
+              {isPending
                 ? pedido.pixQrCode
                   ? 'Pague o PIX abaixo. Quando o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
                   : 'Conclua o pagamento no Mercado Pago. Quando confirmar, o certificado aparece aqui e no seu e-mail.'
                 : 'Esta doação não está ativa. Você pode tentar novamente.'}
-          </p>
+            </p>
+          ) : null}
         </div>
 
         {isPending && receipt.sandbox ? (
@@ -258,7 +278,7 @@ export default function DonationSuccess() {
                 qrCodeBase64={pedido.pixQrCodeBase64}
                 expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
               />
-            ) : pedido.linkPagamento ? (
+            ) : pedido.linkPagamento && !showPaidThanks ? (
               <a href={pedido.linkPagamento} className="block mb-6 print:hidden">
                 <Button className="w-full rounded-2xl">
                   Continuar pagamento no Mercado Pago

@@ -1,7 +1,16 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { db, extractMpFees, mpFetch, roundMoney } from './helpers';
+import {
+  db,
+  extractMpFees,
+  extractNumericPaymentIdFromUrl,
+  mapOrderStatusToMp,
+  MpOrderPix,
+  mpFetch,
+  pixFromOrder,
+  roundMoney,
+} from './helpers';
 import {
   emitTicketsForPedido,
   transitionPedidoReleaseStock,
@@ -171,7 +180,223 @@ async function confirmPedidoApproved(
   });
 }
 
+async function processOrder(orderId: string): Promise<void> {
+  const order = (await mpFetch(`/v1/orders/${orderId}`)) as MpOrderPix;
+  const pix = pixFromOrder(order);
+  const numericId = extractNumericPaymentIdFromUrl(pix.ticketUrl);
+  if (numericId) {
+    await processPayment(numericId);
+    return;
+  }
+
+  const pedidoId = String(order.external_reference || '').trim();
+  if (!pedidoId) {
+    functions.logger.warn('[mpWebhook] order sem external_reference', {
+      orderId,
+    });
+    return;
+  }
+
+  const mpStatus = mapOrderStatusToMp(order.status, order.status_detail);
+  const amount = roundMoney(Number(order.total_amount) || 0);
+  const synthetic = {
+    id: pix.paymentId || orderId,
+    status: mpStatus,
+    status_detail: order.status_detail,
+    transaction_amount: amount,
+    external_reference: pedidoId,
+    metadata: {},
+  } as Record<string, unknown>;
+
+  const fees = extractMpFees(synthetic);
+  const isNewEvent = await recordPagamentoOnce({
+    pedidoId,
+    eventoId: '',
+    mpPaymentId: String(pix.paymentId || orderId),
+    tipo: 'order',
+    status: mpStatus,
+    payloadResumo: {
+      status: mpStatus,
+      status_detail: order.status_detail,
+      transaction_amount: fees.transactionAmount,
+      order_id: orderId,
+    },
+  });
+
+  if (!isNewEvent && mpStatus !== 'approved') return;
+
+  const pedidoSnap = await db().collection('pedidos').doc(pedidoId).get();
+  if (!pedidoSnap.exists) return;
+
+  const mpFields = {
+    mpPaymentId: String(pix.paymentId || orderId),
+    mpOrderId: String(order.id || orderId),
+    mpStatus,
+    mpStatusDetail: String(order.status_detail || ''),
+    mpTransactionAmount: fees.transactionAmount,
+    mpFeeAmount: fees.feeAmount,
+    mpNetReceivedAmount: fees.netReceivedAmount,
+  };
+
+  if (mpStatus === 'approved') {
+    await processPaymentApproved(pedidoId, mpFields, fees.transactionAmount, isNewEvent, String(pix.paymentId || orderId));
+    return;
+  }
+
+  if (
+    mpStatus === 'rejected' ||
+    mpStatus === 'cancelled' ||
+    mpStatus === 'canceled'
+  ) {
+    await transitionPedidoReleaseStock({
+      pedidoId,
+      fromStatuses: ['pendente'],
+      toStatus: 'cancelado',
+      extra: mpFields,
+    });
+    return;
+  }
+
+  if (mpStatus === 'refunded' || mpStatus === 'charged_back') {
+    const transition = await transitionPedidoReleaseStock({
+      pedidoId,
+      fromStatuses: ['confirmado', 'pendente'],
+      toStatus: 'reembolsado',
+      extra: mpFields,
+    });
+    if (transition.applied) {
+      await cancelTickets(pedidoId);
+    }
+    return;
+  }
+
+  await db()
+    .collection('pedidos')
+    .doc(pedidoId)
+    .update({
+      ...mpFields,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+
+async function processPaymentApproved(
+  pedidoId: string,
+  mpFields: Record<string, unknown>,
+  paidAmount: number,
+  isNewEvent: boolean,
+  paymentId: string
+): Promise<void> {
+  const pedidoSnap = await db().collection('pedidos').doc(pedidoId).get();
+  const pedidoTipo = String(pedidoSnap.data()?.tipo || '');
+  if (pedidoTipo === 'doacao') {
+    const outcome = await confirmPedidoApproved(
+      pedidoId,
+      mpFields,
+      roundMoney(paidAmount)
+    );
+    if (outcome === 'mismatch') {
+      functions.logger.error('[mpWebhook] doação valor ≠ esperado', {
+        pedidoId,
+        paymentId,
+      });
+      return;
+    }
+    if (outcome === 'confirmed' || !isNewEvent) {
+      const pdata = (await db().collection('pedidos').doc(pedidoId).get()).data() || {};
+      const needsEmail =
+        String(pdata.status || '') === 'confirmado' &&
+        !pdata.confirmationEmailSentAt &&
+        String(pdata.email || '').includes('@');
+      if (needsEmail) {
+        await sendDonationCertificateEmail({
+          id: pedidoId,
+          email: String(pdata.email || ''),
+          nomeComprador: String(pdata.nomeComprador || ''),
+          cpf: String(pdata.cpf || ''),
+          documentoTipo: String(pdata.documentoTipo || 'cpf'),
+          valorTotal: Number(pdata.valorTotal) || 0,
+          dataCompra: String(pdata.dataCompra || ''),
+          certificadoNumero: String(pdata.certificadoNumero || ''),
+          accessToken: String(pdata.accessToken || ''),
+        });
+      }
+    }
+    return;
+  }
+  if (pedidoTipo === 'upgrade') {
+    const outcome = await confirmPedidoApproved(
+      pedidoId,
+      mpFields,
+      roundMoney(paidAmount)
+    );
+    if (outcome === 'mismatch') {
+      functions.logger.error('[mpWebhook] upgrade valor ≠ esperado', {
+        pedidoId,
+        paymentId,
+      });
+      return;
+    }
+    if (outcome === 'confirmed' || !isNewEvent) {
+      await applyTicketUpgrade(pedidoId);
+    }
+    return;
+  }
+
+  const outcome = await confirmPedidoApproved(
+    pedidoId,
+    mpFields,
+    roundMoney(paidAmount)
+  );
+  if (outcome === 'mismatch') {
+    functions.logger.error('[mpWebhook] valor pago ≠ valor congelado', {
+      pedidoId,
+      paymentId,
+      paid: paidAmount,
+    });
+    return;
+  }
+  if (outcome === 'confirmed' || !isNewEvent) {
+    await emitTicketsForPedido(pedidoId);
+    const pedidoAfter = await db().collection('pedidos').doc(pedidoId).get();
+    const pdata = pedidoAfter.data() || {};
+    const statusOk = String(pdata.status || '') === 'confirmado';
+    const needsEmail =
+      statusOk &&
+      !pdata.confirmationEmailSentAt &&
+      String(pdata.email || '').includes('@');
+    if (needsEmail) {
+      await sendOrderConfirmationEmail({
+        id: pedidoId,
+        email: String(pdata.email || ''),
+        nomeComprador: String(pdata.nomeComprador || ''),
+        eventoId: String(pdata.eventoId || ''),
+      });
+    }
+  }
+}
+
 async function processPayment(paymentId: string): Promise<void> {
+  const id = String(paymentId);
+  if (id.startsWith('ORD')) {
+    await processOrder(id);
+    return;
+  }
+  if (id.startsWith('PAY')) {
+    const snap = await db()
+      .collection('pedidos')
+      .where('mpOrderPaymentId', '==', id)
+      .limit(1)
+      .get();
+    const orderId = String(snap.docs[0]?.data()?.mpOrderId || '');
+    if (orderId.startsWith('ORD')) {
+      await processOrder(orderId);
+      return;
+    }
+    functions.logger.warn('[mpWebhook] PAY sem pedido vinculado', {
+      paymentId: id,
+    });
+    return;
+  }
   const payment = (await mpFetch(
     `/v1/payments/${paymentId}`
   )) as Record<string, unknown>;
@@ -234,92 +459,13 @@ async function processPayment(paymentId: string): Promise<void> {
   };
 
   if (mpStatus === 'approved') {
-    const pedidoTipo = String(pedidoSnap.data()?.tipo || '');
-    if (pedidoTipo === 'doacao') {
-      const outcome = await confirmPedidoApproved(
-        pedidoId,
-        mpFields,
-        roundMoney(fees.transactionAmount)
-      );
-      if (outcome === 'mismatch') {
-        functions.logger.error('[mpWebhook] doação valor ≠ esperado', {
-          pedidoId,
-          paymentId,
-        });
-        return;
-      }
-      if (outcome === 'confirmed' || !isNewEvent) {
-        const pdata = (await db().collection('pedidos').doc(pedidoId).get()).data() || {};
-        const needsEmail =
-          String(pdata.status || '') === 'confirmado' &&
-          !pdata.confirmationEmailSentAt &&
-          String(pdata.email || '').includes('@');
-        if (needsEmail) {
-          await sendDonationCertificateEmail({
-            id: pedidoId,
-            email: String(pdata.email || ''),
-            nomeComprador: String(pdata.nomeComprador || ''),
-            cpf: String(pdata.cpf || ''),
-            documentoTipo: String(pdata.documentoTipo || 'cpf'),
-            valorTotal: Number(pdata.valorTotal) || 0,
-            dataCompra: String(pdata.dataCompra || ''),
-            certificadoNumero: String(pdata.certificadoNumero || ''),
-            accessToken: String(pdata.accessToken || ''),
-          });
-        }
-      }
-      return;
-    }
-    if (pedidoTipo === 'upgrade') {
-      const outcome = await confirmPedidoApproved(
-        pedidoId,
-        mpFields,
-        roundMoney(fees.transactionAmount)
-      );
-      if (outcome === 'mismatch') {
-        functions.logger.error('[mpWebhook] upgrade valor ≠ esperado', {
-          pedidoId,
-          paymentId,
-        });
-        return;
-      }
-      if (outcome === 'confirmed' || !isNewEvent) {
-        await applyTicketUpgrade(pedidoId);
-      }
-      return;
-    }
-
-    const outcome = await confirmPedidoApproved(
+    await processPaymentApproved(
       pedidoId,
       mpFields,
-      roundMoney(fees.transactionAmount)
+      fees.transactionAmount,
+      isNewEvent,
+      String(paymentId)
     );
-    if (outcome === 'mismatch') {
-      functions.logger.error('[mpWebhook] valor pago ≠ valor congelado', {
-        pedidoId,
-        paymentId,
-        paid: fees.transactionAmount,
-      });
-      return;
-    }
-    if (outcome === 'confirmed' || !isNewEvent) {
-      await emitTicketsForPedido(pedidoId);
-      const pedidoAfter = await db().collection('pedidos').doc(pedidoId).get();
-      const pdata = pedidoAfter.data() || {};
-      const statusOk = String(pdata.status || '') === 'confirmado';
-      const needsEmail =
-        statusOk &&
-        !pdata.confirmationEmailSentAt &&
-        String(pdata.email || '').includes('@');
-      if (needsEmail) {
-        await sendOrderConfirmationEmail({
-          id: pedidoId,
-          email: String(pdata.email || ''),
-          nomeComprador: String(pdata.nomeComprador || ''),
-          eventoId: String(pdata.eventoId || ''),
-        });
-      }
-    }
     return;
   }
 
@@ -395,7 +541,12 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
         ''
     );
 
-    if ((topic === 'payment' || topic === 'payments' || !topic) && dataId) {
+    if (
+      (topic === 'order' || topic === 'orders' || String(dataId).startsWith('ORD')) &&
+      dataId
+    ) {
+      await processOrder(dataId);
+    } else if ((topic === 'payment' || topic === 'payments' || !topic) && dataId) {
       await processPayment(dataId);
     } else if (topic === 'merchant_order' && dataId) {
       const order = (await mpFetch(`/merchant_orders/${dataId}`)) as {

@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { db, extractMpFees, mpFetch, roundMoney } from './helpers';
+import { db, extractMpFees, moneyString, mpFetch, roundMoney } from './helpers';
 import { releaseStock, transitionPedidoReleaseStock } from './stock';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
@@ -185,14 +185,34 @@ export const refundPayment = functions.https.onRequest(async (req, res) => {
 
     let refund: Record<string, unknown>;
     try {
-      const body =
+      const orderId = String(pedido.mpOrderId || '');
+      const partialBody =
         partial || refundAmount < remaining - 0.001
           ? { amount: refundAmount }
           : {};
-      refund = (await mpFetch(`/v1/payments/${mpPaymentId}/refunds`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      })) as Record<string, unknown>;
+      if (orderId.startsWith('ORD')) {
+        const orderPayId = String(pedido.mpOrderPaymentId || '');
+        const body =
+          partialBody.amount != null
+            ? {
+                transactions: orderPayId
+                  ? [{ id: orderPayId, amount: moneyString(refundAmount) }]
+                  : [],
+              }
+            : {};
+        refund = (await mpFetch(`/v1/orders/${orderId}/refund`, {
+          method: 'POST',
+          headers: {
+            'X-Idempotency-Key': `refund-${pedidoId}-${ticketId || 'full'}`,
+          },
+          body: JSON.stringify(body),
+        })) as Record<string, unknown>;
+      } else {
+        refund = (await mpFetch(`/v1/payments/${mpPaymentId}/refunds`, {
+          method: 'POST',
+          body: JSON.stringify(partialBody),
+        })) as Record<string, unknown>;
+      }
     } catch (mpErr) {
       await pedidoRef.update({
         refundInProgress: false,

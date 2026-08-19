@@ -13,6 +13,7 @@ export type TicketPassData = {
   ordem: number;
   ingressoNome?: string;
   natureza?: string;
+  upgradedToInteira?: boolean;
   checkinRealizado?: boolean;
   retiradaRealizada?: boolean;
 };
@@ -207,6 +208,11 @@ export function TicketPass({
             >
               {used ? 'Já utilizado no check-in' : ticket.status || 'Válido'}
             </p>
+            {ticket.upgradedToInteira ? (
+              <p className="text-[11px] font-bold text-amber-800 mt-2">
+                Observação: Meia convertida em inteira
+              </p>
+            ) : null}
           </div>
 
           <p className="text-xs text-gray-400 leading-relaxed print:hidden">

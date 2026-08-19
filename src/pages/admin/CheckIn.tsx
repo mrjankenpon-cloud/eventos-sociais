@@ -26,6 +26,10 @@ import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
+import {
+  MEIA_CONVERTIDA_OBS,
+  wasMeiaConvertedToInteira,
+} from '../../lib/ticketUpgrade';
 
 export default function CheckIn() {
   const { id } = useParams();
@@ -507,6 +511,11 @@ export default function CheckIn() {
                             <p className="text-xs font-black text-gray-900 font-mono truncate">
                               {t.codigo}
                             </p>
+                            {wasMeiaConvertedToInteira(t) ? (
+                              <p className="text-[10px] font-bold text-amber-700 mt-1">
+                                Observação: {MEIA_CONVERTIDA_OBS}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
 
@@ -620,6 +629,11 @@ export default function CheckIn() {
                   {scannedTicket.ingressoNome}
                 </p>
               ) : null}
+              {wasMeiaConvertedToInteira(scannedTicket) ? (
+                <p className="mt-3 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black uppercase tracking-wide text-amber-900">
+                  Observação: {MEIA_CONVERTIDA_OBS}
+                </p>
+              ) : null}
               {!scannedPending && (
                 <p className="text-red-600/70 text-xs font-bold uppercase tracking-wider mt-3">
                   Este QR já foi usado no check-in
@@ -679,6 +693,9 @@ export default function CheckIn() {
                           {String(t.ordem).padStart(3, '0')} ·{' '}
                           <span className="font-mono text-xs">{t.codigo}</span>
                           {t.ingressoNome ? ` · ${t.ingressoNome}` : ''}
+                          {wasMeiaConvertedToInteira(t)
+                            ? ` · ${MEIA_CONVERTIDA_OBS}`
+                            : ''}
                           {isCurrent ? ' (lido agora)' : ''}
                         </span>
                         <span

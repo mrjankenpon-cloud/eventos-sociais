@@ -24,6 +24,7 @@ export interface Ticket {
   operador?: string;
   ativo?: boolean;
   upgradedToInteira?: boolean;
+  upgradeFromNome?: string;
   upgradePedidoId?: string;
   upgradeStatus?: string;
   createdAt: string;

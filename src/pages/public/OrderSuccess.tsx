@@ -16,7 +16,9 @@ import { Button, Alert, Badge, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TicketPassList } from '../../components/public/TicketPass';
 import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
+import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { formatCurrency } from '../../lib/utils';
+import { readMpReturn } from '../../lib/mpReturn';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
 
@@ -25,6 +27,7 @@ export default function OrderSuccess() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token') || '';
+  const mpReturn = readMpReturn(searchParams);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +61,14 @@ export default function OrderSuccess() {
       if (data.accessToken) {
         persistGuestCheckoutSession(id, data.accessToken);
         if (!tokenFromUrl) {
-          setSearchParams({ token: data.accessToken }, { replace: true });
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('token', data.accessToken);
+              return next;
+            },
+            { replace: true }
+          );
         }
       }
     } catch (err) {
@@ -82,9 +92,9 @@ export default function OrderSuccess() {
     if (!receipt || receipt.pedido.status !== 'pendente') return;
     const t = window.setInterval(() => {
       void load();
-    }, 4000);
+    }, mpReturn.fromMp ? 2000 : 4000);
     return () => window.clearInterval(t);
-  }, [receipt, load]);
+  }, [receipt, load, mpReturn.fromMp]);
 
   const handleSandboxApprove = async () => {
     if (!id) return;
@@ -163,6 +173,8 @@ export default function OrderSuccess() {
   const isPending = status === 'pendente';
   const isFailed =
     status === 'cancelado' || status === 'expirado' || status === 'reembolsado';
+  const showPaidThanks =
+    isConfirmed || (mpReturn.fromMp && mpReturn.approved && !isFailed);
 
   return (
     <div className="py-12 sm:py-20 min-h-[60vh] bg-surface-muted">
@@ -185,14 +197,14 @@ export default function OrderSuccess() {
             <div className="flex justify-center">
               <div
                 className={`p-4 rounded-full ${
-                  isConfirmed
+                  showPaidThanks
                     ? 'bg-green-100'
                     : isPending
                       ? 'bg-amber-100'
                       : 'bg-red-100'
                 }`}
               >
-                {isConfirmed ? (
+                {showPaidThanks ? (
                   <CheckCircle2
                     className="w-12 h-12 text-green-500"
                     aria-hidden="true"
@@ -205,30 +217,39 @@ export default function OrderSuccess() {
               </div>
             </div>
             <h1 className="text-2xl font-black text-gray-900">
-              {isConfirmed
-                ? 'Pedido confirmado'
+              {showPaidThanks
+                ? 'Pagamento confirmado'
                 : isPending
-                  ? 'Aguardando pagamento'
+                  ? mpReturn.fromMp
+                    ? 'Confirmando seu pagamento'
+                    : 'Aguardando pagamento'
                   : status === 'expirado'
                     ? 'Pedido expirado'
                     : status === 'reembolsado'
                       ? 'Pedido reembolsado'
                       : 'Pedido cancelado'}
             </h1>
+            <PaymentThankYou
+              kind="ingresso"
+              nome={pedido.nomeComprador}
+              confirmed={isConfirmed}
+              fromMp={mpReturn.fromMp}
+              mpApproved={mpReturn.approved}
+            />
             <p className="text-sm text-gray-600">
               {pedido.eventoTitulo || 'Evento'}
               {pedido.ingressoNome ? ` · ${pedido.ingressoNome}` : ''}
             </p>
             <Badge
               variant={
-                isConfirmed ? 'success' : isPending ? 'warning' : 'danger'
+                showPaidThanks ? 'success' : isPending ? 'warning' : 'danger'
               }
             >
-              {status}
+              {showPaidThanks && isPending ? 'confirmando' : status}
             </Badge>
           </div>
 
-          {isPending && (
+          {isPending && !showPaidThanks && (
             <Alert variant="info">
               {pedido.pixQrCode
                 ? 'Pague o PIX abaixo. Após a confirmação, os ingressos aparecem aqui e no e-mail.'
@@ -246,7 +267,7 @@ export default function OrderSuccess() {
             />
           ) : null}
 
-          {isPending && !pedido.pixQrCode && pedido.linkPagamento ? (
+          {isPending && !showPaidThanks && !pedido.pixQrCode && pedido.linkPagamento ? (
             <a href={pedido.linkPagamento} className="block print:hidden">
               <Button className="w-full rounded-2xl">
                 Continuar pagamento no Mercado Pago
@@ -352,9 +373,9 @@ export default function OrderSuccess() {
           ) : null}
 
           {isConfirmed ? (
-            <Alert variant="info" className="print:hidden">
-              Guarde esta página ou imprima o ingresso. Você também pode
-              recuperar os QR Codes depois em{' '}
+            <Alert variant="success" className="print:hidden">
+              Obrigado por participar. Guarde esta página ou imprima o ingresso.
+              Você também pode recuperar os QR Codes depois em{' '}
               <Link
                 to={ROUTES.PUBLIC.ORDER_LOOKUP}
                 className="font-bold text-brand underline"

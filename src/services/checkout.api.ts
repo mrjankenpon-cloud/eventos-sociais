@@ -120,6 +120,7 @@ export type OrderReceiptResult = {
     ordem: number;
     natureza?: string;
     ingressoNome?: string;
+    upgradedToInteira?: boolean;
     checkinRealizado: boolean;
     retiradaRealizada: boolean;
   }>;

@@ -42,6 +42,7 @@ type InscritoRow = {
   canCheckin: boolean;
   checkinEm: string;
   actionLabel: string;
+  meiaConvertida: boolean;
 };
 
 function isRetiradaTicket(t: TicketType): boolean {
@@ -113,6 +114,7 @@ function buildInscritos(
             ? t.retiradaEm || ''
             : t.checkinEm || '',
           actionLabel: retirada ? 'Retirar' : 'Check-in',
+          meiaConvertida: t.upgradedToInteira === true,
         });
       }
       continue;
@@ -136,6 +138,7 @@ function buildInscritos(
         canCheckin: false,
         checkinEm: '',
         actionLabel: 'Check-in',
+        meiaConvertida: false,
       });
     }
   }
@@ -340,6 +343,11 @@ export default function EventReports() {
           <p className="text-xs font-bold text-gray-700 truncate">
             {p.ingressoNome || 'Ingresso'}
           </p>
+          {p.meiaConvertida ? (
+            <p className="text-[10px] font-bold text-amber-700">
+              Meia convertida em inteira
+            </p>
+          ) : null}
         </div>
       ),
     },

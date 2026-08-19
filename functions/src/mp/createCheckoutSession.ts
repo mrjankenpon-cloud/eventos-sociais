@@ -374,13 +374,7 @@ export const createCheckoutSession = functions.https.onRequest(
             documento: cpf,
             documentoTipo: 'cpf',
             expiresAt: isoWithOffset(reservaExpiraEm),
-            notificationUrl,
             idempotencyKey: `ticket-pix-${pedidoRef.id}`,
-            metadata: {
-              pedido_id: pedidoRef.id,
-              evento_id: eventoId,
-              tipo: 'ingresso',
-            },
           });
           await pedidoRef.update({
             qrCode: pix.qrCode,
@@ -389,6 +383,8 @@ export const createCheckoutSession = functions.https.onRequest(
             pixTicketUrl: pix.ticketUrl || null,
             pixExpiresAt: pix.expiresAt || reservaExpiraEm.toISOString(),
             mpPaymentId: pix.paymentId,
+            mpOrderId: pix.orderId || null,
+            mpOrderPaymentId: pix.orderPaymentId || null,
             mpStatus: pix.status || 'pending',
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -424,7 +420,7 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
-        // Checkout Pro: cartão (PIX fica no Transparente).
+        // Checkout Pro: crédito/débito (PIX é gerado no site).
         // back_urls sem query: o token fica no sessionStorage; o MP acrescenta payment_id.
         const preferenceBody: Record<string, unknown> = {
           items: resolved.map((l) => ({

@@ -530,7 +530,7 @@ export default function PurchaseDetails() {
                           <p className="text-[10px] text-gray-400 mt-1">
                             {formatCurrency(unitForTicket(purchase, t))}
                             {t.upgradedToInteira
-                              ? ' · convertido para inteira'
+                              ? ' · Meia convertida em inteira'
                               : pixPending
                                 ? ' · aguardando PIX da diferença'
                                 : ''}

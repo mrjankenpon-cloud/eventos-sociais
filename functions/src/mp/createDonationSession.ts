@@ -189,12 +189,7 @@ export const createDonationSession = functions.https.onRequest(
             documento,
             documentoTipo,
             expiresAt: isoWithOffset(expira),
-            notificationUrl,
             idempotencyKey: `donation-pix-${pedidoRef.id}`,
-            metadata: {
-              pedido_id: pedidoRef.id,
-              tipo: 'doacao',
-            },
           });
           await pedidoRef.update({
             qrCode: pix.qrCode,
@@ -203,6 +198,8 @@ export const createDonationSession = functions.https.onRequest(
             pixTicketUrl: pix.ticketUrl || null,
             pixExpiresAt: pix.expiresAt || expira.toISOString(),
             mpPaymentId: pix.paymentId,
+            mpOrderId: pix.orderId || null,
+            mpOrderPaymentId: pix.orderPaymentId || null,
             mpStatus: pix.status || 'pending',
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });

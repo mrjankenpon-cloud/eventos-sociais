@@ -173,29 +173,71 @@ export function isoWithOffset(date: Date): string {
   return `${y}-${m}-${d}T${h}:${min}:${s}.${ms}${sign}${oh}:${om}`;
 }
 
-export type MpPixPayment = {
-  id?: number | string;
+export type MpOrderPix = {
+  id?: string;
   status?: string;
-  date_of_expiration?: string;
-  point_of_interaction?: {
-    transaction_data?: {
-      qr_code?: string;
-      qr_code_base64?: string;
-      ticket_url?: string;
-    };
+  status_detail?: string;
+  total_amount?: string;
+  external_reference?: string;
+  transactions?: {
+    payments?: Array<{
+      id?: string;
+      status?: string;
+      status_detail?: string;
+      date_of_expiration?: string;
+      amount?: string;
+      payment_method?: {
+        id?: string;
+        type?: string;
+        qr_code?: string;
+        qr_code_base64?: string;
+        ticket_url?: string;
+      };
+    }>;
   };
 };
 
-export function pixFromPayment(payment: MpPixPayment) {
-  const td = payment.point_of_interaction?.transaction_data || {};
+export function extractNumericPaymentIdFromUrl(url: string): string {
+  const match = String(url || '').match(/\/payments\/(\d+)/);
+  return match?.[1] || '';
+}
+
+export function mapOrderStatusToMp(
+  status?: string,
+  statusDetail?: string
+): string {
+  const s = String(status || '').toLowerCase();
+  const d = String(statusDetail || '').toLowerCase();
+  if (s === 'processed' || d === 'accredited') return 'approved';
+  if (s === 'refunded' || d === 'refunded' || d === 'partially_refunded') {
+    return 'refunded';
+  }
+  if (s === 'canceled' || s === 'cancelled' || s === 'expired') {
+    return 'cancelled';
+  }
+  if (s === 'action_required' || s === 'created') return 'pending';
+  return s || 'pending';
+}
+
+export function pixFromOrder(order: MpOrderPix) {
+  const pay = order.transactions?.payments?.[0];
+  const pm = pay?.payment_method || {};
+  const ticketUrl = String(pm.ticket_url || '');
+  const numericId = extractNumericPaymentIdFromUrl(ticketUrl);
   return {
-    qrCode: String(td.qr_code || ''),
-    qrCodeBase64: String(td.qr_code_base64 || ''),
-    ticketUrl: String(td.ticket_url || ''),
-    paymentId: String(payment.id || ''),
-    expiresAt: String(payment.date_of_expiration || ''),
-    status: String(payment.status || ''),
+    qrCode: String(pm.qr_code || ''),
+    qrCodeBase64: String(pm.qr_code_base64 || ''),
+    ticketUrl,
+    paymentId: numericId || String(pay?.id || order.id || ''),
+    orderId: String(order.id || ''),
+    orderPaymentId: String(pay?.id || ''),
+    expiresAt: String(pay?.date_of_expiration || ''),
+    status: mapOrderStatusToMp(order.status, order.status_detail),
   };
+}
+
+export function moneyString(n: number): string {
+  return roundMoney(n).toFixed(2);
 }
 
 export type CheckoutMetodo = 'pix' | 'checkout_pro';
@@ -214,12 +256,16 @@ export function mpWebhookUrl(): string {
   return `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
 }
 
-/** Checkout Pro: cartão (e saldo MP). PIX fica no Transparente. */
+/**
+ * Checkout Pro: crédito (Visa, Master, Elo, Amex) e saldo MP.
+ * Débito nesta conta: só Elo (`debelo`). PIX fica no site (API Orders).
+ * O teto de 12x deixa o MP oferecer parcelamento no crédito quando permitir.
+ */
 export function checkoutProPaymentMethods() {
   return {
     excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
     excluded_payment_methods: [{ id: 'pix' }],
-    installments: 1,
+    installments: 12,
     default_installments: 1,
   };
 }
@@ -233,9 +279,7 @@ export async function createPixCharge(input: {
   documento: string;
   documentoTipo?: 'cpf' | 'cnpj';
   expiresAt: string;
-  notificationUrl: string;
   idempotencyKey: string;
-  metadata: Record<string, unknown>;
 }) {
   if (!isLiveMpAccessToken()) {
     throw new Error(
@@ -255,31 +299,48 @@ export async function createPixCharge(input: {
     payer.identification = { type: 'CPF', number: digits };
   }
 
+  const amount = moneyString(input.valor);
+  const holdMs = Math.max(
+    30 * 60 * 1000,
+    new Date(input.expiresAt).getTime() - Date.now()
+  );
+  const holdMinutes = Math.max(30, Math.round(holdMs / 60000));
+
   try {
-    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
+    const order = await mpFetch<MpOrderPix>('/v1/orders', {
       method: 'POST',
       headers: { 'X-Idempotency-Key': input.idempotencyKey },
       body: JSON.stringify({
-        transaction_amount: input.valor,
-        description: input.description.slice(0, 255),
-        payment_method_id: 'pix',
-        payer,
+        type: 'online',
+        processing_mode: 'automatic',
+        total_amount: amount,
         external_reference: input.pedidoId,
-        notification_url: input.notificationUrl,
-        date_of_expiration: input.expiresAt,
-        metadata: input.metadata,
+        description: input.description.slice(0, 255),
+        expiration_time: `PT${holdMinutes}M`,
+        payer,
+        transactions: {
+          payments: [
+            {
+              amount,
+              payment_method: {
+                id: 'pix',
+                type: 'bank_transfer',
+              },
+            },
+          ],
+        },
       }),
     });
-    const pix = pixFromPayment(payment);
+    const pix = pixFromOrder(order);
     if (!pix.qrCode) {
       throw new Error('Mercado Pago não devolveu o código PIX');
     }
     return pix;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (/401|unauthorized|live credentials/i.test(msg)) {
+    if (/401|unauthorized|live credentials|PA_UNAUTHORIZED|403/i.test(msg)) {
       throw new Error(
-        'O Mercado Pago recusou gerar PIX com estas credenciais. Ative PIX/pagamentos via API na aplicação de produção.'
+        'O Mercado Pago recusou gerar PIX com estas credenciais. Confirme PIX na aplicação de produção (API Orders).'
       );
     }
     throw error;

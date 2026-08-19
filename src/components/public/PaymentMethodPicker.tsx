@@ -47,7 +47,7 @@ export function PaymentMethodPicker({
             Cartão
           </span>
           <span className="mt-1 block text-[11px] font-medium text-gray-500">
-            Crédito ou débito no Mercado Pago
+            Crédito (parcelado quando o Mercado Pago permitir) ou débito Elo
           </span>
         </button>
       </div>

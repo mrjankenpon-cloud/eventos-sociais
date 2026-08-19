@@ -74,6 +74,24 @@ async function expireBatch(): Promise<{ expired: number; skipped: number }> {
       }
     }
 
+    const orderId = String(data.mpOrderId || '');
+    if (orderId.startsWith('ORD')) {
+      try {
+        await mpFetch(`/v1/orders/${orderId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'X-Idempotency-Key': `expire-order-${doc.id}`,
+          },
+          body: JSON.stringify({}),
+        });
+      } catch (err) {
+        functions.logger.warn('[expirePendingOrders] order', {
+          orderId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     const preferenceId = String(data.mpPreferenceId || '');
     if (preferenceId) {
       try {

@@ -2,9 +2,11 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { randomBytes } from 'crypto';
 import {
+  createPixCharge,
   db,
   getAppUrl,
-  isLiveMpAccessToken,
+  mapOrderStatusToMp,
+  MpOrderPix,
   mpFetch,
   roundMoney,
 } from './helpers';
@@ -77,31 +79,6 @@ function isoWithOffset(date: Date): string {
   return `${y}-${m}-${d}T${h}:${min}:${s}.${ms}${sign}${oh}:${om}`;
 }
 
-type MpPixPayment = {
-  id?: number | string;
-  status?: string;
-  date_of_expiration?: string;
-  point_of_interaction?: {
-    transaction_data?: {
-      qr_code?: string;
-      qr_code_base64?: string;
-      ticket_url?: string;
-    };
-  };
-};
-
-function pixFromPayment(payment: MpPixPayment) {
-  const td = payment.point_of_interaction?.transaction_data || {};
-  return {
-    qrCode: String(td.qr_code || ''),
-    qrCodeBase64: String(td.qr_code_base64 || ''),
-    ticketUrl: String(td.ticket_url || ''),
-    paymentId: String(payment.id || ''),
-    expiresAt: String(payment.date_of_expiration || ''),
-    status: String(payment.status || ''),
-  };
-}
-
 async function createPixPayment(input: {
   pedidoId: string;
   diff: number;
@@ -112,63 +89,18 @@ async function createPixPayment(input: {
   ticketId: string;
   eventoId: string;
   expiresAt: string;
-  notificationUrl: string;
 }) {
-  /**
-   * PIX usa Checkout Transparente (POST /v1/payments), não o Checkout Pro.
-   * Credencial TEST- não gera QR. Token APP_USR- + e-mail de TESTUSER
-   * devolve 401 "Unauthorized use of live credentials".
-   */
-  if (!isLiveMpAccessToken()) {
-    throw new Error(
-      'PIX da diferença não funciona no ambiente de teste do Mercado Pago. Use as credenciais de produção (APP_USR) desta aplicação.'
-    );
-  }
-
-  const email = String(input.email || '').trim().toLowerCase();
-  const cpf = input.cpf.replace(/\D/g, '').slice(0, 11);
-  const payer: Record<string, unknown> = {
-    email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
-    first_name: (input.name || 'Convidado').slice(0, 60),
-  };
-  if (cpf.length === 11) {
-    payer.identification = { type: 'CPF', number: cpf };
-  }
-
-  try {
-    const payment = await mpFetch<MpPixPayment>('/v1/payments', {
-      method: 'POST',
-      headers: { 'X-Idempotency-Key': `upgrade-pix-${input.pedidoId}` },
-      body: JSON.stringify({
-        transaction_amount: input.diff,
-        description: input.description.slice(0, 255),
-        payment_method_id: 'pix',
-        payer,
-        external_reference: input.pedidoId,
-        notification_url: input.notificationUrl,
-        date_of_expiration: input.expiresAt,
-        metadata: {
-          pedido_id: input.pedidoId,
-          tipo: 'upgrade',
-          ticket_id: input.ticketId,
-          evento_id: input.eventoId,
-        },
-      }),
-    });
-    const pix = pixFromPayment(payment);
-    if (!pix.qrCode) {
-      throw new Error('Mercado Pago não devolveu o código PIX');
-    }
-    return pix;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (/401|unauthorized|live credentials/i.test(msg)) {
-      throw new Error(
-        'O Mercado Pago recusou gerar PIX com estas credenciais. Ingressos usam Checkout Pro; o QR da diferença usa Checkout Transparente. Ative PIX/pagamentos via API na aplicação de produção do Mercado Pago.'
-      );
-    }
-    throw error;
-  }
+  return createPixCharge({
+    pedidoId: input.pedidoId,
+    valor: input.diff,
+    description: input.description,
+    email: input.email,
+    nome: input.name,
+    documento: input.cpf,
+    documentoTipo: 'cpf',
+    expiresAt: input.expiresAt,
+    idempotencyKey: `upgrade-pix-${input.pedidoId}`,
+  });
 }
 
 function jsonPix(res: functions.Response, payload: Record<string, unknown>) {
@@ -317,11 +249,6 @@ export const createTicketUpgradeSession = functions.https.onRequest(
       }
 
       const appUrl = getAppUrl();
-      const projectId =
-        process.env.GCLOUD_PROJECT ||
-        process.env.GCP_PROJECT ||
-        'eventosociais-c057d';
-      const notificationUrl = `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
       const eventoSnap = await db().collection('eventos').doc(eventoId).get();
       const eventoTitulo = String(eventoSnap.data()?.titulo || 'Evento');
 
@@ -331,7 +258,6 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         cpf: String(origem.cpf || ''),
         ticketId,
         eventoId,
-        notificationUrl,
         description: `${eventoTitulo} — diferença meia→inteira`,
         diff,
       };
@@ -363,13 +289,25 @@ export const createTicketUpgradeSession = functions.https.onRequest(
             return;
           }
 
+          const mpOrderId = String(p.mpOrderId || '');
           const mpPaymentId = String(p.mpPaymentId || '');
-          if (stillValid && mpPaymentId) {
+          if (stillValid && (mpOrderId || mpPaymentId)) {
             try {
-              const live = await mpFetch<MpPixPayment>(
-                `/v1/payments/${mpPaymentId}`
-              );
-              if (String(live.status) === 'approved') {
+              let approved = false;
+              if (mpOrderId.startsWith('ORD')) {
+                const live = await mpFetch<MpOrderPix>(
+                  `/v1/orders/${mpOrderId}`
+                );
+                approved =
+                  mapOrderStatusToMp(live.status, live.status_detail) ===
+                  'approved';
+              } else if (/^\d+$/.test(mpPaymentId)) {
+                const live = await mpFetch<{ status?: string }>(
+                  `/v1/payments/${mpPaymentId}`
+                );
+                approved = String(live.status) === 'approved';
+              }
+              if (approved) {
                 await applyTicketUpgrade(existingId);
                 jsonPix(res, {
                   pedidoId: existingId,
@@ -417,6 +355,8 @@ export const createTicketUpgradeSession = functions.https.onRequest(
             await prev.ref.update({
               formaPagamento: 'pix',
               mpPaymentId: pix.paymentId,
+              mpOrderId: pix.orderId || null,
+              mpOrderPaymentId: pix.orderPaymentId || null,
               pixQrCode: pix.qrCode,
               pixQrCodeBase64: pix.qrCodeBase64 || '',
               pixTicketUrl: pix.ticketUrl,
@@ -515,6 +455,8 @@ export const createTicketUpgradeSession = functions.https.onRequest(
 
       await pedidoRef.update({
         mpPaymentId: pix.paymentId,
+        mpOrderId: pix.orderId || null,
+        mpOrderPaymentId: pix.orderPaymentId || null,
         pixQrCode: pix.qrCode,
         pixQrCodeBase64: pix.qrCodeBase64 || '',
         pixTicketUrl: pix.ticketUrl,
@@ -581,12 +523,14 @@ export async function applyTicketUpgrade(
     const ticket = ticketSnap.data() || {};
     if (ticket.upgradedToInteira === true) return;
 
+    const fromNome = String(ticket.ingressoNome || 'Meia');
     tx.update(ticketRef, {
       ingressoId: toIngressoId,
       ingressoKey: String(toData.key || pedido.ingressoKey || 'inteira'),
       ingressoNome: String(toData.nome || pedido.ingressoNome || 'Inteira'),
       natureza: String(toData.natureza || pedido.natureza || 'entrada'),
       upgradedToInteira: true,
+      upgradeFromNome: fromNome,
       upgradePedidoId: upgradePedidoId,
       upgradeStatus: 'confirmado',
       upgradedAt: new Date().toISOString(),
