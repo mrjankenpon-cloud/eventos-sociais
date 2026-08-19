@@ -52,7 +52,6 @@ function AdminShell() {
 
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, href: ROUTES.ADMIN.DASHBOARD },
-    { name: 'Painel', icon: Gauge, href: ROUTES.ADMIN.PAINEL },
     { name: 'Eventos', icon: Calendar, href: ROUTES.ADMIN.EVENTS },
     { name: 'Doações', icon: HandCoins, href: ROUTES.ADMIN.DONATIONS },
     { name: 'Patrocinadores', icon: Handshake, href: ROUTES.ADMIN.SPONSORS },
@@ -61,6 +60,7 @@ function AdminShell() {
     { name: 'Conteúdo', icon: FileText, href: ROUTES.ADMIN.SITE_CONTENT },
     { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
     { name: 'Documentação', icon: BookOpen, href: ROUTES.ADMIN.DOCUMENTATION },
+    { name: 'Painel', icon: Gauge, href: ROUTES.ADMIN.PAINEL },
   ];
 
   const handleLogout = async () => {
