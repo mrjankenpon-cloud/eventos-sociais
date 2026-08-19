@@ -29,6 +29,7 @@ import {
   PaymentMethodPicker,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
+import { CardholderSameAsBuyer } from '../../components/public/CardholderSameAsBuyer';
 
 function maxQtyForType(
   type: TicketType,
@@ -52,6 +53,11 @@ export default function EventRegistration() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
   const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
+  const [sameCardholder, setSameCardholder] = useState(true);
+  const [titularNome, setTitularNome] = useState('');
+  const [titularCpf, setTitularCpf] = useState('');
+  const [titularCpfOk, setTitularCpfOk] = useState(false);
+  const [titularNomeError, setTitularNomeError] = useState<string | undefined>();
   /** Quantidade por tipo de ingresso (começa em 0). */
   const [qtyByType, setQtyByType] = useState<Record<string, number>>({});
 
@@ -142,11 +148,15 @@ export default function EventRegistration() {
   const hasTickets = totalQty >= 1;
   const qtyWithinEventLimit = totalQty <= eventLimit;
 
+  const needsCardholder =
+    total > 0 && metodo === 'checkout_pro' && !sameCardholder;
+  const titularNomeOk = titularNome.trim().length > 3;
   const isFormValid =
     Object.values(fieldValidity).every(Boolean) &&
     hasTickets &&
     qtyWithinEventLimit &&
-    activeTickets.length > 0;
+    activeTickets.length > 0 &&
+    (!needsCardholder || (titularNomeOk && titularCpfOk));
 
   const missingHints = useMemo(() => {
     const hints: string[] = [];
@@ -159,8 +169,18 @@ export default function EventRegistration() {
     if (!fieldValidity.telefone) hints.push('telefone');
     if (!fieldValidity.email) hints.push('e-mail');
     if (!fieldValidity.termosAceitos) hints.push('aceite dos termos');
+    if (needsCardholder && !titularNomeOk) hints.push('nome do titular do cartão');
+    if (needsCardholder && !titularCpfOk) hints.push('CPF do titular do cartão');
     return hints;
-  }, [fieldValidity, hasTickets, qtyWithinEventLimit, eventLimit]);
+  }, [
+    fieldValidity,
+    hasTickets,
+    qtyWithinEventLimit,
+    eventLimit,
+    needsCardholder,
+    titularNomeOk,
+    titularCpfOk,
+  ]);
 
   const setTypeQty = (typeId: string, next: number) => {
     const type = activeTickets.find((t) => t.id === typeId);
@@ -206,6 +226,10 @@ export default function EventRegistration() {
         valorTotal: total,
         itens,
         metodo: total === 0 ? undefined : metodo,
+        titularCartao:
+          total > 0 && metodo === 'checkout_pro' && !sameCardholder
+            ? { nome: titularNome.trim(), cpf: titularCpf }
+            : undefined,
       });
 
       persistGuestCheckoutSession(result.id, result.accessToken);
@@ -477,6 +501,29 @@ export default function EventRegistration() {
 
             {cartLines.length > 0 && total > 0 ? (
               <PaymentMethodPicker value={metodo} onChange={setMetodo} />
+            ) : null}
+
+            {cartLines.length > 0 && total > 0 && metodo === 'checkout_pro' ? (
+              <CardholderSameAsBuyer
+                same={sameCardholder}
+                onSameChange={setSameCardholder}
+                titularNome={titularNome}
+                titularCpf={titularCpf}
+                nomeError={titularNomeError}
+                onNomeChange={(val) => {
+                  const valid = val.trim().length > 3;
+                  setTitularNome(val);
+                  setTitularNomeError(
+                    val.length > 0 && !valid
+                      ? 'Informe o nome completo do titular (mín. 4 caracteres).'
+                      : undefined
+                  );
+                }}
+                onCpfChange={(val, isValid) => {
+                  setTitularCpf(val);
+                  setTitularCpfOk(isValid);
+                }}
+              />
             ) : null}
 
             <div

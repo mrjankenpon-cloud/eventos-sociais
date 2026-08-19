@@ -47,7 +47,10 @@ export default function DonationSuccess() {
       return;
     }
     try {
-      const data = await checkoutApi.getReceipt(id, { token });
+      const data = await checkoutApi.getReceipt(id, {
+        token,
+        paymentId: mpReturn.paymentId || undefined,
+      });
       setReceipt(data);
       setError(null);
       persistGuestCheckoutSession(id, token);
@@ -69,7 +72,7 @@ export default function DonationSuccess() {
     } finally {
       setLoading(false);
     }
-  }, [id, resolveToken, setSearchParams, tokenFromUrl]);
+  }, [id, resolveToken, setSearchParams, tokenFromUrl, mpReturn.paymentId]);
 
   useEffect(() => {
     setLoading(true);
@@ -148,10 +151,13 @@ export default function DonationSuccess() {
   const status = pedido.status;
   const isConfirmed = status === 'confirmado';
   const isPending = status === 'pendente';
-  const showPaidThanks =
-    isConfirmed || (mpReturn.fromMp && mpReturn.approved && isPending);
-  const cardRejected = mpReturn.failed && !showPaidThanks;
-  const rejectionHint = explainMpRejection(mpReturn.statusDetail);
+  const showPaidThanks = isConfirmed;
+  const cardRejected =
+    (mpReturn.failed || String(pedido.mpStatus || '') === 'rejected') &&
+    isPending;
+  const rejectionHint = explainMpRejection(
+    mpReturn.statusDetail || pedido.mpStatusDetail || undefined
+  );
   const numero =
     pedido.certificadoNumero ||
     donationCertificateNumber(pedido.id, pedido.dataCompra || new Date().toISOString());

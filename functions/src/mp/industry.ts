@@ -149,6 +149,20 @@ export function mpPreferenceIndustryItems(
     category_id: item.category_id,
     quantity: item.quantity,
     unit_price: item.unit_price,
-    ...(item.event_date ? { event_date: item.event_date } : {}),
+  }));
+}
+
+/** Itens da preferência Checkout Pro — só campos que o checkout hospedado aceita. */
+export function mpCheckoutProItems(
+  items: MpIndustryItem[]
+): Record<string, unknown>[] {
+  return items.map((item) => ({
+    id: item.id.slice(0, 64),
+    title: item.title.slice(0, 256),
+    description: item.description.slice(0, 256),
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    currency_id: 'BRL',
+    category_id: item.category_id,
   }));
 }

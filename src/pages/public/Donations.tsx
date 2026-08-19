@@ -7,6 +7,7 @@ import {
   PaymentMethodPicker,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
+import { CardholderSameAsBuyer } from '../../components/public/CardholderSameAsBuyer';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { checkoutApi } from '../../services/checkout.api';
@@ -41,6 +42,11 @@ export default function Donations() {
   const [aceite, setAceite] = useState(false);
   const [phoneOk, setPhoneOk] = useState(false);
   const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
+  const [sameCardholder, setSameCardholder] = useState(true);
+  const [titularNome, setTitularNome] = useState('');
+  const [titularCpf, setTitularCpf] = useState('');
+  const [titularCpfOk, setTitularCpfOk] = useState(false);
+  const [titularNomeError, setTitularNomeError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +62,18 @@ export default function Donations() {
   const nomeOk = nome.trim().length >= 4;
   const emailOk = validateEmail(email);
   const amountOk = effectiveAmount >= MIN_DONATION;
+  const needsCardholder = metodo === 'checkout_pro' && !sameCardholder;
+  const titularNomeOk = titularNome.trim().length > 3;
 
   const canSubmit =
-    nomeOk && docOk && emailOk && phoneOk && amountOk && aceite && !submitting;
+    nomeOk &&
+    docOk &&
+    emailOk &&
+    phoneOk &&
+    amountOk &&
+    aceite &&
+    !submitting &&
+    (!needsCardholder || (titularNomeOk && titularCpfOk));
 
   const missing = useMemo(() => {
     const hints: string[] = [];
@@ -68,8 +83,21 @@ export default function Donations() {
     if (!phoneOk) hints.push('telefone');
     if (!emailOk) hints.push('e-mail');
     if (!aceite) hints.push('ciência das informações fiscais');
+    if (needsCardholder && !titularNomeOk) hints.push('nome do titular do cartão');
+    if (needsCardholder && !titularCpfOk) hints.push('CPF do titular do cartão');
     return hints;
-  }, [amountOk, nomeOk, docOk, docTipo, phoneOk, emailOk, aceite]);
+  }, [
+    amountOk,
+    nomeOk,
+    docOk,
+    docTipo,
+    phoneOk,
+    emailOk,
+    aceite,
+    needsCardholder,
+    titularNomeOk,
+    titularCpfOk,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +116,10 @@ export default function Donations() {
           telefone,
         },
         mensagem: mensagem.trim() || undefined,
+        titularCartao:
+          metodo === 'checkout_pro' && !sameCardholder
+            ? { nome: titularNome.trim(), cpf: titularCpf }
+            : undefined,
       });
       persistGuestCheckoutSession(result.pedidoId, result.accessToken);
       if (result.pix || !result.initPoint) {
@@ -258,6 +290,29 @@ export default function Donations() {
         ) : null}
 
         <PaymentMethodPicker value={metodo} onChange={setMetodo} />
+
+        {metodo === 'checkout_pro' ? (
+          <CardholderSameAsBuyer
+            same={sameCardholder}
+            onSameChange={setSameCardholder}
+            titularNome={titularNome}
+            titularCpf={titularCpf}
+            nomeError={titularNomeError}
+            onNomeChange={(val) => {
+              const valid = val.trim().length > 3;
+              setTitularNome(val);
+              setTitularNomeError(
+                val.length > 0 && !valid
+                  ? 'Informe o nome completo do titular (mín. 4 caracteres).'
+                  : undefined
+              );
+            }}
+            onCpfChange={(val, isValid) => {
+              setTitularCpf(val);
+              setTitularCpfOk(isValid);
+            }}
+          />
+        ) : null}
 
         <Button
           type="submit"

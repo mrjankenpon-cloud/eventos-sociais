@@ -103,6 +103,7 @@ export type OrderReceiptResult = {
     valorTotal: number;
     formaPagamento?: string;
     mpStatus?: string | null;
+    mpStatusDetail?: string | null;
     ticketsEmitidos: boolean;
     dataCompra?: string;
     reservaExpiraEm?: string | null;
@@ -171,6 +172,10 @@ export const checkoutApi = {
       telefone: string;
       email: string;
     };
+    titularCartao?: {
+      nome: string;
+      cpf: string;
+    };
   }): Promise<CheckoutSessionResult> {
     return postJson<CheckoutSessionResult>(
       'createCheckoutSession',
@@ -180,11 +185,12 @@ export const checkoutApi = {
 
   getReceipt(
     pedidoId: string,
-    opts: { token: string }
+    opts: { token: string; paymentId?: string }
   ): Promise<OrderReceiptResult> {
     return postJson<OrderReceiptResult>('getOrderReceipt', {
       pedidoId,
       token: opts.token,
+      ...(opts.paymentId ? { paymentId: opts.paymentId } : {}),
     });
   },
 
@@ -262,6 +268,10 @@ export const checkoutApi = {
       telefone: string;
     };
     mensagem?: string;
+    titularCartao?: {
+      nome: string;
+      cpf: string;
+    };
   }): Promise<{
     ok: boolean;
     pix?: boolean;

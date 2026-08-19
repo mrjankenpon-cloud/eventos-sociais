@@ -38,9 +38,14 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const body = (req.body || {}) as { pedidoId?: string; token?: string };
+    const body = (req.body || {}) as {
+      pedidoId?: string;
+      token?: string;
+      paymentId?: string;
+    };
     const pedidoId = String(body.pedidoId || '').trim();
     const token = String(body.token || '').trim();
+    const hintPaymentId = String(body.paymentId || '').replace(/\D/g, '');
 
     if (!pedidoId || token.length < 32) {
       res.status(404).json({ error: 'Pedido não encontrado ou acesso negado' });
@@ -60,7 +65,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
     }
 
     if (String(pedido.status || '') === 'pendente') {
-      await syncPendingPedidoFromMp(pedidoId, pedido);
+      await syncPendingPedidoFromMp(pedidoId, pedido, hintPaymentId || undefined);
       const refreshed = await db().collection('pedidos').doc(pedidoId).get();
       if (refreshed.exists) pedido = refreshed.data() || pedido;
     }
@@ -150,6 +155,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
           : [],
         formaPagamento: pedido.formaPagamento,
         mpStatus: pedido.mpStatus || null,
+        mpStatusDetail: pedido.mpStatusDetail || null,
         ticketsEmitidos: Boolean(pedido.ticketsEmitidos),
         dataCompra: pedido.dataCompra,
         reservaExpiraEm: pedido.reservaExpiraEm || null,

@@ -16,7 +16,7 @@ export function getAppUrl(): string {
   return (
     process.env.APP_URL ||
     process.env.VITE_APP_URL ||
-    'https://eventos-sociais.vercel.app'
+    'https://institutodelphos.com.br'
   ).replace(/\/$/, '');
 }
 
@@ -27,6 +27,25 @@ export function isMercadoPagoSandbox(): boolean {
 /** Token de produção (APP_USR-…). TEST- é sandbox. */
 export function isLiveMpAccessToken(): boolean {
   return getAccessToken().startsWith('APP_USR-');
+}
+
+/** Impede misturar MODE=production com token TEST- e o inverso. */
+export function assertMercadoPagoCredentials(): void {
+  const mode = (process.env.MERCADOPAGO_MODE || '').toLowerCase();
+  const live = isLiveMpAccessToken();
+  if (mode === 'production' && !live) {
+    throw new Error(
+      'Credenciais Mercado Pago inconsistentes: MODE=production exige token APP_USR.'
+    );
+  }
+  if (mode === 'sandbox' && live) {
+    throw new Error(
+      'Credenciais Mercado Pago inconsistentes: MODE=sandbox exige token TEST-.'
+    );
+  }
+  if (live && !String(process.env.MERCADOPAGO_WEBHOOK_SECRET || '').trim()) {
+    throw new Error('MERCADOPAGO_WEBHOOK_SECRET obrigatório em produção');
+  }
 }
 
 /**
@@ -135,6 +154,22 @@ export async function mpFetch<T>(
     );
   }
   return body;
+}
+
+export async function searchPaymentsByExternalReference(
+  externalReference: string
+): Promise<Array<Record<string, unknown>>> {
+  const ref = String(externalReference || '').trim();
+  if (!ref) return [];
+  const qs = new URLSearchParams({
+    sort: 'date_created',
+    criteria: 'desc',
+    external_reference: ref,
+  });
+  const result = (await mpFetch(
+    `/v1/payments/search?${qs.toString()}`
+  )) as { results?: Array<Record<string, unknown>> };
+  return Array.isArray(result.results) ? result.results : [];
 }
 
 /** Extrai taxas efetivas do pagamento MP (nunca estima). */
@@ -405,6 +440,18 @@ export function checkoutProPaymentMethods() {
     installments: 12,
     default_installments: 1,
   };
+}
+
+/** Titular do cartão quando não é o mesmo do ingresso/doação. */
+export function parseOptionalTitularCartao(
+  raw: unknown
+): { nome: string; cpf: string } | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as { nome?: string; cpf?: string };
+  const nome = String(o.nome || '').trim();
+  const cpf = String(o.cpf || '').replace(/\D/g, '');
+  if (nome.length < 4 || cpf.length < 11) return undefined;
+  return { nome, cpf };
 }
 
 export async function createPixCharge(input: {

@@ -210,6 +210,9 @@ export const refundPayment = functions.https.onRequest(async (req, res) => {
       } else {
         refund = (await mpFetch(`/v1/payments/${mpPaymentId}/refunds`, {
           method: 'POST',
+          headers: {
+            'X-Idempotency-Key': `refund-${pedidoId}-${ticketId || 'full'}-${refundAmount}`,
+          },
           body: JSON.stringify(partialBody),
         })) as Record<string, unknown>;
       }

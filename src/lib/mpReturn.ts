@@ -5,6 +5,7 @@ export type MpReturnState = {
   pending: boolean;
   failed: boolean;
   statusDetail: string;
+  paymentId: string;
 };
 
 export function readMpReturn(searchParams: URLSearchParams): MpReturnState {
@@ -18,9 +19,11 @@ export function readMpReturn(searchParams: URLSearchParams): MpReturnState {
   const statusDetail = String(searchParams.get('status_detail') || '')
     .trim()
     .toLowerCase();
+  const paymentId = String(
+    searchParams.get('payment_id') || searchParams.get('collection_id') || ''
+  ).replace(/\D/g, '');
   const fromMp = Boolean(
-    searchParams.get('payment_id') ||
-      searchParams.get('collection_id') ||
+    paymentId ||
       searchParams.get('preference_id') ||
       searchParams.get('merchant_order_id')
   );
@@ -37,21 +40,31 @@ export function readMpReturn(searchParams: URLSearchParams): MpReturnState {
       status === 'canceled' ||
       status === 'null',
     statusDetail,
+    paymentId,
   };
 }
 
-/** Textos alinhados aos principais `status_detail` do Mercado Pago. */
+/** Textos alinhados aos principais `status_detail` do Mercado Pago. Nunca exibe o código bruto. */
 export function explainMpRejection(statusDetail?: string): string | null {
   const d = String(statusDetail || '').trim().toLowerCase();
   if (!d) return null;
   if (d.includes('insufficient') || d.includes('high_amount')) {
-    return 'O cartão não tinha saldo ou limite suficiente. Tente outro cartão ou pague com PIX nesta página.';
+    return 'O cartão não tinha saldo ou limite suficiente. Tente outro cartão físico ou pague com PIX nesta página.';
+  }
+  if (d.includes('bad_filled_security')) {
+    return 'O código de segurança (CVV) não conferiu. Confira e tente de novo, ou use PIX.';
+  }
+  if (d.includes('bad_filled_date')) {
+    return 'A validade do cartão não conferiu. Confira mês e ano, ou use PIX.';
+  }
+  if (d.includes('bad_filled_card') || d.includes('bad_filled_other')) {
+    return 'O número do cartão ou algum dado não conferiu. Confira e tente de novo, ou use PIX.';
   }
   if (d.includes('bad_filled') || d.includes('invalid')) {
     return 'Algum dado do cartão estava incorreto (número, validade, CVV ou nome). Confira e tente de novo, ou use PIX.';
   }
   if (d.includes('high_risk') || d.includes('blacklist') || d.includes('fraud')) {
-    return 'O Mercado Pago recusou por segurança. Isso é comum em cartão novo ou conta recente. PIX costuma passar na hora.';
+    return 'O Mercado Pago recusou por segurança. Cartão virtual, recém-gerado ou primeira compra neste vendedor costuma cair aqui. PIX costuma passar na hora.';
   }
   if (d.includes('call_for_authorize') || d.includes('card_disabled')) {
     return 'O banco pediu autorização. Ligue para o banco no verso do cartão ou pague com PIX.';
@@ -59,8 +72,11 @@ export function explainMpRejection(statusDetail?: string): string | null {
   if (d.includes('max_attempts') || d.includes('duplicated')) {
     return 'Houve muitas tentativas seguidas. Espere alguns minutos ou pague com PIX.';
   }
+  if (d.includes('card_error') || d.includes('other_reason')) {
+    return 'O banco recusou esta tentativa. Tente um cartão físico de crédito ou conclua com PIX.';
+  }
   if (d === 'rejected' || d.startsWith('cc_rejected')) {
-    return 'O cartão foi recusado. Tente outro cartão ou conclua com PIX — é o caminho mais estável neste site.';
+    return 'O cartão foi recusado. Tente um cartão físico de crédito ou conclua com PIX — é o caminho mais estável neste site.';
   }
   return null;
 }

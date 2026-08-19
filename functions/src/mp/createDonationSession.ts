@@ -10,22 +10,20 @@ import {
   getAppUrl,
   isoWithOffset,
   clientIpFromRequest,
+  mpAdditionalInfoPayer,
   mpCheckoutPayer,
   mpFetch,
   mpDeviceHeaders,
   mpWebhookUrl,
   parseCheckoutMetodo,
   parseDeviceSessionId,
+  parseOptionalTitularCartao,
   randomToken,
   roundMoney,
+  assertMercadoPagoCredentials,
 } from './helpers';
 import { donationCertificateNumber } from '../orgInfo';
 import { allowAttempt, requestIp } from '../http/rateLimit';
-import {
-  authTypeFromRequest,
-  loadBuyerPurchaseProfile,
-  mpIndustryPayer,
-} from './industry';
 
 const MIN_DONATION = 10;
 const MAX_DONATION = 50_000;
@@ -41,6 +39,10 @@ type DonationBody = {
     documentoTipo?: 'cpf' | 'cnpj';
     email?: string;
     telefone?: string;
+  };
+  titularCartao?: {
+    nome?: string;
+    cpf?: string;
   };
 };
 
@@ -104,6 +106,7 @@ export const createDonationSession = functions.https.onRequest(
     }
 
     try {
+      assertMercadoPagoCredentials();
       const body = (req.body || {}) as DonationBody;
       const doador = body.doador || {};
       const metodo = parseCheckoutMetodo(body.metodo);
@@ -118,6 +121,13 @@ export const createDonationSession = functions.https.onRequest(
       const mensagem = String(body.mensagem || '').trim().slice(0, 280);
       const valor = roundMoney(Number(body.valor) || 0);
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
+      const titularCartao = parseOptionalTitularCartao(body.titularCartao);
+      if (body.titularCartao != null && !titularCartao) {
+        res.status(400).json({
+          error: 'Informe nome e CPF válidos do titular do cartão',
+        });
+        return;
+      }
 
       const docOk =
         documentoTipo === 'cnpj'
@@ -190,6 +200,12 @@ export const createDonationSession = functions.https.onRequest(
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
+        ...(titularCartao
+          ? {
+              titularCartaoNome: titularCartao.nome,
+              titularCartaoCpf: titularCartao.cpf,
+            }
+          : {}),
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -255,9 +271,6 @@ export const createDonationSession = functions.https.onRequest(
         }
       }
 
-      const buyerProfile = await loadBuyerPurchaseProfile(email);
-      const authenticationType = authTypeFromRequest(req);
-
       const preferenceBody: Record<string, unknown> = {
         items: [
           {
@@ -271,9 +284,9 @@ export const createDonationSession = functions.https.onRequest(
         ],
         payer: mpCheckoutPayer({
           email,
-          nome,
-          documento,
-          documentoTipo,
+          nome: titularCartao?.nome || nome,
+          documento: titularCartao?.cpf || documento,
+          documentoTipo: titularCartao ? 'cpf' : documentoTipo,
           telefone,
         }),
         additional_info: {
@@ -288,12 +301,10 @@ export const createDonationSession = functions.https.onRequest(
               unit_price: valor,
             },
           ],
-            payer: mpIndustryPayer({
-              nome,
-              telefone,
-              authenticationType,
-              profile: buyerProfile,
-            }),
+          payer: mpAdditionalInfoPayer({
+            nome: titularCartao?.nome || nome,
+            telefone,
+          }),
         },
         external_reference: pedidoRef.id,
         metadata: {

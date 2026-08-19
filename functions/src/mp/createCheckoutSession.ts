@@ -10,23 +10,24 @@ import {
   getAppUrl,
   isoWithOffset,
   clientIpFromRequest,
+  mpAdditionalInfoPayer,
   mpCheckoutPayer,
   mpFetch,
   mpDeviceHeaders,
   parseDeviceSessionId,
   mpWebhookUrl,
   parseCheckoutMetodo,
+  parseOptionalTitularCartao,
   randomToken,
   roundMoney,
+  assertMercadoPagoCredentials,
 } from './helpers';
 import { emitTicketsForPedido, releaseStockLines, reserveStockLines } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 import { allowAttempt, requestIp } from '../http/rateLimit';
 import {
-  authTypeFromRequest,
   eventDateForMp,
-  loadBuyerPurchaseProfile,
-  mpIndustryPayer,
+  mpCheckoutProItems,
   mpPreferenceIndustryItems,
 } from './industry';
 
@@ -50,6 +51,10 @@ type CheckoutBody = {
     cpf?: string;
     telefone?: string;
     email?: string;
+  };
+  titularCartao?: {
+    nome?: string;
+    cpf?: string;
   };
 };
 
@@ -165,6 +170,7 @@ export const createCheckoutSession = functions.https.onRequest(
     const reserved: ReservedLine[] = [];
 
     try {
+      assertMercadoPagoCredentials();
       const body = (req.body || {}) as CheckoutBody;
       const eventoId = String(body.eventoId || '').trim();
       const requested = parseRequestedItems(body);
@@ -175,6 +181,13 @@ export const createCheckoutSession = functions.https.onRequest(
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
+      const titularCartao = parseOptionalTitularCartao(body.titularCartao);
+      if (body.titularCartao != null && !titularCartao) {
+        res.status(400).json({
+          error: 'Informe nome e CPF válidos do titular do cartão',
+        });
+        return;
+      }
 
       if (!eventoId) {
         res.status(400).json({ error: 'eventoId obrigatório' });
@@ -343,6 +356,12 @@ export const createCheckoutSession = functions.https.onRequest(
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
+        ...(titularCartao
+          ? {
+              titularCartaoNome: titularCartao.nome,
+              titularCartaoCpf: titularCartao.cpf,
+            }
+          : {}),
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -457,34 +476,23 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
-        const buyerProfile = await loadBuyerPurchaseProfile(email);
-        const authenticationType = authTypeFromRequest(req);
         // Checkout Pro: crédito/débito (PIX é gerado no site).
-        // back_urls sem query: o token fica no sessionStorage; o MP acrescenta payment_id.
+        // Preferência só com campos do checkout hospedado — event_date / industry
+        // extra no item da preferência deixa o botão Pagar cinza.
         const preferenceBody: Record<string, unknown> = {
-          items: industryItems.map((item) => ({
-            id: item.id.slice(0, 64),
-            title: item.title,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            currency_id: 'BRL',
-            category_id: 'tickets',
-            ...(item.event_date ? { event_date: item.event_date } : {}),
-          })),
+          items: mpCheckoutProItems(industryItems),
           payer: mpCheckoutPayer({
             email,
-            nome,
-            documento: cpf,
+            nome: titularCartao?.nome || nome,
+            documento: titularCartao?.cpf || cpf,
             telefone,
           }),
           additional_info: {
             ...(clientIp ? { ip_address: clientIp } : {}),
             items: mpPreferenceIndustryItems(industryItems),
-            payer: mpIndustryPayer({
-              nome,
+            payer: mpAdditionalInfoPayer({
+              nome: titularCartao?.nome || nome,
               telefone,
-              authenticationType,
-              profile: buyerProfile,
             }),
           },
           external_reference: pedidoRef.id,

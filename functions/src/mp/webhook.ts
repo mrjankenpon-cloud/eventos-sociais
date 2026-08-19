@@ -1,6 +1,5 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { createHmac, timingSafeEqual } from 'crypto';
 import {
   db,
   extractMpFees,
@@ -10,14 +9,20 @@ import {
   mpFetch,
   pixFromOrder,
   roundMoney,
+  searchPaymentsByExternalReference,
 } from './helpers';
 import {
   emitTicketsForPedido,
+  reserveStockLines,
   transitionPedidoReleaseStock,
 } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 import { sendDonationCertificateEmail } from '../email/donationCertificate';
 import { applyTicketUpgrade } from './createTicketUpgradeSession';
+import {
+  extractWebhookDataId,
+  verifyMpWebhookSignature,
+} from './webhookSignature';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -49,49 +54,23 @@ function verifyWebhookSignature(req: functions.Request): boolean {
 
   const xSignature = String(req.headers['x-signature'] || '');
   const xRequestId = String(req.headers['x-request-id'] || '');
-  if (!xSignature) return false;
-
-  const parts: Record<string, string> = {};
-  for (const part of xSignature.split(',')) {
-    const [k, v] = part.split('=');
-    if (k && v) parts[k.trim()] = v.trim();
-  }
-  const ts = parts.ts;
-  const hash = parts.v1;
-  if (!ts || !hash) return false;
-
-  const dataIdRaw =
-    String(req.query['data.id'] || '') ||
-    String((req.body as { data?: { id?: string } })?.data?.id || '') ||
-    '';
-  const requestId = xRequestId;
-  const idVariants = Array.from(
-    new Set(
-      [dataIdRaw, dataIdRaw.toLowerCase()].filter((id) => id.length > 0)
-    )
+  const dataId = extractWebhookDataId(
+    req as { query?: Record<string, unknown>; body?: unknown }
   );
-  const manifests: string[] = [];
-  if (idVariants.length === 0) {
-    manifests.push(`request-id:${requestId};ts:${ts};`);
-  } else {
-    for (const id of idVariants) {
-      manifests.push(`id:${id};request-id:${requestId};ts:${ts};`);
-    }
+  const ok = verifyMpWebhookSignature({
+    secret,
+    xSignature,
+    xRequestId,
+    dataId,
+  });
+  if (!ok) {
+    functions.logger.warn('[mpWebhook] assinatura inválida', {
+      hasSignature: Boolean(xSignature),
+      hasRequestId: Boolean(xRequestId),
+      dataIdLength: dataId.length,
+    });
   }
-
-  const hashBuf = Buffer.from(hash, 'hex');
-  for (const manifest of manifests) {
-    const expected = createHmac('sha256', secret).update(manifest).digest('hex');
-    try {
-      const a = Buffer.from(expected, 'hex');
-      if (a.length === hashBuf.length && timingSafeEqual(a, hashBuf)) {
-        return true;
-      }
-    } catch {
-      if (expected === hash) return true;
-    }
-  }
-  return false;
+  return ok;
 }
 
 /** Idempotência forte: doc id determinístico por payment+status. */
@@ -158,7 +137,7 @@ async function confirmPedidoApproved(
     const status = String(pedido.status || '');
     const now = admin.firestore.FieldValue.serverTimestamp();
 
-    if (status === 'reembolsado' || status === 'cancelado') {
+    if (status === 'reembolsado') {
       tx.update(pedidoRef, { ...mpFields, updatedAt: now });
       return 'skipped' as const;
     }
@@ -180,12 +159,17 @@ async function confirmPedidoApproved(
       return 'confirmed' as const;
     }
 
-    // pendente (fluxo normal) ou expirado com pagamento tardio: confirma
-    if (status === 'pendente' || status === 'expirado') {
+    // pendente, expirado (pagamento tardio) ou cancelado por recusa anterior
+    if (
+      status === 'pendente' ||
+      status === 'expirado' ||
+      status === 'cancelado'
+    ) {
       tx.update(pedidoRef, {
         ...mpFields,
         status: 'confirmado',
-        estoqueReservado: status === 'pendente' ? true : Boolean(pedido.estoqueReservado),
+        estoqueReservado:
+          status === 'pendente' ? true : Boolean(pedido.estoqueReservado),
         updatedAt: now,
       });
       return 'confirmed' as const;
@@ -312,6 +296,32 @@ async function processPaymentApproved(
 ): Promise<void> {
   const pedidoSnap = await db().collection('pedidos').doc(pedidoId).get();
   const pedidoTipo = String(pedidoSnap.data()?.tipo || '');
+  const currentPedido = pedidoSnap.data() || {};
+  if (
+    pedidoTipo !== 'doacao' &&
+    String(currentPedido.status || '') === 'cancelado' &&
+    currentPedido.estoqueReservado !== true
+  ) {
+    const itens = Array.isArray(currentPedido.itens)
+      ? (currentPedido.itens as Array<Record<string, unknown>>)
+      : [];
+    const lines = itens
+      .map((row) => ({
+        ingressoId: String(row.ingressoId || ''),
+        quantidade: Math.max(0, Math.floor(Number(row.quantidade) || 0)),
+      }))
+      .filter((l) => l.ingressoId && l.quantidade > 0);
+    if (lines.length > 0) {
+      try {
+        await reserveStockLines(lines);
+      } catch (err) {
+        functions.logger.error('[mpWebhook] re-reserva após cancelado', {
+          pedidoId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
   if (pedidoTipo === 'doacao') {
     const outcome = await confirmPedidoApproved(
       pedidoId,
@@ -493,11 +503,18 @@ async function processPayment(paymentId: string): Promise<void> {
     return;
   }
 
-  if (
-    mpStatus === 'rejected' ||
-    mpStatus === 'cancelled' ||
-    mpStatus === 'canceled'
-  ) {
+  if (mpStatus === 'rejected') {
+    await db()
+      .collection('pedidos')
+      .doc(pedidoId)
+      .update({
+        ...mpFields,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    return;
+  }
+
+  if (mpStatus === 'cancelled' || mpStatus === 'canceled') {
     await transitionPedidoReleaseStock({
       pedidoId,
       fromStatuses: ['pendente'],
@@ -537,21 +554,36 @@ async function processPayment(paymentId: string): Promise<void> {
     });
 }
 
-/** Recibo/polling: se o PIX já foi pago no MP e o webhook falhou, confirma agora. */
+/** Recibo/polling: confirma no MP se o webhook atrasou (PIX ou cartão). */
 export async function syncPendingPedidoFromMp(
   pedidoId: string,
-  pedido: Record<string, unknown>
+  pedido: Record<string, unknown>,
+  hintPaymentId?: string
 ): Promise<void> {
   if (String(pedido.status || '') !== 'pendente') return;
   const orderId = String(pedido.mpOrderId || '');
-  const paymentId = String(pedido.mpPaymentId || '');
+  const paymentId = String(hintPaymentId || pedido.mpPaymentId || '').trim();
   try {
     if (orderId.toUpperCase().startsWith('ORD')) {
       await processOrder(orderId);
       return;
     }
-    if (paymentId) {
-      await processPayment(paymentId);
+    if (paymentId && !paymentId.startsWith('sandbox_')) {
+      const payment = (await mpFetch(
+        `/v1/payments/${paymentId}`
+      )) as Record<string, unknown>;
+      const ref = String(payment.external_reference || '').trim();
+      if (ref === pedidoId) {
+        await processPayment(paymentId);
+        const afterHint = await db().collection('pedidos').doc(pedidoId).get();
+        if (String(afterHint.data()?.status || '') !== 'pendente') return;
+      }
+    }
+    const found = await searchPaymentsByExternalReference(pedidoId);
+    const approved = found.find((p) => String(p.status || '') === 'approved');
+    const next = approved || found[0];
+    if (next?.id) {
+      await processPayment(String(next.id));
     }
   } catch (err) {
     functions.logger.warn('[syncPendingPedidoFromMp]', {
@@ -584,12 +616,8 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
     const action = String(
       (req.body as { action?: string })?.action || req.query.action || ''
     );
-    const dataId = String(
-      req.query.id ||
-        req.query['data.id'] ||
-        (req.body as { data?: { id?: string | number } })?.data?.id ||
-        (req.body as { id?: string | number })?.id ||
-        ''
+    const dataId = extractWebhookDataId(
+      req as { query?: Record<string, unknown>; body?: unknown }
     );
 
     if (

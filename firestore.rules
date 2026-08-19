@@ -189,10 +189,14 @@ service cloud.firestore {
       allow write: if isEditor();
     }
 
-    // ---- ingressos (tipos) — estoque só via Admin SDK ----
+    // ---- ingressos (tipos) — vendidos só via Admin SDK (Functions) ----
     match /ingressos/{id} {
       allow read: if true;
-      allow create, update, delete: if isEditor();
+      allow create: if isEditor()
+        && request.resource.data.get('quantidadeVendida', 0) == 0;
+      allow update: if isEditor()
+        && request.resource.data.quantidadeVendida == resource.data.quantidadeVendida;
+      allow delete: if isEditor();
     }
 
     // ---- pedidos — create/update financeiro só Admin SDK ----

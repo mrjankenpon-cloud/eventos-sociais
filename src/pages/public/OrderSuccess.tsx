@@ -55,7 +55,10 @@ export default function OrderSuccess() {
       return;
     }
     try {
-      const data = await checkoutApi.getReceipt(id, { token });
+      const data = await checkoutApi.getReceipt(id, {
+        token,
+        paymentId: mpReturn.paymentId || undefined,
+      });
       setReceipt(data);
       setError(null);
       persistGuestCheckoutSession(id, token);
@@ -79,7 +82,7 @@ export default function OrderSuccess() {
     } finally {
       setLoading(false);
     }
-  }, [id, resolveToken, setSearchParams, tokenFromUrl]);
+  }, [id, resolveToken, setSearchParams, tokenFromUrl, mpReturn.paymentId]);
 
   useEffect(() => {
     setLoading(true);
@@ -171,10 +174,13 @@ export default function OrderSuccess() {
   const isPending = status === 'pendente';
   const isFailed =
     status === 'cancelado' || status === 'expirado' || status === 'reembolsado';
-  const showPaidThanks =
-    isConfirmed || (mpReturn.fromMp && mpReturn.approved && !isFailed);
-  const cardRejected = mpReturn.failed && !showPaidThanks;
-  const rejectionHint = explainMpRejection(mpReturn.statusDetail);
+  const showPaidThanks = isConfirmed;
+  const cardRejected =
+    (mpReturn.failed || String(pedido.mpStatus || '') === 'rejected') &&
+    isPending;
+  const rejectionHint = explainMpRejection(
+    mpReturn.statusDetail || pedido.mpStatusDetail || undefined
+  );
 
   return (
     <div className="py-12 sm:py-20 min-h-[60vh] bg-surface-muted">
@@ -226,7 +232,7 @@ export default function OrderSuccess() {
                 : cardRejected
                   ? 'Pagamento recusado'
                 : isPending
-                  ? mpReturn.fromMp
+                  ? mpReturn.fromMp || mpReturn.approved
                     ? 'Confirmando seu pagamento'
                     : 'Aguardando pagamento'
                   : status === 'expirado'
