@@ -8,9 +8,9 @@ import {
   createPixCharge,
   db,
   getAppUrl,
-  getSandboxPayerEmail,
   isoWithOffset,
-  isMercadoPagoSandbox,
+  mpAdditionalInfoPayer,
+  mpCheckoutPayer,
   mpFetch,
   mpWebhookUrl,
   parseCheckoutMetodo,
@@ -435,14 +435,25 @@ export const createCheckoutSession = functions.https.onRequest(
             currency_id: 'BRL',
             category_id: 'tickets',
           })),
-          payer: {
-            email: getSandboxPayerEmail(email),
-            ...(isMercadoPagoSandbox()
-              ? {}
-              : {
-                  name: nome,
-                  identification: { type: 'CPF', number: cpf },
-                }),
+          payer: mpCheckoutPayer({
+            email,
+            nome,
+            documento: cpf,
+            telefone,
+          }),
+          additional_info: {
+            items: resolved.map((l) => ({
+              id: l.ingressoId.slice(0, 64),
+              title: `${String(evento.titulo || 'Evento')} — ${l.nome}`.slice(
+                0,
+                256
+              ),
+              description: l.nome.slice(0, 256),
+              category_id: 'tickets',
+              quantity: l.quantidade,
+              unit_price: l.valorUnitario,
+            })),
+            payer: mpAdditionalInfoPayer({ nome, telefone }),
           },
           external_reference: pedidoRef.id,
           metadata: {

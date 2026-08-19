@@ -271,6 +271,7 @@ export default function DonationSuccess() {
           <>
             {pedido.pixQrCode || pedido.pixQrCodeBase64 ? (
               <PixCheckoutPanel
+                kind="doacao"
                 amount={pedido.valorTotal}
                 qrCode={pedido.pixQrCode}
                 qrCodeBase64={pedido.pixQrCodeBase64}

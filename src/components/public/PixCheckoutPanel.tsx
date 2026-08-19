@@ -21,12 +21,14 @@ export function PixCheckoutPanel({
   qrCodeBase64,
   expiresAt,
   hint,
+  kind = 'ingresso',
 }: {
   amount: number;
   qrCode?: string | null;
   qrCodeBase64?: string | null;
   expiresAt?: string | null;
   hint?: string;
+  kind?: 'ingresso' | 'doacao';
 }) {
   const [copied, setCopied] = useState(false);
   const [tick, setTick] = useState(0);
@@ -52,10 +54,14 @@ export function PixCheckoutPanel({
     }
   };
 
+  const isDonation = kind === 'doacao';
+
   return (
     <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 mb-6 print:hidden">
       <div className="text-center">
-        <p className="text-sm text-gray-600">Valor da doação</p>
+        <p className="text-sm text-gray-600">
+          {isDonation ? 'Valor da doação' : 'Valor a pagar'}
+        </p>
         <p className="text-2xl font-black text-brand tabular-nums mt-1">
           {formatCurrency(amount)}
         </p>
@@ -66,7 +72,7 @@ export function PixCheckoutPanel({
           {qrImage ? (
             <img
               src={`data:image/png;base64,${qrImage}`}
-              alt="QR Code PIX da doação"
+              alt={isDonation ? 'QR Code PIX da doação' : 'QR Code PIX'}
               className="w-48 h-48 object-contain"
             />
           ) : qrValue ? (
@@ -79,7 +85,9 @@ export function PixCheckoutPanel({
 
       <p className="text-center text-xs font-bold uppercase tracking-wider text-amber-600">
         {expired
-          ? 'PIX expirado — inicie uma nova doação'
+          ? isDonation
+            ? 'PIX expirado — inicie uma nova doação'
+            : 'PIX expirado — inicie uma nova compra'
           : clock
             ? `Válido por ${clock}`
             : 'Aguardando pagamento PIX'}

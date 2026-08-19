@@ -8,9 +8,9 @@ import {
   createPixCharge,
   db,
   getAppUrl,
-  getSandboxPayerEmail,
   isoWithOffset,
-  isMercadoPagoSandbox,
+  mpAdditionalInfoPayer,
+  mpCheckoutPayer,
   mpFetch,
   mpWebhookUrl,
   parseCheckoutMetodo,
@@ -236,17 +236,25 @@ export const createDonationSession = functions.https.onRequest(
             category_id: 'donations',
           },
         ],
-        payer: {
-          email: getSandboxPayerEmail(email),
-          ...(isMercadoPagoSandbox()
-            ? {}
-            : {
-                name: nome,
-                identification: {
-                  type: documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF',
-                  number: documento,
-                },
-              }),
+        payer: mpCheckoutPayer({
+          email,
+          nome,
+          documento,
+          documentoTipo,
+          telefone,
+        }),
+        additional_info: {
+          items: [
+            {
+              id: 'doacao',
+              title: 'Doação — Instituto Delphos',
+              description: mensagem || 'Doação',
+              category_id: 'donations',
+              quantity: 1,
+              unit_price: valor,
+            },
+          ],
+          payer: mpAdditionalInfoPayer({ nome, telefone }),
         },
         external_reference: pedidoRef.id,
         metadata: {

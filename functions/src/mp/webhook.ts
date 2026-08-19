@@ -60,22 +60,38 @@ function verifyWebhookSignature(req: functions.Request): boolean {
   const hash = parts.v1;
   if (!ts || !hash) return false;
 
-  const dataId =
+  const dataIdRaw =
     String(req.query['data.id'] || '') ||
     String((req.body as { data?: { id?: string } })?.data?.id || '') ||
     '';
-
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-  const expected = createHmac('sha256', secret).update(manifest).digest('hex');
-
-  try {
-    const a = Buffer.from(expected, 'hex');
-    const b = Buffer.from(hash, 'hex');
-    if (a.length !== b.length) return false;
-    return timingSafeEqual(a, b);
-  } catch {
-    return expected === hash;
+  const requestId = xRequestId;
+  const idVariants = Array.from(
+    new Set(
+      [dataIdRaw, dataIdRaw.toLowerCase()].filter((id) => id.length > 0)
+    )
+  );
+  const manifests: string[] = [];
+  if (idVariants.length === 0) {
+    manifests.push(`request-id:${requestId};ts:${ts};`);
+  } else {
+    for (const id of idVariants) {
+      manifests.push(`id:${id};request-id:${requestId};ts:${ts};`);
+    }
   }
+
+  const hashBuf = Buffer.from(hash, 'hex');
+  for (const manifest of manifests) {
+    const expected = createHmac('sha256', secret).update(manifest).digest('hex');
+    try {
+      const a = Buffer.from(expected, 'hex');
+      if (a.length === hashBuf.length && timingSafeEqual(a, hashBuf)) {
+        return true;
+      }
+    } catch {
+      if (expected === hash) return true;
+    }
+  }
+  return false;
 }
 
 /** Idempotência forte: doc id determinístico por payment+status. */
@@ -185,8 +201,16 @@ async function processOrder(orderId: string): Promise<void> {
   const pix = pixFromOrder(order);
   const numericId = extractNumericPaymentIdFromUrl(pix.ticketUrl);
   if (numericId) {
-    await processPayment(numericId);
-    return;
+    try {
+      await processPayment(numericId);
+      return;
+    } catch (err) {
+      functions.logger.warn('[mpWebhook] order→payment fallback', {
+        orderId,
+        numericId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   const pedidoId = String(order.external_reference || '').trim();
@@ -217,7 +241,7 @@ async function processOrder(orderId: string): Promise<void> {
     status: mpStatus,
     payloadResumo: {
       status: mpStatus,
-      status_detail: order.status_detail,
+      status_detail: order.status_detail || null,
       transaction_amount: fees.transactionAmount,
       order_id: orderId,
     },
@@ -423,17 +447,17 @@ async function processPayment(paymentId: string): Promise<void> {
     status: mpStatus,
     payloadResumo: {
       status: mpStatus,
-      status_detail: payment.status_detail,
+      status_detail: payment.status_detail || null,
       transaction_amount: fees.transactionAmount,
       fee_amount: fees.feeAmount,
       net_received_amount: fees.netReceivedAmount,
-      payment_type_id: payment.payment_type_id,
-      date_approved: payment.date_approved,
+      payment_type_id: payment.payment_type_id || null,
+      date_approved: payment.date_approved || null,
       metadata: {
-        pedidoId: meta.pedidoId,
-        eventoId: meta.eventoId,
-        ingressoId: meta.ingressoId,
-        natureza: meta.natureza,
+        pedidoId: meta.pedidoId || pedidoId,
+        eventoId: meta.eventoId || null,
+        ingressoId: meta.ingressoId || null,
+        natureza: meta.natureza || null,
       },
     },
   });
@@ -513,6 +537,30 @@ async function processPayment(paymentId: string): Promise<void> {
     });
 }
 
+/** Recibo/polling: se o PIX já foi pago no MP e o webhook falhou, confirma agora. */
+export async function syncPendingPedidoFromMp(
+  pedidoId: string,
+  pedido: Record<string, unknown>
+): Promise<void> {
+  if (String(pedido.status || '') !== 'pendente') return;
+  const orderId = String(pedido.mpOrderId || '');
+  const paymentId = String(pedido.mpPaymentId || '');
+  try {
+    if (orderId.toUpperCase().startsWith('ORD')) {
+      await processOrder(orderId);
+      return;
+    }
+    if (paymentId) {
+      await processPayment(paymentId);
+    }
+  } catch (err) {
+    functions.logger.warn('[syncPendingPedidoFromMp]', {
+      pedidoId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export const mpWebhook = functions.https.onRequest(async (req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') {
@@ -533,6 +581,9 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
         (req.body as { topic?: string })?.topic ||
         ''
     );
+    const action = String(
+      (req.body as { action?: string })?.action || req.query.action || ''
+    );
     const dataId = String(
       req.query.id ||
         req.query['data.id'] ||
@@ -542,11 +593,20 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
     );
 
     if (
-      (topic === 'order' || topic === 'orders' || String(dataId).startsWith('ORD')) &&
+      (topic === 'order' ||
+        topic === 'orders' ||
+        action.startsWith('order.') ||
+        String(dataId).toUpperCase().startsWith('ORD')) &&
       dataId
     ) {
       await processOrder(dataId);
-    } else if ((topic === 'payment' || topic === 'payments' || !topic) && dataId) {
+    } else if (
+      (topic === 'payment' ||
+        topic === 'payments' ||
+        action.startsWith('payment.') ||
+        !topic) &&
+      dataId
+    ) {
       await processPayment(dataId);
     } else if (topic === 'merchant_order' && dataId) {
       const order = (await mpFetch(`/merchant_orders/${dataId}`)) as {

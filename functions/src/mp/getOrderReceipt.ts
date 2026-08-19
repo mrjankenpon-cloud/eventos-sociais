@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import { timingSafeEqual } from 'crypto';
 import { db } from './helpers';
+import { syncPendingPedidoFromMp } from './webhook';
 import { loadEventTicketSummary } from './eventSummary';
 
 function cors(res: functions.Response) {
@@ -52,10 +53,16 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    const pedido = snap.data() || {};
+    let pedido = snap.data() || {};
     if (!tokensEqual(String(pedido.accessToken || ''), token)) {
       res.status(404).json({ error: 'Pedido não encontrado ou acesso negado' });
       return;
+    }
+
+    if (String(pedido.status || '') === 'pendente') {
+      await syncPendingPedidoFromMp(pedidoId, pedido);
+      const refreshed = await db().collection('pedidos').doc(pedidoId).get();
+      if (refreshed.exists) pedido = refreshed.data() || pedido;
     }
 
     let ticketsSnap = await db()

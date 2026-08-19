@@ -274,6 +274,87 @@ export function mpWebhookUrl(): string {
   return `https://us-central1-${projectId}.cloudfunctions.net/mpWebhook`;
 }
 
+export function splitBrPhone(
+  raw: string
+): { area_code: string; number: string } | null {
+  let n = String(raw || '').replace(/\D/g, '');
+  if (n.startsWith('55') && n.length >= 12) n = n.slice(2);
+  if (n.length < 10 || n.length > 11) return null;
+  return { area_code: n.slice(0, 2), number: n.slice(2) };
+}
+
+export function splitPersonName(nome: string): {
+  first_name: string;
+  last_name: string;
+} {
+  const parts = String(nome || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) {
+    return { first_name: 'Comprador', last_name: 'Delphos' };
+  }
+  if (parts.length === 1) {
+    return { first_name: parts[0].slice(0, 60), last_name: 'Delphos' };
+  }
+  return {
+    first_name: parts[0].slice(0, 60),
+    last_name: parts.slice(1).join(' ').slice(0, 60),
+  };
+}
+
+/** Dados extras do pagador — o MP usa isso no antifraude do cartão. */
+export function mpCheckoutPayer(input: {
+  email: string;
+  nome: string;
+  documento: string;
+  documentoTipo?: 'cpf' | 'cnpj';
+  telefone?: string;
+}): Record<string, unknown> {
+  const names = splitPersonName(input.nome);
+  const phone = splitBrPhone(input.telefone || '');
+  const digits = String(input.documento || '').replace(/\D/g, '');
+  const payer: Record<string, unknown> = {
+    email: getSandboxPayerEmail(input.email),
+    first_name: names.first_name,
+    last_name: names.last_name,
+    name: String(input.nome || '').slice(0, 120),
+  };
+  if (!isMercadoPagoSandbox() && digits.length >= 11) {
+    payer.identification = {
+      type: input.documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF',
+      number: digits,
+    };
+  }
+  if (phone) {
+    payer.phone = {
+      area_code: phone.area_code,
+      number: phone.number,
+    };
+  }
+  return payer;
+}
+
+export function mpAdditionalInfoPayer(input: {
+  nome: string;
+  telefone?: string;
+}): Record<string, unknown> {
+  const names = splitPersonName(input.nome);
+  const phone = splitBrPhone(input.telefone || '');
+  return {
+    first_name: names.first_name,
+    last_name: names.last_name,
+    ...(phone
+      ? {
+          phone: {
+            area_code: phone.area_code,
+            number: phone.number,
+          },
+        }
+      : {}),
+  };
+}
+
 /**
  * Checkout Pro: crédito (Visa, Master, Elo, Amex) e saldo MP.
  * Débito nesta conta: só Elo (`debelo`). PIX fica no site (API Orders).
@@ -335,6 +416,7 @@ export async function createPixCharge(input: {
         external_reference: input.pedidoId,
         description: input.description.slice(0, 255),
         expiration_time: `PT${holdMinutes}M`,
+        notification_url: mpWebhookUrl(),
         payer,
         transactions: {
           payments: [
