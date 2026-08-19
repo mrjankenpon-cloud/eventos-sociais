@@ -172,10 +172,6 @@ export const checkoutApi = {
       telefone: string;
       email: string;
     };
-    titularCartao?: {
-      nome: string;
-      cpf: string;
-    };
   }): Promise<CheckoutSessionResult> {
     return postJson<CheckoutSessionResult>(
       'createCheckoutSession',
@@ -268,10 +264,6 @@ export const checkoutApi = {
       telefone: string;
     };
     mensagem?: string;
-    titularCartao?: {
-      nome: string;
-      cpf: string;
-    };
   }): Promise<{
     ok: boolean;
     pix?: boolean;

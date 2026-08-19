@@ -4,6 +4,7 @@ import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import {
   FREE_DAILY,
+  RESEND_FREE,
   levelFromPct,
   liveRef,
   pctOf,
@@ -12,6 +13,8 @@ import {
   worstLevel,
   type UsageLevel,
 } from './quota';
+import { notifyAdminsIfCriticalUsage } from './notifyCriticalUsage';
+import { fetchResendUsage } from '../email/resend';
 
 async function googleAccessToken(): Promise<string | null> {
   try {
@@ -187,6 +190,18 @@ export async function collectUsageSnapshot(): Promise<void> {
   const writesPct = pctOf(writes, FREE_DAILY.writes);
   const deletesPct = pctOf(deletes, FREE_DAILY.deletes);
 
+  const resend = await fetchResendUsage();
+  const emailsToday = resend.emailsToday;
+  const emailsMonth =
+    resend.emailsMonth != null
+      ? resend.emailsMonth
+      : Number.isFinite(Number(prev.emailsMonth))
+        ? Number(prev.emailsMonth)
+        : null;
+  const emailsDayPct = pctOf(emailsToday, RESEND_FREE.emailsDay);
+  const emailsMonthPct = pctOf(emailsMonth, RESEND_FREE.emailsMonth);
+  const emailsKnown = emailsToday != null || emailsMonth != null;
+
   let overall: UsageLevel = 'ok';
   if (monitoringOk) {
     overall = worstLevel(
@@ -197,10 +212,46 @@ export async function collectUsageSnapshot(): Promise<void> {
     const estReads = sessions * 40;
     overall = levelFromPct(pctOf(estReads, FREE_DAILY.reads));
   }
+  if (emailsKnown) {
+    overall = worstLevel(
+      overall,
+      worstLevel(levelFromPct(emailsDayPct), levelFromPct(emailsMonthPct))
+    );
+  }
 
   const details = monitoringOk
     ? `Leituras ${Math.round(reads || 0).toLocaleString('pt-BR')} de ${FREE_DAILY.reads.toLocaleString('pt-BR')} (${readsPct}%). Escritas ${Math.round(writes || 0).toLocaleString('pt-BR')} de ${FREE_DAILY.writes.toLocaleString('pt-BR')} (${writesPct}%).`
     : `Hoje o site registrou ${sessions.toLocaleString('pt-BR')} sessões. Cada visita lê o banco várias vezes; isso é um sinal de movimento, não a fatura oficial.`;
+
+  const alreadyAlertedDay = String(prev.criticalAlertDay || '');
+  let criticalAlertDay = alreadyAlertedDay === day ? alreadyAlertedDay : '';
+  let criticalAlertAt = String(prev.criticalAlertAt || '');
+
+  try {
+    const sent = await notifyAdminsIfCriticalUsage({
+      quotaDay: day,
+      alreadyAlertedDay,
+      overall,
+      monitoringOk,
+      emailsKnown,
+      reads,
+      writes,
+      deletes,
+      readsPct,
+      writesPct,
+      deletesPct,
+      emailsToday,
+      emailsMonth,
+      emailsDayPct,
+      emailsMonthPct,
+    });
+    if (sent) {
+      criticalAlertDay = day;
+      criticalAlertAt = new Date().toISOString();
+    }
+  } catch (error) {
+    functions.logger.warn('[usage] alerta crítico', error);
+  }
 
   await ref.set(
     {
@@ -219,6 +270,13 @@ export async function collectUsageSnapshot(): Promise<void> {
       overall,
       headline: headlineFor(overall, monitoringOk),
       details,
+      emailsToday,
+      emailsMonth,
+      emailsDayPct,
+      emailsMonthPct,
+      ...(criticalAlertDay
+        ? { criticalAlertDay, criticalAlertAt }
+        : {}),
     },
     { merge: true }
   );

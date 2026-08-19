@@ -12,6 +12,11 @@ export interface UsageLive {
   readsPct?: number;
   writesPct?: number;
   deletesPct?: number;
+  emailsToday?: number | null;
+  emailsMonth?: number | null;
+  emailsDayPct?: number;
+  emailsMonthPct?: number;
+  emailsUpdatedAt?: string;
   monitoringOk?: boolean;
   monitoringNote?: string;
   overall?: UsageLevel;

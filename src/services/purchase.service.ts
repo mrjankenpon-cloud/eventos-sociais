@@ -13,7 +13,6 @@ export const purchaseService = {
     data: Parameters<typeof pedidosService.create>[0] & {
       itens?: Array<{ ingressoId: string; quantidade: number }>;
       metodo?: 'pix' | 'checkout_pro';
-      titularCartao?: { nome: string; cpf: string };
     }
   ): Promise<{
     id: string;
@@ -44,7 +43,6 @@ export const purchaseService = {
         telefone: data.compradorTelefone,
         email: data.compradorEmail,
       },
-      ...(data.titularCartao ? { titularCartao: data.titularCartao } : {}),
     });
     return {
       id: result.pedidoId,

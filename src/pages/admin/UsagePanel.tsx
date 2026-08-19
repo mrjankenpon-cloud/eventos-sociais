@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, Gauge, RefreshCw, Users } from 'lucide-react';
+import { Activity, Gauge, Mail, RefreshCw, Users } from 'lucide-react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Button, PageLoader, Alert } from '../../components/ui';
 import { cn } from '../../lib/utils';
@@ -32,6 +32,12 @@ function tone(level: UsageLevel | undefined) {
     bar: 'bg-emerald-600',
     label: 'Tranquilo',
   };
+}
+
+function barTone(pct: number) {
+  if (pct >= 80) return 'bg-red-500';
+  if (pct >= 50) return 'bg-amber-500';
+  return 'bg-emerald-600';
 }
 
 function formatWhen(iso?: string) {
@@ -161,7 +167,8 @@ export default function UsagePanel() {
           </p>
           <p className="text-sm text-gray-500 leading-relaxed">
             No plano Blaze vocês só pagam o que passar desta faixa. Abaixo de
-            50% está folgado; acima de 80% convém acompanhar.
+            50% está folgado; acima de 80% os administradores recebem um
+            e-mail (no máximo um por dia).
           </p>
         </div>
 
@@ -171,7 +178,7 @@ export default function UsagePanel() {
           used={live?.firestoreReadsToday}
           cap={50_000}
           pct={live?.readsPct ?? 0}
-          color={t.bar}
+          color={barTone(live?.readsPct ?? 0)}
         />
         <Meter
           title="Escritas"
@@ -179,7 +186,7 @@ export default function UsagePanel() {
           used={live?.firestoreWritesToday}
           cap={20_000}
           pct={live?.writesPct ?? 0}
-          color={t.bar}
+          color={barTone(live?.writesPct ?? 0)}
         />
         <Meter
           title="Exclusões"
@@ -187,7 +194,35 @@ export default function UsagePanel() {
           used={live?.firestoreDeletesToday}
           cap={20_000}
           pct={live?.deletesPct ?? 0}
-          color={t.bar}
+          color={barTone(live?.deletesPct ?? 0)}
+        />
+      </section>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-5 space-y-5">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-2 mb-1">
+            <Mail size={14} /> E-mails (faixa gratuita do Resend)
+          </p>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            No plano gratuito: 100 envios por dia e 3.000 por mês. Ingressos,
+            doações e avisos do painel entram nessa conta.
+          </p>
+        </div>
+        <Meter
+          title="E-mails hoje"
+          hint="Limite diário do plano gratuito (100)."
+          used={live?.emailsToday}
+          cap={100}
+          pct={live?.emailsDayPct ?? 0}
+          color={barTone(live?.emailsDayPct ?? 0)}
+        />
+        <Meter
+          title="E-mails no mês"
+          hint="Limite mensal do plano gratuito (3.000)."
+          used={live?.emailsMonth}
+          cap={3_000}
+          pct={live?.emailsMonthPct ?? 0}
+          color={barTone(live?.emailsMonthPct ?? 0)}
         />
       </section>
 

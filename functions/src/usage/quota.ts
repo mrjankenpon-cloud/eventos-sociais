@@ -11,6 +11,12 @@ export const FREE_DAILY = {
   deletes: 20_000,
 } as const;
 
+/** Plano gratuito Resend: 100 e-mails/dia e 3.000/mês. */
+export const RESEND_FREE = {
+  emailsDay: 100,
+  emailsMonth: 3_000,
+} as const;
+
 export type UsageLevel = 'ok' | 'watch' | 'hot';
 
 export function quotaDayId(now = new Date()): string {

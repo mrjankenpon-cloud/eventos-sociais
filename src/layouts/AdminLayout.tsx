@@ -235,7 +235,9 @@ function AdminShell() {
                       ? 'Editor'
                       : user?.role === 'operador'
                         ? 'Operador'
-                        : 'Acesso'}
+                        : user?.role === 'viewer'
+                          ? 'Visitante'
+                          : 'Acesso'}
               </p>
             </div>
             <StaffAvatar

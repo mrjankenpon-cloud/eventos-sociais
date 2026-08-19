@@ -44,7 +44,7 @@ const REPORT_TITLES: Record<ReportType, string> = {
   vendidos: 'Ingressos vendidos',
   pagantes: 'Pagantes nos eventos',
   checkin: 'Check-ins efetivados',
-  arrecadacao: 'Arrecadação dos eventos',
+  arrecadacao: 'Arrecadação total',
   apps: 'Aplicativos e avisos',
 };
 
@@ -670,7 +670,7 @@ export default function Dashboard() {
       report: 'checkin',
     },
     {
-      title: 'Arrecadação dos eventos',
+      title: 'Arrecadação total',
       value: formatCurrency(generalStats.arrecadado),
       icon: Wallet,
       accent: THEME.colors.status.active,

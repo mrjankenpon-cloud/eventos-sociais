@@ -17,7 +17,6 @@ import {
   parseDeviceSessionId,
   mpWebhookUrl,
   parseCheckoutMetodo,
-  parseOptionalTitularCartao,
   randomToken,
   roundMoney,
   assertMercadoPagoCredentials,
@@ -51,10 +50,6 @@ type CheckoutBody = {
     cpf?: string;
     telefone?: string;
     email?: string;
-  };
-  titularCartao?: {
-    nome?: string;
-    cpf?: string;
   };
 };
 
@@ -181,13 +176,6 @@ export const createCheckoutSession = functions.https.onRequest(
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
-      const titularCartao = parseOptionalTitularCartao(body.titularCartao);
-      if (body.titularCartao != null && !titularCartao) {
-        res.status(400).json({
-          error: 'Informe nome e CPF válidos do titular do cartão',
-        });
-        return;
-      }
 
       if (!eventoId) {
         res.status(400).json({ error: 'eventoId obrigatório' });
@@ -356,12 +344,6 @@ export const createCheckoutSession = functions.https.onRequest(
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
-        ...(titularCartao
-          ? {
-              titularCartaoNome: titularCartao.nome,
-              titularCartaoCpf: titularCartao.cpf,
-            }
-          : {}),
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -483,17 +465,14 @@ export const createCheckoutSession = functions.https.onRequest(
           items: mpCheckoutProItems(industryItems),
           payer: mpCheckoutPayer({
             email,
-            nome: titularCartao?.nome || nome,
-            documento: titularCartao?.cpf || cpf,
+            nome,
+            documento: cpf,
             telefone,
           }),
           additional_info: {
             ...(clientIp ? { ip_address: clientIp } : {}),
             items: mpPreferenceIndustryItems(industryItems),
-            payer: mpAdditionalInfoPayer({
-              nome: titularCartao?.nome || nome,
-              telefone,
-            }),
+            payer: mpAdditionalInfoPayer({ nome, telefone }),
           },
           external_reference: pedidoRef.id,
           metadata: {

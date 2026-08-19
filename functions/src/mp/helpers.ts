@@ -442,18 +442,6 @@ export function checkoutProPaymentMethods() {
   };
 }
 
-/** Titular do cartão quando não é o mesmo do ingresso/doação. */
-export function parseOptionalTitularCartao(
-  raw: unknown
-): { nome: string; cpf: string } | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
-  const o = raw as { nome?: string; cpf?: string };
-  const nome = String(o.nome || '').trim();
-  const cpf = String(o.cpf || '').replace(/\D/g, '');
-  if (nome.length < 4 || cpf.length < 11) return undefined;
-  return { nome, cpf };
-}
-
 export async function createPixCharge(input: {
   pedidoId: string;
   valor: number;

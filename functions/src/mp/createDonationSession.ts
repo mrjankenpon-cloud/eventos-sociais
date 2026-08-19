@@ -17,7 +17,6 @@ import {
   mpWebhookUrl,
   parseCheckoutMetodo,
   parseDeviceSessionId,
-  parseOptionalTitularCartao,
   randomToken,
   roundMoney,
   assertMercadoPagoCredentials,
@@ -39,10 +38,6 @@ type DonationBody = {
     documentoTipo?: 'cpf' | 'cnpj';
     email?: string;
     telefone?: string;
-  };
-  titularCartao?: {
-    nome?: string;
-    cpf?: string;
   };
 };
 
@@ -121,13 +116,6 @@ export const createDonationSession = functions.https.onRequest(
       const mensagem = String(body.mensagem || '').trim().slice(0, 280);
       const valor = roundMoney(Number(body.valor) || 0);
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
-      const titularCartao = parseOptionalTitularCartao(body.titularCartao);
-      if (body.titularCartao != null && !titularCartao) {
-        res.status(400).json({
-          error: 'Informe nome e CPF válidos do titular do cartão',
-        });
-        return;
-      }
 
       const docOk =
         documentoTipo === 'cnpj'
@@ -200,12 +188,6 @@ export const createDonationSession = functions.https.onRequest(
         ticketsEmitidos: false,
         accessToken,
         guestCheckout: true,
-        ...(titularCartao
-          ? {
-              titularCartaoNome: titularCartao.nome,
-              titularCartaoCpf: titularCartao.cpf,
-            }
-          : {}),
         ativo: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -284,9 +266,9 @@ export const createDonationSession = functions.https.onRequest(
         ],
         payer: mpCheckoutPayer({
           email,
-          nome: titularCartao?.nome || nome,
-          documento: titularCartao?.cpf || documento,
-          documentoTipo: titularCartao ? 'cpf' : documentoTipo,
+          nome,
+          documento,
+          documentoTipo,
           telefone,
         }),
         additional_info: {
@@ -301,10 +283,7 @@ export const createDonationSession = functions.https.onRequest(
               unit_price: valor,
             },
           ],
-          payer: mpAdditionalInfoPayer({
-            nome: titularCartao?.nome || nome,
-            telefone,
-          }),
+          payer: mpAdditionalInfoPayer({ nome, telefone }),
         },
         external_reference: pedidoRef.id,
         metadata: {

@@ -32,6 +32,17 @@ const ROLE_LABELS: Record<UserRole, string> = {
   viewer: 'Visitante',
 };
 
+const ROLE_HINTS: Record<UserRole, string> = {
+  viewer:
+    'Só consulta o painel (eventos e cadastros). Não vê pedidos, check-in nem doações e não altera nada.',
+  operador:
+    'Dia do evento: vê pedidos e doações e faz check-in. Não edita eventos, textos do site nem permissões.',
+  editor:
+    'Monta eventos, ingressos, logos e vídeos, e também opera check-in. Não reembolsa, não publica Sobre/Termos e não gerencia acessos.',
+  admin:
+    'Acesso completo: conteúdo do site, permissões, reembolso e exclusões. O Master é um administrador que não pode ser removido.',
+};
+
 type FormState = {
   name: string;
   email: string;
@@ -421,6 +432,9 @@ export default function Permissions() {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              {ROLE_HINTS[form.role]}
+            </p>
           </div>
 
           {formError && <Alert variant="error">{formError}</Alert>}

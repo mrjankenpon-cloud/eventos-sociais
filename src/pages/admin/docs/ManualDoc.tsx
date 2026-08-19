@@ -59,26 +59,78 @@ export function ManualDoc() {
           para conferir o que o visitante vê, sem sair da conta.
         </p>
       </DocCallout>
-      <DocH3>Perfis de acesso (o que cada pessoa pode fazer)</DocH3>
+      <DocH3>Perfis de acesso (o que cada papel pode fazer)</DocH3>
+      <DocP>
+        Existem quatro papéis. Nenhum é igual ao outro: cada um soma o acesso
+        do anterior e ganha tarefas a mais. O <strong>Master</strong> não é um
+        quinto perfil — é o administrador principal da conta; não pode ser
+        desativado nem removido.
+      </DocP>
       <DocTable
-        headers={['Perfil', 'Para que serve']}
+        headers={['Papel', 'Para que serve', 'Pode', 'Não pode']}
         rows={[
           [
-            'Administrador (e Master)',
-            'Tudo: eventos, dinheiro, reembolsos, permissões, conteúdo do site e aprovação de novos acessos.',
-          ],
-          [
-            'Editor',
-            'Monta e publica conteúdo e eventos. Não deve tratar reembolso nem permissões de outros.',
+            'Visitante',
+            'Alguém da instituição que só acompanha o painel, sem operar o evento.',
+            'Ver Dashboard, Painel de uso, Documentação, lista de eventos, patrocinadores, instituições, vídeos e páginas do site.',
+            'Ver pedidos, doações, tickets ou check-in. Criar, editar ou apagar qualquer cadastro. Reembolsar. Gerir permissões.',
           ],
           [
             'Operador',
-            'Dia do evento: check-in, lista de inscritos, conferência na porta.',
+            'Equipe da porta e da mesa no dia do evento.',
+            'Tudo do Visitante, mais consultar pedidos e doações, fazer e desfazer check-in/retirada, ver relatórios do evento.',
+            'Criar ou editar evento, patrocinador, instituição, vídeo ou tipo de ingresso. Publicar textos do site. Reembolsar. Cadastrar ou aprovar acessos. Excluir registros.',
           ],
           [
-            'Visitante (viewer)',
-            'Só consulta. Não altera cadastros nem pagamentos.',
+            'Editor',
+            'Quem monta o site e os eventos, sem cuidar de dinheiro nem de quem entra no painel.',
+            'Tudo do Operador, mais criar e editar eventos, ingressos, imagens, banners, patrocinadores, instituições e vídeos. Ver o histórico de ações (logs).',
+            'Excluir evento, pedido ou ticket de forma definitiva. Reembolsar. Alterar Sobre, Termos, Privacidade e texto de Doações. Cadastrar, aprovar ou remover permissões.',
           ],
+          [
+            'Administrador',
+            'Responsável pela operação completa (o Master é um administrador protegido).',
+            'Tudo: conteúdo do site, permissões, reembolso, exclusão definitiva, configurações e aprovação de novos Gmails.',
+            'Não pode desativar nem remover o Master. Não altera o código do sistema por aqui.',
+          ],
+        ]}
+      />
+      <DocP>
+        Resumo lado a lado (o menu mostra as mesmas abas para todos; o que
+        muda é o que o sistema deixa gravar ou ver):
+      </DocP>
+      <DocTable
+        headers={['Área', 'Visitante', 'Operador', 'Editor', 'Administrador']}
+        rows={[
+          ['Dashboard e Painel de uso', 'Ver', 'Ver', 'Ver', 'Ver'],
+          ['Documentação', 'Ver', 'Ver', 'Ver', 'Ver'],
+          ['Eventos (criar / publicar)', 'Ver', 'Ver', 'Criar e editar', 'Criar, editar e excluir'],
+          ['Check-in e tickets', 'Não', 'Sim', 'Sim', 'Sim'],
+          ['Pedidos e doações', 'Não', 'Ver', 'Ver', 'Ver e excluir pedido'],
+          ['Reembolso', 'Não', 'Não', 'Não', 'Sim'],
+          [
+            'Patrocinadores, instituições, vídeos e imagens',
+            'Ver',
+            'Ver',
+            'Alterar',
+            'Alterar',
+          ],
+          ['Tipos de ingresso do evento', 'Ver', 'Ver', 'Alterar', 'Alterar'],
+          [
+            'Páginas Sobre, Termos, Privacidade e Doações',
+            'Ver',
+            'Ver',
+            'Ver',
+            'Editar e publicar',
+          ],
+          [
+            'Permissões e pedidos de Gmail',
+            'Ver a lista',
+            'Ver a lista',
+            'Ver a lista',
+            'Cadastrar, aprovar, desativar e remover',
+          ],
+          ['Histórico de ações (logs)', 'Não', 'Não', 'Ver', 'Ver e apagar'],
         ]}
       />
 
@@ -137,7 +189,7 @@ export function ManualDoc() {
           ],
           [
             'Painel',
-            'Frequência de visitas no site e quanto o banco Firebase já usou da faixa gratuita do dia (leituras, escritas, exclusões). Avisa se está tranquilo, em atenção ou perto de cobrança extra no plano pago.',
+            'Frequência de visitas no site e quanto o banco Firebase já usou da faixa gratuita do dia (leituras, escritas, exclusões). Também mostra e-mails enviados no Resend (100/dia e 3.000/mês). Avisa se está tranquilo, em atenção ou perto do limite. Em 80% ou mais, os administradores recebem um e-mail (uma vez por dia).',
             'Abra a aba e leia o cartão colorido. “Atualizar agora” puxa as métricas oficiais na hora; o resto entra sozinho a cada 5 minutos.',
           ],
         ]}
@@ -202,8 +254,9 @@ export function ManualDoc() {
         </li>
         <li>
           <strong>Nova permissão</strong>: nome completo, Gmail, perfil
-          (Administrador, Editor, Operador ou Visitante). A pessoa entra só
-          com Gmail, sem senha do sistema.
+          (Administrador, Editor, Operador ou Visitante — o que cada um pode
+          fazer está na seção 1 deste manual). A pessoa entra só com Gmail,
+          sem senha do sistema.
         </li>
         <li>
           <strong>Desativar</strong> impede o próximo login, sem apagar o

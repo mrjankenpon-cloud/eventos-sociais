@@ -214,7 +214,8 @@ export function ReportDoc() {
         <li>
           Regras do Firestore impedem o público de inventar pedido ou
           ingresso. Check-in e financeiro passam pelo servidor ou por perfil
-          com permissão.
+          com permissão. Os quatro papéis (Visitante, Operador, Editor,
+          Administrador) estão descritos no Manual, seção 1.
         </li>
         <li>
           Textos de Privacidade e Termos, na aba Conteúdo, são o contrato

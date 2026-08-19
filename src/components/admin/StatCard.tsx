@@ -40,7 +40,7 @@ export function StatCard({
 
   const content = (
     <>
-      <p className="label-micro leading-snug line-clamp-2 h-10 overflow-hidden">
+      <p className="label-micro min-w-0 leading-snug line-clamp-2 h-10 overflow-hidden break-words tracking-[0.12em]">
         {title}
       </p>
       <div className="flex items-center gap-1.5 shrink-0 self-start h-10">
