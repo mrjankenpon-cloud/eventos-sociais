@@ -86,6 +86,20 @@ export function roundMoney(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+export function parseDeviceSessionId(raw: unknown): string | undefined {
+  const s = String(raw || '').trim();
+  if (!s || s.length > 512 || !/^[A-Za-z0-9._-]+$/.test(s)) return undefined;
+  return s;
+}
+
+export function mpDeviceHeaders(
+  deviceSessionId?: string
+): Record<string, string> {
+  const id = parseDeviceSessionId(deviceSessionId);
+  if (!id) return {};
+  return { 'X-meli-session-id': id };
+}
+
 export async function mpFetch<T>(
   path: string,
   init: RequestInit = {}
@@ -102,10 +116,22 @@ export async function mpFetch<T>(
   const body = (await res.json().catch(() => ({}))) as T & {
     message?: string;
     error?: string;
+    errors?: Array<{ code?: string; message?: string; details?: unknown }>;
   };
   if (!res.ok) {
+    const fromList = Array.isArray(body.errors)
+      ? body.errors
+          .map((e) => {
+            const detail = Array.isArray(e.details)
+              ? e.details.map(String).join(', ')
+              : '';
+            return [e.code, e.message, detail].filter(Boolean).join(' — ');
+          })
+          .filter(Boolean)
+          .join('; ')
+      : '';
     throw new Error(
-      `Mercado Pago ${res.status}: ${body.message || body.error || res.statusText}`
+      `Mercado Pago ${res.status}: ${fromList || body.message || body.error || res.statusText}`
     );
   }
   return body;
@@ -335,6 +361,18 @@ export function mpCheckoutPayer(input: {
   return payer;
 }
 
+export function clientIpFromRequest(req: {
+  headers: Record<string, unknown>;
+  ip?: string;
+}): string | undefined {
+  const forwarded = String(req.headers['x-forwarded-for'] || '')
+    .split(',')[0]
+    .trim();
+  const raw = forwarded || String(req.ip || '').replace(/^::ffff:/, '');
+  if (!raw || raw === '127.0.0.1' || raw === '::1') return undefined;
+  return raw.slice(0, 45);
+}
+
 export function mpAdditionalInfoPayer(input: {
   nome: string;
   telefone?: string;
@@ -377,8 +415,19 @@ export async function createPixCharge(input: {
   nome: string;
   documento: string;
   documentoTipo?: 'cpf' | 'cnpj';
+  telefone?: string;
   expiresAt: string;
   idempotencyKey: string;
+  deviceSessionId?: string;
+  items?: Array<{
+    title: string;
+    description?: string;
+    external_code?: string;
+    category_id?: string;
+    quantity: number;
+    unit_price: number;
+    event_date?: string;
+  }>;
 }) {
   if (!isLiveMpAccessToken()) {
     throw new Error(
@@ -388,14 +437,20 @@ export async function createPixCharge(input: {
 
   const email = String(input.email || '').trim().toLowerCase();
   const digits = String(input.documento || '').replace(/\D/g, '');
+  const names = splitPersonName(input.nome);
   const payer: Record<string, unknown> = {
     email: email.includes('@') ? email : 'ingressos@institutodelphos.com.br',
-    first_name: (input.nome || 'Pagador').slice(0, 60),
+    first_name: names.first_name,
+    last_name: names.last_name,
   };
   if (input.documentoTipo === 'cnpj' && digits.length === 14) {
     payer.identification = { type: 'CNPJ', number: digits };
   } else if (digits.length === 11) {
     payer.identification = { type: 'CPF', number: digits };
+  }
+  const phone = splitBrPhone(input.telefone || '');
+  if (phone) {
+    payer.phone = { area_code: phone.area_code, number: phone.number };
   }
 
   const amount = moneyString(input.valor);
@@ -404,11 +459,27 @@ export async function createPixCharge(input: {
     new Date(input.expiresAt).getTime() - Date.now()
   );
   const holdMinutes = Math.max(30, Math.round(holdMs / 60000));
+  const orderItems = (input.items || [])
+    .filter((item) => item.quantity > 0)
+    .map((item) => ({
+      title: String(item.title || input.description).slice(0, 256),
+      description: String(item.description || item.title || '').slice(0, 256),
+      quantity: item.quantity,
+      unit_price: moneyString(item.unit_price),
+      ...(item.external_code
+        ? { external_code: String(item.external_code).slice(0, 64) }
+        : {}),
+      ...(item.category_id ? { category_id: item.category_id } : {}),
+      ...(item.event_date ? { event_date: item.event_date } : {}),
+    }));
 
   try {
     const order = await mpFetch<MpOrderPix>('/v1/orders', {
       method: 'POST',
-      headers: { 'X-Idempotency-Key': input.idempotencyKey },
+      headers: {
+        'X-Idempotency-Key': input.idempotencyKey,
+        ...mpDeviceHeaders(input.deviceSessionId),
+      },
       body: JSON.stringify({
         type: 'online',
         processing_mode: 'automatic',
@@ -416,8 +487,8 @@ export async function createPixCharge(input: {
         external_reference: input.pedidoId,
         description: input.description.slice(0, 255),
         expiration_time: `PT${holdMinutes}M`,
-        notification_url: mpWebhookUrl(),
         payer,
+        ...(orderItems.length ? { items: orderItems } : {}),
         transactions: {
           payments: [
             {

@@ -18,7 +18,7 @@ import { TicketPassList } from '../../components/public/TicketPass';
 import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { formatCurrency } from '../../lib/utils';
-import { readMpReturn } from '../../lib/mpReturn';
+import { explainMpRejection, readMpReturn } from '../../lib/mpReturn';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
 
@@ -173,6 +173,8 @@ export default function OrderSuccess() {
     status === 'cancelado' || status === 'expirado' || status === 'reembolsado';
   const showPaidThanks =
     isConfirmed || (mpReturn.fromMp && mpReturn.approved && !isFailed);
+  const cardRejected = mpReturn.failed && !showPaidThanks;
+  const rejectionHint = explainMpRejection(mpReturn.statusDetail);
 
   return (
     <div className="py-12 sm:py-20 min-h-[60vh] bg-surface-muted">
@@ -197,6 +199,8 @@ export default function OrderSuccess() {
                 className={`p-4 rounded-full ${
                   showPaidThanks
                     ? 'bg-green-100'
+                    : cardRejected
+                      ? 'bg-red-100'
                     : isPending
                       ? 'bg-amber-100'
                       : 'bg-red-100'
@@ -207,6 +211,8 @@ export default function OrderSuccess() {
                     className="w-12 h-12 text-green-500"
                     aria-hidden="true"
                   />
+                ) : cardRejected ? (
+                  <XCircle className="w-12 h-12 text-red-500" aria-hidden="true" />
                 ) : isPending ? (
                   <Clock className="w-12 h-12 text-amber-500" aria-hidden="true" />
                 ) : (
@@ -217,6 +223,8 @@ export default function OrderSuccess() {
             <h1 className="text-2xl font-black text-gray-900">
               {showPaidThanks
                 ? 'Pagamento confirmado'
+                : cardRejected
+                  ? 'Pagamento recusado'
                 : isPending
                   ? mpReturn.fromMp
                     ? 'Confirmando seu pagamento'
@@ -247,7 +255,14 @@ export default function OrderSuccess() {
             </Badge>
           </div>
 
-          {isPending && !showPaidThanks && (
+          {cardRejected && isPending && (
+            <Alert variant="error">
+              {rejectionHint ||
+                'O cartão foi recusado. Você pode pagar este pedido com PIX abaixo, se ainda estiver disponível, ou fazer uma nova inscrição.'}
+            </Alert>
+          )}
+
+          {isPending && !showPaidThanks && !cardRejected && (
             <Alert variant="info">
               {pedido.pixQrCode
                 ? 'Pague o PIX abaixo. Após a confirmação, os ingressos aparecem aqui e no e-mail.'
@@ -260,6 +275,7 @@ export default function OrderSuccess() {
               amount={pedido.valorTotal}
               qrCode={pedido.pixQrCode}
               qrCodeBase64={pedido.pixQrCodeBase64}
+              ticketUrl={pedido.pixTicketUrl}
               expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
               hint="Abra o app do banco, escaneie o QR ou cole o código. Os ingressos são emitidos automaticamente após a confirmação."
             />

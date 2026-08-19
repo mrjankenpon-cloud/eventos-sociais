@@ -12,7 +12,7 @@ import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { donationCertificateNumber } from '../../lib/orgInfo';
 import { Alert, Button, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { readMpReturn } from '../../lib/mpReturn';
+import { explainMpRejection, readMpReturn } from '../../lib/mpReturn';
 import { ROUTES } from '../../config';
 
 export default function DonationSuccess() {
@@ -150,6 +150,8 @@ export default function DonationSuccess() {
   const isPending = status === 'pendente';
   const showPaidThanks =
     isConfirmed || (mpReturn.fromMp && mpReturn.approved && isPending);
+  const cardRejected = mpReturn.failed && !showPaidThanks;
+  const rejectionHint = explainMpRejection(mpReturn.statusDetail);
   const numero =
     pedido.certificadoNumero ||
     donationCertificateNumber(pedido.id, pedido.dataCompra || new Date().toISOString());
@@ -188,6 +190,8 @@ export default function DonationSuccess() {
           <h1 className="text-2xl font-black text-gray-900">
             {showPaidThanks
               ? 'Doação confirmada'
+              : cardRejected
+                ? 'Pagamento recusado'
               : isPending
                 ? mpReturn.fromMp
                   ? 'Confirmando sua doação'
@@ -203,7 +207,10 @@ export default function DonationSuccess() {
           />
           {!showPaidThanks ? (
             <p className="text-sm text-gray-600">
-              {isPending
+              {cardRejected
+                ? rejectionHint ||
+                  'O cartão foi recusado. Tente PIX ou outro cartão na página de doações.'
+                : isPending
                 ? pedido.pixQrCode
                   ? 'Pague o PIX abaixo. Quando o Mercado Pago confirmar, o certificado aparece aqui e no seu e-mail.'
                   : 'Conclua o pagamento no Mercado Pago. Quando confirmar, o certificado aparece aqui e no seu e-mail.'
@@ -275,6 +282,7 @@ export default function DonationSuccess() {
                 amount={pedido.valorTotal}
                 qrCode={pedido.pixQrCode}
                 qrCodeBase64={pedido.pixQrCodeBase64}
+                ticketUrl={pedido.pixTicketUrl}
                 expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
               />
             ) : pedido.linkPagamento && !showPaidThanks ? (

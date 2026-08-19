@@ -41,6 +41,25 @@ async function hydrateEvent(raw: Evento & Record<string, unknown>): Promise<Even
   return eventoToUiEvent(raw, tipos);
 }
 
+function eventFromRaw(
+  raw: Evento & Record<string, unknown>,
+  tipos: Event['tiposIngresso']
+): Event {
+  if ((!tipos || tipos.length === 0) && Array.isArray(raw.tiposIngresso)) {
+    return eventoToUiEvent(raw, raw.tiposIngresso as Event['tiposIngresso']);
+  }
+  return eventoToUiEvent(raw, tipos);
+}
+
+async function hydrateEvents(
+  raws: Array<Evento & Record<string, unknown>>
+): Promise<Event[]> {
+  const tiposMap = await ingressosService.asTicketTypesByEventos(
+    raws.map((raw) => raw.id)
+  );
+  return raws.map((raw) => eventFromRaw(raw, tiposMap.get(raw.id) || []));
+}
+
 async function recalcQuantidadeRestante(eventoId: string): Promise<{
   restante: number;
   vendidas: number;
@@ -266,10 +285,8 @@ export const eventosService = {
         where('status', '==', 'publicado')
       );
       const snap = await getDocs(q);
-      const list = await Promise.all(
-        snap.docs.map((d) =>
-          hydrateEvent(mapDoc<Evento & Record<string, unknown>>(d))
-        )
+      const list = await hydrateEvents(
+        snap.docs.map((d) => mapDoc<Evento & Record<string, unknown>>(d))
       );
       return list.sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
     } catch (primaryError) {
@@ -283,11 +300,10 @@ export const eventosService = {
           where('publicado', '==', true)
         );
         const snap2 = await getDocs(q2);
-        const list = await Promise.all(
+        const list = await hydrateEvents(
           snap2.docs
             .map((d) => mapDoc<Evento & Record<string, unknown>>(d))
             .filter((e) => e.status !== 'arquivado' && !Boolean(e.arquivado))
-            .map((raw) => hydrateEvent(raw))
         );
         return list.sort((a, b) =>
           String(a.data || '').localeCompare(String(b.data || ''))

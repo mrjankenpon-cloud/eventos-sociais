@@ -9,15 +9,23 @@ import {
   db,
   getAppUrl,
   isoWithOffset,
-  mpAdditionalInfoPayer,
+  clientIpFromRequest,
   mpCheckoutPayer,
   mpFetch,
+  mpDeviceHeaders,
   mpWebhookUrl,
   parseCheckoutMetodo,
+  parseDeviceSessionId,
   randomToken,
   roundMoney,
 } from './helpers';
 import { donationCertificateNumber } from '../orgInfo';
+import { allowAttempt, requestIp } from '../http/rateLimit';
+import {
+  authTypeFromRequest,
+  loadBuyerPurchaseProfile,
+  mpIndustryPayer,
+} from './industry';
 
 const MIN_DONATION = 10;
 const MAX_DONATION = 50_000;
@@ -26,6 +34,7 @@ type DonationBody = {
   valor?: number;
   mensagem?: string;
   metodo?: string;
+  deviceId?: string;
   doador?: {
     nome?: string;
     documento?: string;
@@ -87,6 +96,13 @@ export const createDonationSession = functions.https.onRequest(
       return;
     }
 
+    if (!allowAttempt(`donation:${requestIp(req)}`, 8, 10 * 60 * 1000)) {
+      res.status(429).json({
+        error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
+      });
+      return;
+    }
+
     try {
       const body = (req.body || {}) as DonationBody;
       const doador = body.doador || {};
@@ -101,6 +117,7 @@ export const createDonationSession = functions.https.onRequest(
       const email = String(doador.email || '').trim().toLowerCase();
       const mensagem = String(body.mensagem || '').trim().slice(0, 280);
       const valor = roundMoney(Number(body.valor) || 0);
+      const deviceSessionId = parseDeviceSessionId(body.deviceId);
 
       const docOk =
         documentoTipo === 'cnpj'
@@ -137,6 +154,7 @@ export const createDonationSession = functions.https.onRequest(
       const appUrl = getAppUrl();
       const notificationUrl = mpWebhookUrl();
       const successUrl = `${appUrl}/doacao/${pedidoRef.id}/sucesso`;
+      const clientIp = clientIpFromRequest(req);
 
       const basePedido: Record<string, unknown> = {
         tipo: 'doacao',
@@ -189,8 +207,20 @@ export const createDonationSession = functions.https.onRequest(
             nome,
             documento,
             documentoTipo,
+            telefone,
             expiresAt: isoWithOffset(expira),
             idempotencyKey: `donation-pix-${pedidoRef.id}`,
+            deviceSessionId,
+            items: [
+              {
+                title: 'Doacao Instituto Delphos',
+                description: mensagem || 'Doacao',
+                external_code: 'doacao',
+                category_id: 'donations',
+                quantity: 1,
+                unit_price: valor,
+              },
+            ],
           });
           await pedidoRef.update({
             qrCode: pix.qrCode,
@@ -225,6 +255,9 @@ export const createDonationSession = functions.https.onRequest(
         }
       }
 
+      const buyerProfile = await loadBuyerPurchaseProfile(email);
+      const authenticationType = authTypeFromRequest(req);
+
       const preferenceBody: Record<string, unknown> = {
         items: [
           {
@@ -244,6 +277,7 @@ export const createDonationSession = functions.https.onRequest(
           telefone,
         }),
         additional_info: {
+          ...(clientIp ? { ip_address: clientIp } : {}),
           items: [
             {
               id: 'doacao',
@@ -254,7 +288,12 @@ export const createDonationSession = functions.https.onRequest(
               unit_price: valor,
             },
           ],
-          payer: mpAdditionalInfoPayer({ nome, telefone }),
+            payer: mpIndustryPayer({
+              nome,
+              telefone,
+              authenticationType,
+              profile: buyerProfile,
+            }),
         },
         external_reference: pedidoRef.id,
         metadata: {
@@ -268,6 +307,7 @@ export const createDonationSession = functions.https.onRequest(
           failure: successUrl,
         },
         auto_return: 'approved',
+        binary_mode: false,
         notification_url: notificationUrl,
         statement_descriptor: 'DELPHOS',
         payment_methods: checkoutProPaymentMethods(),
@@ -275,6 +315,7 @@ export const createDonationSession = functions.https.onRequest(
 
       const preference = (await mpFetch('/checkout/preferences', {
         method: 'POST',
+        headers: mpDeviceHeaders(deviceSessionId),
         body: JSON.stringify(preferenceBody),
       })) as {
         id: string;

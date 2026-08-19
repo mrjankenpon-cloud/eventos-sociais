@@ -29,7 +29,7 @@ export default function Footer() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="text-white text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
+                className="text-white text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
               >
                 {item.label}
               </Link>
@@ -38,17 +38,17 @@ export default function Footer() {
 
           <nav
             aria-label="Acesso"
-            className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-6"
+            className="flex flex-col sm:flex-row items-center gap-1 sm:gap-6"
           >
             <Link
               to={ROUTES.PUBLIC.ORDER_LOOKUP}
-              className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
+              className="text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
             >
               Já comprou? Receber ingressos
             </Link>
             <Link
               to={ROUTES.ADMIN.DASHBOARD}
-              className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
+              className="text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
             >
               Área Restrita
             </Link>
@@ -59,7 +59,7 @@ export default function Footer() {
                   void enableAppPush();
                   void install();
                 }}
-                className="inline-flex items-center gap-1.5 text-white/90 text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-accent-gold"
+                className="inline-flex items-center gap-1.5 text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 transition-colors hover:text-accent-gold"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
                 Instalar App Delphos

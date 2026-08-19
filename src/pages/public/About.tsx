@@ -4,6 +4,7 @@ import { RichContent } from '../../components/public/RichContent';
 import { AppImage } from '../../components/ui/AppImage';
 import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { institutionService } from '../../services/institution.service';
+import { cachedPublicQuery } from '../../lib/publicDataCache';
 import type { Institution } from '../../types';
 import { useSiteContent } from '../../hooks/useSiteContent';
 
@@ -21,7 +22,9 @@ export default function About() {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await institutionService.getActive();
+        const data = await cachedPublicQuery('institutions.active', () =>
+          institutionService.getActive()
+        );
         if (!cancelled) setPartners(data);
       } catch {
         if (!cancelled) setPartners([]);

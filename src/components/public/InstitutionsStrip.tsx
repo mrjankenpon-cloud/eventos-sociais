@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { institutionService } from '../../services/institution.service';
+import { cachedPublicQuery } from '../../lib/publicDataCache';
 import type { Institution } from '../../types';
 import { THEME } from '../../theme';
 import { AppImage } from '../ui/AppImage';
@@ -18,7 +19,9 @@ export function InstitutionsStrip() {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await institutionService.getActive();
+        const data = await cachedPublicQuery('institutions.active', () =>
+          institutionService.getActive()
+        );
         if (!cancelled) setItems(data);
       } catch (error) {
         console.error('[InstitutionsStrip]', error);

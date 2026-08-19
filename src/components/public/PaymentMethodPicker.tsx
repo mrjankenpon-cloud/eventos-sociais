@@ -29,7 +29,7 @@ export function PaymentMethodPicker({
             PIX
           </span>
           <span className="mt-1 block text-[11px] font-medium text-gray-500">
-            QR Code nesta página
+            Recomendado — QR nesta página, confirmação rápida
           </span>
         </button>
         <button
@@ -47,7 +47,7 @@ export function PaymentMethodPicker({
             Cartão
           </span>
           <span className="mt-1 block text-[11px] font-medium text-gray-500">
-            Crédito (parcelado quando o Mercado Pago permitir) ou débito Elo
+            Crédito ou débito Elo no Mercado Pago. Se recusar, use PIX.
           </span>
         </button>
       </div>

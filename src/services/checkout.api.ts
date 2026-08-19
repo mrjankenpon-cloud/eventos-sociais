@@ -1,5 +1,6 @@
 import { firebaseConfig } from '../firebase/config';
 import { auth } from '../firebase/auth';
+import { waitMpDeviceSessionId } from '../lib/mpDeviceId';
 
 const PROJECT_ID = firebaseConfig.projectId || 'eventosociais-c057d';
 const REGION =
@@ -9,6 +10,13 @@ function functionsBaseUrl(): string {
   const override = String(import.meta.env.VITE_FUNCTIONS_URL || '').trim();
   if (override) return override.replace(/\/$/, '');
   return `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+}
+
+async function withDeviceId<T extends object>(
+  body: T
+): Promise<T & { deviceId?: string }> {
+  const deviceId = await waitMpDeviceSessionId();
+  return deviceId ? { ...body, deviceId } : body;
 }
 
 async function postJson<T>(
@@ -153,7 +161,7 @@ export type GuestTicketsResult = {
 };
 
 export const checkoutApi = {
-  createSession(input: {
+  async createSession(input: {
     eventoId: string;
     itens: CheckoutCartItem[];
     metodo?: 'pix' | 'checkout_pro';
@@ -164,7 +172,10 @@ export const checkoutApi = {
       email: string;
     };
   }): Promise<CheckoutSessionResult> {
-    return postJson<CheckoutSessionResult>('createCheckoutSession', input);
+    return postJson<CheckoutSessionResult>(
+      'createCheckoutSession',
+      await withDeviceId(input)
+    );
   },
 
   getReceipt(
@@ -240,7 +251,7 @@ export const checkoutApi = {
     );
   },
 
-  createDonationSession(input: {
+  async createDonationSession(input: {
     valor: number;
     metodo?: 'pix' | 'checkout_pro';
     doador: {
@@ -263,7 +274,7 @@ export const checkoutApi = {
     initPoint?: string;
     receiptUrl: string;
   }> {
-    return postJson('createDonationSession', input);
+    return postJson('createDonationSession', await withDeviceId(input));
   },
 
   sendEventNotification(eventoId: string): Promise<{

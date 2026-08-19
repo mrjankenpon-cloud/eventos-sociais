@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /controle
+Disallow: /controle/
+
+Sitemap: https://institutodelphos.com.br/sitemap.xml

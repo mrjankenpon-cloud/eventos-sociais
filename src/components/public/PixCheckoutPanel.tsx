@@ -20,6 +20,7 @@ export function PixCheckoutPanel({
   qrCode,
   qrCodeBase64,
   expiresAt,
+  ticketUrl,
   hint,
   kind = 'ingresso',
 }: {
@@ -27,6 +28,7 @@ export function PixCheckoutPanel({
   qrCode?: string | null;
   qrCodeBase64?: string | null;
   expiresAt?: string | null;
+  ticketUrl?: string | null;
   hint?: string;
   kind?: 'ingresso' | 'doacao';
 }) {
@@ -112,6 +114,19 @@ export function PixCheckoutPanel({
             {copied ? 'Copiado' : 'Copiar código PIX'}
           </Button>
         </div>
+      ) : null}
+
+      {ticketUrl ? (
+        <a
+          href={ticketUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <Button variant="secondary" className="w-full rounded-2xl">
+            Abrir PIX no Mercado Pago
+          </Button>
+        </a>
       ) : null}
 
       <p className="text-[11px] text-gray-400 leading-relaxed">

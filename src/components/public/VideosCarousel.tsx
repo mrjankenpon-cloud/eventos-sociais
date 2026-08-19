@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Play, Video, X } from 'lucide-react';
 import { videosService } from '../../services/firebase/videos';
+import { cachedPublicQuery } from '../../lib/publicDataCache';
 import type { SiteVideo } from '../../types';
 import { THEME } from '../../theme';
 import {
@@ -18,7 +19,9 @@ export function VideosCarousel() {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await videosService.getActive();
+        const data = await cachedPublicQuery('videos.active', () =>
+          videosService.getActive()
+        );
         if (!cancelled) setItems(data);
       } catch (error) {
         console.warn('[VideosCarousel]', error);

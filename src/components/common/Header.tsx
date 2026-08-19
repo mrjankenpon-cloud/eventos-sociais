@@ -34,7 +34,7 @@ export default function Header() {
         <Link
           to="/"
           className="group min-w-0 flex flex-col justify-center focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg py-1"
-          aria-label={`${APP_CONFIG.name} — início`}
+          aria-label="Instituto DELPHOS — início"
         >
           <span
             className={`text-white/90 font-medium tracking-[0.12em] uppercase transition-all duration-500 group-hover:text-white ${
@@ -82,6 +82,9 @@ export default function Header() {
             <img
               src="/delphos-logo.png"
               alt=""
+              width={503}
+              height={496}
+              decoding="async"
               className={`w-auto object-contain drop-shadow-md transition-all duration-500 ${
                 isScrolled
                   ? 'h-9 sm:h-12 md:h-14'
@@ -91,6 +94,9 @@ export default function Header() {
             <img
               src="/frafem-logo.png"
               alt="FRAFEM Delphos"
+              width={1024}
+              height={1024}
+              decoding="async"
               className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-all duration-500 ${
                 isScrolled
                   ? 'h-8 sm:h-10 md:h-12'

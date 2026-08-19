@@ -8,10 +8,12 @@ import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 import { PublicErrorBoundary } from '../components/public/PublicErrorBoundary';
 import { useInstalledAppPing } from '../lib/appInstallPing';
 import { usePublicSiteVisitPing } from '../lib/siteVisitPing';
+import { useMpDeviceId } from '../lib/useMpDeviceId';
 
 export default function PublicLayout() {
   useInstalledAppPing();
   usePublicSiteVisitPing();
+  useMpDeviceId();
 
   return (
     <div className="min-h-screen bg-surface-muted flex flex-col overflow-x-hidden min-w-0">
@@ -36,6 +38,7 @@ export default function PublicLayout() {
       <Footer />
       <PwaInstallPrompt />
       <PushEnablePrompt />
+      <input type="hidden" id="deviceId" name="deviceId" readOnly />
     </div>
   );
 }

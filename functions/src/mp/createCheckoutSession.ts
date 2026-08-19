@@ -9,9 +9,11 @@ import {
   db,
   getAppUrl,
   isoWithOffset,
-  mpAdditionalInfoPayer,
+  clientIpFromRequest,
   mpCheckoutPayer,
   mpFetch,
+  mpDeviceHeaders,
+  parseDeviceSessionId,
   mpWebhookUrl,
   parseCheckoutMetodo,
   randomToken,
@@ -19,6 +21,14 @@ import {
 } from './helpers';
 import { emitTicketsForPedido, releaseStockLines, reserveStockLines } from './stock';
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
+import { allowAttempt, requestIp } from '../http/rateLimit';
+import {
+  authTypeFromRequest,
+  eventDateForMp,
+  loadBuyerPurchaseProfile,
+  mpIndustryPayer,
+  mpPreferenceIndustryItems,
+} from './industry';
 
 type CheckoutItemInput = {
   ingressoId?: string;
@@ -34,6 +44,7 @@ type CheckoutBody = {
   itens?: CheckoutItemInput[];
   /** pix = QR no site; checkout_pro = cartão no Mercado Pago */
   metodo?: string;
+  deviceId?: string;
   comprador?: {
     nome?: string;
     cpf?: string;
@@ -144,6 +155,13 @@ export const createCheckoutSession = functions.https.onRequest(
       return;
     }
 
+    if (!allowAttempt(`checkout:${requestIp(req)}`, 8, 10 * 60 * 1000)) {
+      res.status(429).json({
+        error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
+      });
+      return;
+    }
+
     const reserved: ReservedLine[] = [];
 
     try {
@@ -156,6 +174,7 @@ export const createCheckoutSession = functions.https.onRequest(
       const cpf = String(comprador.cpf || '').replace(/\D/g, '');
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
+      const deviceSessionId = parseDeviceSessionId(body.deviceId);
 
       if (!eventoId) {
         res.status(400).json({ error: 'eventoId obrigatório' });
@@ -362,6 +381,20 @@ export const createCheckoutSession = functions.https.onRequest(
       const appUrl = getAppUrl();
       const notificationUrl = mpWebhookUrl();
       const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
+      const clientIp = clientIpFromRequest(req);
+      const eventDate = eventDateForMp(evento);
+      const industryItems = resolved.map((l) => ({
+        id: l.ingressoId,
+        title: `${String(evento.titulo || 'Evento')} | ${l.nome}`.slice(0, 256),
+        description: `${String(evento.local || evento.cidade || 'Evento')} — ${l.nome}`.slice(
+          0,
+          256
+        ),
+        category_id: 'tickets',
+        quantity: l.quantidade,
+        unit_price: l.valorUnitario,
+        event_date: eventDate,
+      }));
 
       if (metodo === 'pix') {
         await pedidoRef.set(basePedido);
@@ -374,8 +407,11 @@ export const createCheckoutSession = functions.https.onRequest(
             nome,
             documento: cpf,
             documentoTipo: 'cpf',
+            telefone,
             expiresAt: isoWithOffset(reservaExpiraEm),
             idempotencyKey: `ticket-pix-${pedidoRef.id}`,
+            deviceSessionId,
+            items: industryItems,
           });
           await pedidoRef.update({
             qrCode: pix.qrCode,
@@ -421,19 +457,19 @@ export const createCheckoutSession = functions.https.onRequest(
         sandbox_init_point?: string;
       };
       try {
+        const buyerProfile = await loadBuyerPurchaseProfile(email);
+        const authenticationType = authTypeFromRequest(req);
         // Checkout Pro: crédito/débito (PIX é gerado no site).
         // back_urls sem query: o token fica no sessionStorage; o MP acrescenta payment_id.
         const preferenceBody: Record<string, unknown> = {
-          items: resolved.map((l) => ({
-            id: l.ingressoId.slice(0, 64),
-            title: `${String(evento.titulo || 'Evento')} — ${l.nome}`.slice(
-              0,
-              256
-            ),
-            quantity: l.quantidade,
-            unit_price: l.valorUnitario,
+          items: industryItems.map((item) => ({
+            id: item.id.slice(0, 64),
+            title: item.title,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
             currency_id: 'BRL',
             category_id: 'tickets',
+            ...(item.event_date ? { event_date: item.event_date } : {}),
           })),
           payer: mpCheckoutPayer({
             email,
@@ -442,18 +478,14 @@ export const createCheckoutSession = functions.https.onRequest(
             telefone,
           }),
           additional_info: {
-            items: resolved.map((l) => ({
-              id: l.ingressoId.slice(0, 64),
-              title: `${String(evento.titulo || 'Evento')} — ${l.nome}`.slice(
-                0,
-                256
-              ),
-              description: l.nome.slice(0, 256),
-              category_id: 'tickets',
-              quantity: l.quantidade,
-              unit_price: l.valorUnitario,
-            })),
-            payer: mpAdditionalInfoPayer({ nome, telefone }),
+            ...(clientIp ? { ip_address: clientIp } : {}),
+            items: mpPreferenceIndustryItems(industryItems),
+            payer: mpIndustryPayer({
+              nome,
+              telefone,
+              authenticationType,
+              profile: buyerProfile,
+            }),
           },
           external_reference: pedidoRef.id,
           metadata: {
@@ -469,6 +501,7 @@ export const createCheckoutSession = functions.https.onRequest(
             failure: successUrl,
           },
           auto_return: 'approved',
+          binary_mode: false,
           notification_url: notificationUrl,
           statement_descriptor: 'DELPHOS',
           payment_methods: checkoutProPaymentMethods(),
@@ -476,6 +509,7 @@ export const createCheckoutSession = functions.https.onRequest(
 
         preference = await mpFetch('/checkout/preferences', {
           method: 'POST',
+          headers: mpDeviceHeaders(deviceSessionId),
           body: JSON.stringify(preferenceBody),
         });
       } catch (mpError) {

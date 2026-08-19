@@ -17,6 +17,10 @@ export function usePublicSiteVisitPing() {
   useEffect(() => {
     try {
       if (sessionStorage.getItem(KEY)) return;
+      const ua = navigator.userAgent || '';
+      if (ua.length < 12 || /bot|crawler|spider|lighthouse|headless/i.test(ua)) {
+        return;
+      }
       sessionStorage.setItem(KEY, '1');
     } catch {
       return;

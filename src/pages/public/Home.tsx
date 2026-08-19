@@ -10,6 +10,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
 import { eventService } from '../../services/event.service';
 import { Event } from '../../types';
+import { cachedPublicQuery } from '../../lib/publicDataCache';
 import { prefetchPurchaseFunnel } from '../../lib/prefetchPublic';
 
 export default function Home() {
@@ -19,7 +20,9 @@ export default function Home() {
 
   const loadEvents = useCallback(async () => {
     try {
-      const data = await eventService.getPublished();
+      const data = await cachedPublicQuery('events.published', () =>
+        eventService.getPublished()
+      );
       setEvents(data);
       setError(null);
     } catch (err) {

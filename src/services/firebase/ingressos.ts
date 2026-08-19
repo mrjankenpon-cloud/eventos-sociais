@@ -275,6 +275,43 @@ export const ingressosService = {
     }
   },
 
+  /** Uma query por lote (até 10 ids) em vez de 1 por evento na home. */
+  async asTicketTypesByEventos(
+    eventoIds: string[]
+  ): Promise<Map<string, TicketType[]>> {
+    const grouped = new Map<string, TicketType[]>();
+    const unique = [...new Set(eventoIds.map((id) => String(id || '').trim()))].filter(
+      Boolean
+    );
+    if (unique.length === 0) return grouped;
+
+    try {
+      const chunkSize = 10;
+      for (let i = 0; i < unique.length; i += chunkSize) {
+        const chunk = unique.slice(i, i + chunkSize);
+        const snap = await getDocs(
+          query(col(COLLECTIONS.ingressos), where('eventoId', 'in', chunk))
+        );
+        for (const d of snap.docs) {
+          const row = mapDoc<Ingresso>(d);
+          const list = grouped.get(row.eventoId) || [];
+          list.push(ingressoToTicketType(row));
+          grouped.set(row.eventoId, list);
+        }
+      }
+      for (const [id, list] of grouped) {
+        grouped.set(
+          id,
+          list.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+        );
+      }
+      return grouped;
+    } catch (error) {
+      console.warn('[ingressos.asTicketTypesByEventos] falhou', error);
+      return grouped;
+    }
+  },
+
   async incrementVendido(ingressoId: string, qty: number): Promise<Ingresso> {
     try {
       const current = await this.getById(ingressoId);

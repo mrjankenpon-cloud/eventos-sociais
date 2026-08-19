@@ -6,35 +6,12 @@ import {
 } from '../email/guestAccess';
 import { db } from '../mp/helpers';
 import { loadEventTicketSummary } from '../mp/eventSummary';
+import { allowAttempt, requestIp } from '../http/rateLimit';
 
 function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
-}
-
-const attempts = new Map<string, { n: number; resetAt: number }>();
-
-function clientIp(req: functions.Request): string {
-  return (
-    String(req.headers['x-forwarded-for'] || '')
-      .split(',')[0]
-      .trim() ||
-    req.ip ||
-    'unknown'
-  );
-}
-
-function allowAttempt(ip: string, max = 10, windowMs = 60_000): boolean {
-  const now = Date.now();
-  const cur = attempts.get(ip);
-  if (!cur || cur.resetAt < now) {
-    attempts.set(ip, { n: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (cur.n >= max) return false;
-  cur.n += 1;
-  return true;
 }
 
 function sleep(ms: number) {
@@ -61,7 +38,7 @@ export const requestGuestTicketsEmail = functions.https.onRequest(
     }
 
     try {
-      if (!allowAttempt(clientIp(req))) {
+      if (!allowAttempt(`guest-email:${requestIp(req)}`, 10, 60_000)) {
         res.status(429).json({
           error: 'Muitas tentativas. Aguarde um minuto e tente novamente.',
         });
@@ -118,7 +95,7 @@ export const getGuestTickets = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    if (!allowAttempt(clientIp(req), 40)) {
+    if (!allowAttempt(`guest-tickets:${requestIp(req)}`, 40, 60_000)) {
       res.status(429).json({ error: 'Muitas tentativas. Aguarde.' });
       return;
     }
