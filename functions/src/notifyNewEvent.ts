@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import webpush from 'web-push';
-import { db, getAppUrl } from './mp/helpers';
+import { clientSafeMessage, db, getAppUrl } from './mp/helpers';
 
 const TOPIC_MAIL = 'mailto:ingressos@institutodelphos.com.br';
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
@@ -133,7 +133,7 @@ async function sendEventPush(eventoId: string): Promise<SendResult> {
       if (status === 404 || status === 410) {
         removals.push(doc.id);
       } else {
-        result.errors.push(msg);
+        result.errors.push('envio falhou');
       }
     }
   }
@@ -191,7 +191,9 @@ export const sendEventNotification = functions.https.onRequest(
       functions.logger.error('[sendEventNotification]', error);
       const statusCode =
         msg.includes('Autenticação') || msg.includes('permissão') ? 403 : 500;
-      res.status(statusCode).json({ error: msg });
+      res.status(statusCode).json({
+        error: clientSafeMessage(error, 'Falha ao enviar'),
+      });
     }
   }
 );

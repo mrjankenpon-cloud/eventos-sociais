@@ -1,25 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Input, Button, Alert } from '../../components/ui';
+import { Button, Alert } from '../../components/ui';
 import { ROUTES, APP_CONFIG } from '../../config';
 import { THEME } from '../../theme';
+import { ACCESS_APPROVER_EMAIL } from '../../config/access';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithGoogle, isAuthenticated, isLoading: authLoading } =
-    useAuth();
-  const userRef = useRef<HTMLInputElement>(null);
+  const { loginWithGoogle, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const from =
     (location.state as { from?: { pathname?: string } })?.from?.pathname ||
@@ -31,15 +24,10 @@ export default function Login() {
     }
   }, [authLoading, isAuthenticated, from, navigate]);
 
-  useEffect(() => {
-    if (showPasswordForm) userRef.current?.focus();
-  }, [showPasswordForm]);
-
   const handleGoogle = async () => {
     setIsGoogleLoading(true);
     setError('');
     try {
-      // Limpa SW/cache antigo que pode servir JS desatualizado
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
@@ -53,29 +41,6 @@ export default function Login() {
           : 'Não foi possível entrar com Google.'
       );
       setIsGoogleLoading(false);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    try {
-      await login(username.trim(), password);
-      navigate(from, { replace: true });
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Erro ao realizar login.';
-      setError(
-        message.toLowerCase().includes('credencial') ||
-          message.toLowerCase().includes('senha') ||
-          message.toLowerCase().includes('usuário') ||
-          message.toLowerCase().includes('invalid')
-          ? 'Credenciais inválidas. Verifique seu usuário e senha.'
-          : message
-      );
-      setIsLoading(false);
     }
   };
 
@@ -104,7 +69,7 @@ export default function Login() {
               Área Administrativa
             </h2>
             <p className="text-gray-500 mt-2 text-sm">
-              Entre com a conta Google autorizada em Permissões
+              Acesso exclusivo com Gmail autorizado
             </p>
           </div>
 
@@ -114,75 +79,20 @@ export default function Login() {
               size="lg"
               variant="outline"
               isLoading={isGoogleLoading}
-              disabled={isLoading}
               onClick={() => void handleGoogle()}
               className="w-full rounded-2xl"
             >
               <GoogleIcon />
-              {isGoogleLoading ? 'Conectando...' : 'Entrar com Google'}
+              {isGoogleLoading ? 'Conectando...' : 'Entrar com Gmail'}
             </Button>
-
-            <button
-              type="button"
-              onClick={() => setShowPasswordForm((v) => !v)}
-              className="w-full text-center text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-brand transition-colors py-2"
-            >
-              {showPasswordForm ? 'Ocultar acesso por senha' : 'Acesso por senha'}
-            </button>
-
-            {showPasswordForm && (
-              <form onSubmit={handleLogin} className="space-y-5 pt-2">
-                <Input
-                  ref={userRef}
-                  label="E-mail ou usuário"
-                  icon={<User size={18} />}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="controleadmin"
-                  autoComplete="username"
-                  required
-                />
-
-                <div className="relative">
-                  <Input
-                    label="Senha"
-                    type={showPassword ? 'text' : 'password'}
-                    icon={<Lock size={18} />}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                    required
-                    className="pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                    className="absolute right-3 bottom-[14px] p-1.5 text-gray-400 hover:text-brand transition-colors rounded-lg"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  isLoading={isLoading}
-                  className="w-full rounded-2xl"
-                >
-                  {isLoading ? 'Entrando...' : 'Entrar com senha'}
-                </Button>
-              </form>
-            )}
 
             {error && <Alert variant="error">{error}</Alert>}
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-50 text-center">
-            <p className="text-gray-400 text-xs">
-              Sem acesso? Peça a um administrador para cadastrar seu e-mail Google
-              em Permissões.
+            <p className="text-gray-400 text-xs leading-relaxed">
+              Sem permissão? Entre com seu Gmail: o pedido vai para{' '}
+              {ACCESS_APPROVER_EMAIL} validar.
             </p>
           </div>
         </div>

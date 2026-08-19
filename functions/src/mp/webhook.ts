@@ -560,9 +560,6 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
     res.status(200).json({ ok: true });
   } catch (error) {
     functions.logger.error('[mpWebhook]', error);
-    res.status(500).json({
-      ok: false,
-      error: error instanceof Error ? error.message : 'erro',
-    });
+    res.status(500).json({ ok: false });
   }
 });

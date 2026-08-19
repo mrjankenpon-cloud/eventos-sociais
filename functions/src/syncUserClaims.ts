@@ -22,9 +22,12 @@ export const syncUserClaims = functions.https.onCall(async (_data, context) => {
   }
 
   const data = snap.data() || {};
-  const role = typeof data.role === 'string' ? data.role : 'viewer';
+  const rawRole = typeof data.role === 'string' ? data.role : 'viewer';
+  const role = ['admin', 'editor', 'operador', 'viewer'].includes(rawRole)
+    ? rawRole
+    : 'viewer';
   const ativo = data.ativo !== false;
-  const master = data.master === true || uid === MASTER_UID;
+  const master = uid === MASTER_UID;
 
   if (!ativo && !master) {
     throw new functions.https.HttpsError('permission-denied', 'Usuário inativo.');

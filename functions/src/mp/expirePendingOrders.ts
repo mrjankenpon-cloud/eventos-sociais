@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { db, mpFetch } from './helpers';
+import { clientSafeMessage, db, mpFetch } from './helpers';
 import { transitionPedidoReleaseStock } from './stock';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
@@ -142,7 +142,9 @@ export const expirePendingOrdersHttp = functions.https.onRequest(
       const msg = error instanceof Error ? error.message : 'erro';
       const status =
         msg.includes('Autenticação') || msg.includes('permissão') ? 403 : 500;
-      res.status(status).json({ error: msg });
+      res.status(status).json({
+        error: clientSafeMessage(error, 'Falha ao expirar pedidos'),
+      });
     }
   }
 );

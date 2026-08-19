@@ -4,19 +4,12 @@
  * Uso:
  *   npx tsx scripts/seed.ts
  *
- * Requer .env / .env.local com VITE_FIREBASE_* e opcionalmente:
- *   SEED_ADMIN_EMAIL=controleadmin@delphos.local
- *   SEED_ADMIN_PASSWORD=admin@vogel
+ * Requer .env / .env.local com VITE_FIREBASE_*.
+ * Não cria login por senha — o painel é somente Gmail.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile,
-} from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -66,47 +59,29 @@ if (!config.apiKey || config.apiKey === 'demo-api-key') {
 }
 
 const app = initializeApp(config);
-const auth = getAuth(app);
 const db = getFirestore(app);
-
-const ADMIN_EMAIL =
-  process.env.SEED_ADMIN_EMAIL ||
-  process.env.VITE_ADMIN_LOGIN_EMAIL ||
-  'controleadmin@delphos.local';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin@vogel';
 
 const PLACEHOLDER_IMG =
   'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?q=80&w=1200';
 
 async function ensureAdmin() {
-  try {
-    try {
-      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
-      console.log('Admin já existe — autenticado.');
-    } catch {
-      const cred = await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
-      await updateProfile(cred.user, { displayName: 'Administrador Delphos' });
-      console.log('Admin criado:', ADMIN_EMAIL);
-    }
-
-    const uid = auth.currentUser!.uid;
-    await setDoc(
-      doc(db, 'usuarios', uid),
-      {
-        name: 'Administrador Delphos',
-        email: ADMIN_EMAIL,
-        role: 'admin',
-        ativo: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-    return uid;
-  } catch (error) {
-    console.error('Falha ao criar admin:', error);
-    throw error;
-  }
+  const email = 'augustovogel82@gmail.com';
+  await setDoc(
+    doc(db, 'usuarios', email),
+    {
+      name: 'Augusto Vogel',
+      email,
+      role: 'admin',
+      ativo: true,
+      pending: true,
+      authProvider: 'invite',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  console.log('Convite Gmail (sem senha):', email);
+  return email;
 }
 
 async function seed() {
@@ -287,8 +262,7 @@ async function seed() {
   });
 
   console.log('\nSeed concluído.');
-  console.log('Login admin:', ADMIN_EMAIL);
-  console.log('Senha:', ADMIN_PASSWORD);
+  console.log('Acesso admin: Gmail (sem senha).');
 }
 
 seed().catch((err) => {

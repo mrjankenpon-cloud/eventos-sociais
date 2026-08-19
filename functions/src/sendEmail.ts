@@ -5,11 +5,26 @@
 import * as functions from 'firebase-functions/v1';
 import { isResendConfigured, sendEmailViaResend } from './email/resend';
 
+const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
+
 export const sendEmail = functions.https.onCall(async (request) => {
   if (!request.auth) {
     throw new functions.https.HttpsError(
       'unauthenticated',
       'Autenticação obrigatória'
+    );
+  }
+
+  const uid = request.auth.uid;
+  const claims = request.auth.token as { role?: string; master?: boolean };
+  const isAdmin =
+    uid === MASTER_UID ||
+    claims.master === true ||
+    claims.role === 'admin';
+  if (!isAdmin) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Sem permissão'
     );
   }
 
@@ -30,8 +45,7 @@ export const sendEmail = functions.https.onCall(async (request) => {
       ok: true,
       stub: true,
       queued: true,
-      message:
-        'Resend não configurado — e-mail enfileirado. Defina RESEND_API_KEY e EMAIL_FROM.',
+      message: 'E-mail enfileirado.',
       to,
     };
   }

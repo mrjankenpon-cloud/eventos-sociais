@@ -8,7 +8,6 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (usernameOrEmail: string, password: string) => Promise<User>;
   loginWithGoogle: () => Promise<User>;
   logout: () => Promise<void>;
 }
@@ -132,12 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isLoading, user]);
 
-  const login = useCallback(async (usernameOrEmail: string, password: string) => {
-    const profile = await usuariosService.login(usernameOrEmail, password);
-    setUser(profile);
-    return profile;
-  }, []);
-
   const loginWithGoogle = useCallback(async () => {
     const profile = await usuariosService.loginWithGoogle();
     setUser(profile);
@@ -156,7 +149,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: Boolean(user),
         isLoading,
-        login,
         loginWithGoogle,
         logout,
       }}

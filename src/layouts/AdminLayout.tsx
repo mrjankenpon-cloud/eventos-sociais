@@ -14,6 +14,7 @@ import {
   FileText,
   Video,
   HandCoins,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useInstalledAppPing } from '../lib/appInstallPing';
@@ -57,6 +58,7 @@ function AdminShell() {
     { name: 'Vídeos', icon: Video, href: ROUTES.ADMIN.VIDEOS },
     { name: 'Conteúdo', icon: FileText, href: ROUTES.ADMIN.SITE_CONTENT },
     { name: 'Permissões', icon: Shield, href: ROUTES.ADMIN.PERMISSIONS },
+    { name: 'Documentação', icon: BookOpen, href: ROUTES.ADMIN.DOCUMENTATION },
   ];
 
   const handleLogout = async () => {

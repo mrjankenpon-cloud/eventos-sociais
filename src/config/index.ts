@@ -36,6 +36,7 @@ export const ROUTES = {
     VIDEOS: '/controle/videos',
     PERMISSIONS: '/controle/permissoes',
     SITE_CONTENT: '/controle/conteudo',
+    DOCUMENTATION: '/controle/documentacao',
     DONATIONS: '/controle/doacoes',
     HEALTH: '/controle/health',
   }

@@ -1,8 +1,8 @@
 /**
  * DELPHOS Cloud Functions — Mercado Pago + stubs legados.
  *
- * Carrega functions/.env em runtime local / quando o arquivo existir no deploy.
- * Secrets reais NUNCA vão no Git (.env está no .gitignore).
+ * Carrega functions/.env só em runtime local, se o arquivo existir.
+ * Secrets reais NUNCA vão no Git; o deploy ignora `.env` (firebase.json).
  */
 import * as path from 'path';
 import * as fs from 'fs';
@@ -57,6 +57,7 @@ export { refundPayment } from './mp/refundPayment';
 export { sandboxApproveOrder } from './mp/sandboxApproveOrder';
 export { createTicketUpgradeSession } from './mp/createTicketUpgradeSession';
 export { sendEventNotification } from './notifyNewEvent';
+export { requestPanelAccess } from './access/requestPanelAccess';
 export {
   requestGuestTicketsEmail,
   getGuestTickets,
@@ -64,9 +65,5 @@ export {
 
 /** Health ping da runtime de Functions */
 export const ping = functions.https.onRequest((_req, res) => {
-  res.json({
-    ok: true,
-    service: 'delphos-functions',
-    ts: new Date().toISOString(),
-  });
+  res.status(200).json({ ok: true });
 });

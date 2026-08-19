@@ -16,14 +16,14 @@ export default function Footer() {
   const { canInstall, install } = usePwaInstall();
 
   return (
-    <footer className="bg-brand pt-10 sm:pt-16 lg:pt-20 pb-[max(3rem,env(safe-area-inset-bottom))] sm:pb-16 lg:pb-20">
+    <footer className="bg-[#061c37] pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-6 sm:pb-6">
       <div className="page-container">
-        <div className="w-full h-px bg-white/20 mb-10" />
+        <div className="w-full h-px bg-white/20 mb-4" />
 
-        <div className="flex flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-3 sm:gap-3.5">
           <nav
             aria-label="Institucional"
-            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
+            className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5"
           >
             {LEGAL_LINKS.map((item) => (
               <Link
@@ -38,7 +38,7 @@ export default function Footer() {
 
           <nav
             aria-label="Acesso"
-            className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8"
+            className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-6"
           >
             <Link
               to={ROUTES.PUBLIC.ORDER_LOOKUP}
@@ -67,17 +67,17 @@ export default function Footer() {
             )}
           </nav>
 
-          <div className="text-center space-y-2 max-w-lg">
-            <p className="text-white text-[11px] tracking-wide">
+          <div className="text-center space-y-1 max-w-lg">
+            <p className="text-white text-[11px] tracking-wide leading-snug">
               © {new Date().getFullYear()} {APP_CONFIG.name} • Todos os direitos
               reservados.
             </p>
-            <p className="text-white text-[11px] leading-relaxed">
+            <p className="text-white text-[11px] leading-snug">
               {ORG.razaoSocial} · CNPJ {ORG.cnpj}
               <br />
               {orgAddressLine()}
             </p>
-            <p className="text-white text-[10px] tracking-wider uppercase font-medium">
+            <p className="text-white text-[10px] tracking-wider uppercase font-medium leading-snug">
               Este site foi desenvolvido por{' '}
               <a
                 href="https://hervenhub.com.br"

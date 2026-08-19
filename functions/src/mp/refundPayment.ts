@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { db, extractMpFees, moneyString, mpFetch, roundMoney } from './helpers';
+import { clientSafeMessage, db, extractMpFees, moneyString, mpFetch, roundMoney } from './helpers';
 import { releaseStock, transitionPedidoReleaseStock } from './stock';
 
 const MASTER_UID = 'dNnYanNjrgWA5CXUfJjEZKCIJhm2';
@@ -342,13 +342,15 @@ export const refundPayment = functions.https.onRequest(async (req, res) => {
     });
   } catch (error) {
     functions.logger.error('[refundPayment]', error);
-    const msg = error instanceof Error ? error.message : 'erro';
+    const msg = error instanceof Error ? error.message : '';
     const status =
       msg.includes('Autenticação') || msg.includes('permissão')
         ? 403
         : msg.includes('não encontrad')
           ? 404
           : 500;
-    res.status(status).json({ error: msg });
+    res.status(status).json({
+      error: clientSafeMessage(error, 'Falha no reembolso'),
+    });
   }
 });

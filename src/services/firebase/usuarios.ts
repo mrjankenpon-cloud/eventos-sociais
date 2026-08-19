@@ -12,14 +12,11 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import {
-  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   getRedirectResult,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut,
-  updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '../../firebase/auth';
@@ -42,6 +39,9 @@ import {
 } from './helpers';
 import { logsService } from './logs';
 import { isMasterAdminUid, MASTER_ADMIN_UID } from '../../config/masterAdmin';
+import { isGmailAddress } from '../../config/access';
+import { submitPanelAccessRequest } from '../accessRequest.api';
+import type { AccessRequest } from '../../types/models/accessRequest';
 
 function createGoogleProvider(): GoogleAuthProvider {
   const provider = new GoogleAuthProvider();
@@ -105,19 +105,29 @@ function inviteDocId(email: string): string {
   return normalizeEmail(email);
 }
 
-function resolveLoginEmail(usernameOrEmail: string): string {
-  const value = usernameOrEmail.trim();
-  if (value.includes('@')) return normalizeEmail(value);
-
-  const normalized = value.toLowerCase();
-  if (normalized === 'controleadmin') {
-    const mapped = import.meta.env.VITE_ADMIN_LOGIN_EMAIL as string | undefined;
-    return mapped?.trim() || 'controleadmin@delphos.local';
+function requireGmail(email: string): void {
+  if (!isGmailAddress(email)) {
+    throw new Error('O painel aceita somente contas Gmail (@gmail.com).');
   }
+}
 
-  const mapped = import.meta.env.VITE_ADMIN_LOGIN_EMAIL as string | undefined;
-  if (mapped?.trim()) return mapped.trim();
-  return `${value}@delphos.local`;
+async function requestAccessThenDeny(fbUser: FirebaseUser, reason: Error): Promise<never> {
+  const msg = reason.message.toLowerCase();
+  if (msg.includes('desativado')) {
+    await signOut(auth).catch(() => undefined);
+    throw reason;
+  }
+  try {
+    if (auth.currentUser?.uid === fbUser.uid) {
+      await submitPanelAccessRequest();
+    }
+  } catch {
+    /* pedido é best-effort */
+  }
+  await signOut(auth).catch(() => undefined);
+  throw new Error(
+    'Seu Gmail ainda não tem permissão. Enviamos um pedido para o administrador validar.'
+  );
 }
 
 /** Garante perfil master no Firestore para o UID fixo. */
@@ -184,7 +194,9 @@ function isAccessDeniedError(error: unknown): boolean {
     msg.includes('desativado') ||
     msg.includes('sem e-mail') ||
     msg.includes('não tem permissão') ||
-    msg.includes('nao tem permissao')
+    msg.includes('nao tem permissao') ||
+    msg.includes('gmail') ||
+    msg.includes('pedido de acesso')
   );
 }
 
@@ -233,8 +245,7 @@ async function persistGoogleProfile(
     name,
     email,
     avatar,
-    authProvider:
-      profile.authProvider === 'password' ? 'password' : 'google',
+    authProvider: 'google',
   };
 
   const changed =
@@ -290,6 +301,7 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
   const inviteId = inviteDocId(email);
   const inviteSnap = await getDoc(docRef(COLLECTIONS.usuarios, inviteId));
   if (!inviteSnap.exists()) {
+    requireGmail(email);
     throw new Error(
       'Este e-mail não tem permissão de acesso. Peça a um administrador para cadastrá-lo em Permissões.'
     );
@@ -329,90 +341,15 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
   return { id: fbUser.uid, ...profile };
 }
 
-/** Bootstrap legado (senha) — só cria perfil se já autenticou e não há deny. */
-async function profileFromPasswordAuth(fbUser: FirebaseUser): Promise<User> {
-  try {
-    return await claimInviteForAuth(fbUser);
-  } catch {
-    // Permite bootstrap do controleadmin se não houver convite ainda
-    const email = normalizeEmail(fbUser.email || '');
-    const isBootstrap =
-      email === 'controleadmin@delphos.local' ||
-      email === normalizeEmail(String(import.meta.env.VITE_ADMIN_LOGIN_EMAIL || ''));
-
-    if (!isBootstrap) throw new Error('Sem permissão de acesso.');
-
-    const profile: Omit<User, 'id'> = {
-      name: fbUser.displayName || 'Controle Admin',
-      email,
-      role: 'admin',
-      ativo: true,
-      pending: false,
-      authProvider: 'password',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    await setDoc(docRef(COLLECTIONS.usuarios, fbUser.uid), {
-      ...stripUndefined(profile as unknown as Record<string, unknown>),
-      ...timestamps(),
-    });
-
-    return { id: fbUser.uid, ...profile };
-  }
-}
-
 export const usuariosService = {
-  async create(data: UserFormData & { password: string }): Promise<User> {
-    try {
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        normalizeEmail(data.email),
-        data.password
-      );
-      if (data.name) {
-        await updateProfile(cred.user, { displayName: data.name });
-      }
-      const { password: _p, ...profile } = data;
-      const email = normalizeEmail(profile.email);
-      await setDoc(docRef(COLLECTIONS.usuarios, cred.user.uid), {
-        ...stripUndefined({
-          ...profile,
-          email,
-          ativo: profile.ativo ?? true,
-          pending: false,
-          authProvider: 'password',
-        } as unknown as Record<string, unknown>),
-        ...timestamps(),
-      });
-
-      await logsService.record({
-        acao: 'create',
-        colecao: COLLECTIONS.usuarios,
-        documentoId: cred.user.uid,
-        descricao: `Usuário criado: ${email}`,
-      });
-
-      return {
-        id: cred.user.uid,
-        ...profile,
-        email,
-        ativo: profile.ativo ?? true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      wrapError('usuarios.create', error);
-    }
-  },
-
   /** Cadastra permissão (nome + e-mail Google). Não cria conta Auth. */
   async invite(data: PermissionInviteInput): Promise<User> {
     try {
       const email = normalizeEmail(data.email);
       if (!email.includes('@')) {
-        throw new Error('Informe um e-mail válido (conta Google).');
+        throw new Error('Informe um e-mail válido (conta Gmail).');
       }
+      requireGmail(email);
       if (!data.name.trim()) {
         throw new Error('Informe o nome.');
       }
@@ -572,49 +509,71 @@ export const usuariosService = {
     }
   },
 
-  async login(usernameOrEmail: string, password: string): Promise<User> {
-    try {
-      const email = resolveLoginEmail(usernameOrEmail);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const profile = await profileFromPasswordAuth(cred.user);
-      await logsService.record({
-        acao: 'login',
-        colecao: COLLECTIONS.usuarios,
-        documentoId: profile.id,
-        descricao: `Login senha: ${profile.email}`,
-        usuarioId: profile.id,
-        usuarioNome: profile.name,
-      });
-      return profile;
-    } catch (error) {
-      console.error('[usuarios.login]', error);
-      if (error instanceof Error && error.message.includes('permissão')) {
-        await signOut(auth).catch(() => undefined);
-        throw error;
-      }
-      throw new Error('Credenciais inválidas. Verifique seu usuário e senha.');
-    }
+  async listAccessRequests(): Promise<AccessRequest[]> {
+    const snap = await getDocs(col(COLLECTIONS.accessRequests));
+    return snap.docs
+      .map((d) => mapDoc<AccessRequest>(d))
+      .sort((a, b) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      );
+  },
+
+  async approveAccessRequest(id: string, role: UserRole = 'admin'): Promise<void> {
+    const snap = await getDoc(docRef(COLLECTIONS.accessRequests, id));
+    if (!snap.exists()) throw new Error('Pedido não encontrado.');
+    const row = mapDoc<AccessRequest>(snap);
+    await this.invite({
+      name: row.name || row.email,
+      email: row.email,
+      role,
+      ativo: true,
+    }).catch(async (error: unknown) => {
+      const msg = error instanceof Error ? error.message : '';
+      if (!msg.includes('já possui permissão')) throw error;
+    });
+    await updateDoc(docRef(COLLECTIONS.accessRequests, id), {
+      status: 'approved',
+      role,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async denyAccessRequest(id: string): Promise<void> {
+    await updateDoc(docRef(COLLECTIONS.accessRequests, id), {
+      status: 'denied',
+      updatedAt: new Date().toISOString(),
+    });
   },
 
   async completeGoogleRedirectIfAny(): Promise<User | null> {
     try {
       const cred = await getRedirectResult(auth);
       if (!cred?.user) return null;
-      const profile = await claimInviteForAuth(cred.user);
       try {
-        await logsService.record({
-          acao: 'login',
-          colecao: COLLECTIONS.usuarios,
-          documentoId: profile.id,
-          descricao: `Login Google (redirect): ${profile.email}`,
-          usuarioId: profile.id,
-          usuarioNome: profile.name,
-        });
-      } catch {
-        /* ignore */
+        const profile = await claimInviteForAuth(cred.user);
+        try {
+          await logsService.record({
+            acao: 'login',
+            colecao: COLLECTIONS.usuarios,
+            documentoId: profile.id,
+            descricao: `Login Google (redirect): ${profile.email}`,
+            usuarioId: profile.id,
+            usuarioNome: profile.name,
+          });
+        } catch {
+          /* ignore */
+        }
+        return profile;
+      } catch (error) {
+        if (error instanceof Error && isAccessDeniedError(error)) {
+          await requestAccessThenDeny(cred.user, error);
+        }
+        throw error;
       }
-      return profile;
     } catch (error) {
+      if (error instanceof Error && isAccessDeniedError(error)) {
+        throw error;
+      }
       console.error('[usuarios.completeGoogleRedirectIfAny]', error);
       await signOut(auth).catch(() => undefined);
       throw mapGoogleAuthError(error);
@@ -659,8 +618,13 @@ export const usuariosService = {
       }
       return profile;
     } catch (error) {
+      const fbUser = auth.currentUser;
+      if (fbUser && error instanceof Error && isAccessDeniedError(error)) {
+        await requestAccessThenDeny(fbUser, error);
+      }
       console.error('[usuarios.loginWithGoogle]', error);
       await signOut(auth).catch(() => undefined);
+      if (error instanceof Error && isAccessDeniedError(error)) throw error;
       throw mapGoogleAuthError(error);
     }
   },

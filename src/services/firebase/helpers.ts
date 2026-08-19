@@ -32,6 +32,7 @@ export const COLLECTIONS = {
   pushTokens: 'pushTokens',
   /** App Delphos instalado (mesmo sem avisos ligados) */
   pwaInstalls: 'pwaInstalls',
+  accessRequests: 'accessRequests',
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

@@ -154,6 +154,24 @@ export function db() {
   return admin.firestore();
 }
 
+/** Mensagem segura para o cliente — não devolve corpo da API nem tokens. */
+export function clientSafeMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const msg = error.message.trim();
+  if (!msg) return fallback;
+  if (
+    /APP_USR-|TEST-[a-z0-9]|Bearer |re_[A-Za-z0-9]|BEGIN |access.?token|vapid|webhook.?secret/i.test(
+      msg
+    )
+  ) {
+    return fallback;
+  }
+  if (msg.includes('{') || /^Mercado Pago \d/i.test(msg) || msg.length > 180) {
+    return fallback;
+  }
+  return msg;
+}
+
 /** PIX no MP exige no mínimo ~30 min. */
 export const PIX_MINUTES = 30;
 

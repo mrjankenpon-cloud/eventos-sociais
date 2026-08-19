@@ -220,7 +220,7 @@ export const getGuestTickets = functions.https.onRequest(async (req, res) => {
   } catch (error) {
     functions.logger.error('[getGuestTickets]', error);
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'erro',
+      error: 'Não foi possível carregar os ingressos',
     });
   }
 });

@@ -4,6 +4,7 @@ import {
   PIX_MINUTES,
   RESERVE_MINUTES,
   checkoutProPaymentMethods,
+  clientSafeMessage,
   createPixCharge,
   db,
   getAppUrl,
@@ -294,8 +295,7 @@ export const createDonationSession = functions.https.onRequest(
     } catch (error) {
       functions.logger.error('[createDonationSession]', error);
       res.status(500).json({
-        error:
-          error instanceof Error ? error.message : 'Falha ao criar doação',
+        error: clientSafeMessage(error, 'Falha ao criar doação'),
       });
     }
   }

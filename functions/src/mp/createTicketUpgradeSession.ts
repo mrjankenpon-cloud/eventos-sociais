@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { randomBytes } from 'crypto';
 import {
   createPixCharge,
+  clientSafeMessage,
   db,
   getAppUrl,
   mapOrderStatusToMp,
@@ -490,10 +491,12 @@ export const createTicketUpgradeSession = functions.https.onRequest(
         await releaseStock(reservedInteiraId, 1).catch(() => undefined);
       }
       functions.logger.error('[createTicketUpgradeSession]', error);
-      const msg = error instanceof Error ? error.message : 'erro';
+      const raw = error instanceof Error ? error.message : '';
       const status =
-        msg.includes('Autenticação') || msg.includes('permissão') ? 403 : 500;
-      res.status(status).json({ error: msg });
+        raw.includes('Autenticação') || raw.includes('permissão') ? 403 : 500;
+      res.status(status).json({
+        error: clientSafeMessage(error, 'Falha ao gerar upgrade'),
+      });
     }
   }
 );

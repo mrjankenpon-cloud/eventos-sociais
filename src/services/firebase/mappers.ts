@@ -315,7 +315,6 @@ export function pedidoToPurchase(pedido: Pedido): Purchase {
     partialRefund: (pedido as Pedido & { partialRefund?: boolean }).partialRefund,
     statusPagamento,
     linkPagamento: pedido.linkPagamento,
-    accessToken: pedido.accessToken,
     mpPreferenceId: pedido.mpPreferenceId,
     mpPaymentId: pedido.mpPaymentId,
     mpStatus: pedido.mpStatus,

@@ -170,7 +170,7 @@ export const sandboxApproveOrder = functions.https.onRequest(async (req, res) =>
   } catch (error) {
     functions.logger.error('[sandboxApproveOrder]', error);
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha na aprovação sandbox',
+      error: 'Falha na aprovação sandbox',
     });
   }
 });

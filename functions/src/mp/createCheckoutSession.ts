@@ -4,6 +4,7 @@ import {
   PIX_MINUTES,
   RESERVE_MINUTES,
   checkoutProPaymentMethods,
+  clientSafeMessage,
   createPixCharge,
   db,
   getAppUrl,
@@ -499,8 +500,7 @@ export const createCheckoutSession = functions.https.onRequest(
       }
       functions.logger.error('[createCheckoutSession]', error);
       res.status(500).json({
-        error:
-          error instanceof Error ? error.message : 'Falha ao criar checkout',
+        error: clientSafeMessage(error, 'Falha ao criar checkout'),
       });
     }
   }

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Shield, Trash2, UserPlus } from 'lucide-react';
+import { Plus, Shield, Trash2, UserPlus, Check } from 'lucide-react';
 import { authService } from '../../services/auth.service';
 import type { User, UserRole } from '../../types';
+import type { AccessRequest } from '../../types/models/accessRequest';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
@@ -47,6 +48,7 @@ export default function Permissions() {
   const { user: currentUser } = useAuth();
   const { staff: liveStaff } = useAdminPresence();
   const [items, setItems] = useState<User[]>([]);
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -56,13 +58,18 @@ export default function Permissions() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [actingRequest, setActingRequest] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.getAll();
+      const [data, pending] = await Promise.all([
+        authService.getAll(),
+        authService.listAccessRequests().catch(() => [] as AccessRequest[]),
+      ]);
       setItems(data);
+      setRequests(pending.filter((r) => r.status === 'pending'));
     } catch {
       setError('Não foi possível carregar as permissões.');
     } finally {
@@ -108,7 +115,7 @@ export default function Permissions() {
       return;
     }
     if (!validateEmail(form.email.trim())) {
-      setFormError('Informe um e-mail Google válido.');
+      setFormError('Informe um Gmail válido (@gmail.com).');
       return;
     }
 
@@ -178,13 +185,43 @@ export default function Permissions() {
     }
   };
 
+  const approveRequest = async (req: AccessRequest) => {
+    setActingRequest(req.id);
+    setError(null);
+    try {
+      await authService.approveAccessRequest(req.id, 'admin');
+      await load();
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Não foi possível aprovar o pedido.'
+      );
+    } finally {
+      setActingRequest(null);
+    }
+  };
+
+  const denyRequest = async (req: AccessRequest) => {
+    setActingRequest(req.id);
+    setError(null);
+    try {
+      await authService.denyAccessRequest(req.id);
+      await load();
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Não foi possível recusar o pedido.'
+      );
+    } finally {
+      setActingRequest(null);
+    }
+  };
+
   if (loading) return <PageLoader label="Carregando permissões..." />;
 
   return (
     <div className="space-y-6 max-w-[1100px] mx-auto min-w-0">
       <PageHeader
         title="Permissões"
-        subtitle="Cadastre nome e e-mail Google para liberar acesso ao painel."
+        subtitle="Cadastre Gmails autorizados. Pedidos de acesso chegam para validação."
         actions={
           <Button className="rounded-2xl" onClick={openCreate}>
             <Plus size={18} aria-hidden="true" />
@@ -204,6 +241,50 @@ export default function Permissions() {
         onChange={setSearch}
         placeholder="Buscar por nome ou e-mail..."
       />
+
+      {requests.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-black uppercase tracking-wider text-gray-500">
+            Pedidos aguardando validação
+          </h3>
+          <ul className="space-y-3">
+            {requests.map((req) => (
+              <li
+                key={req.id}
+                className="card-surface p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 border border-amber-200/80"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-black text-gray-900 truncate">{req.name}</p>
+                  <p className="text-sm text-gray-500 truncate">{req.email}</p>
+                  <Badge variant="warning" className="mt-2">
+                    Pendente
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    className="rounded-xl h-9 text-xs"
+                    isLoading={actingRequest === req.id}
+                    onClick={() => void approveRequest(req)}
+                  >
+                    <Check size={14} />
+                    Aprovar admin
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="rounded-xl h-9 text-xs"
+                    disabled={actingRequest === req.id}
+                    onClick={() => void denyRequest(req)}
+                  >
+                    Recusar
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -257,9 +338,7 @@ export default function Permissions() {
                       <Badge variant="neutral">
                         {u.authProvider === 'google'
                           ? 'Google'
-                          : u.authProvider === 'password'
-                            ? 'Senha'
-                            : 'Vinculado'}
+                          : 'Vinculado'}
                       </Badge>
                     )}
                   </div>
@@ -304,8 +383,8 @@ export default function Permissions() {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Informe o nome e o e-mail da conta Google. A pessoa entra no painel
-            com &quot;Entrar com Google&quot;.
+            Informe o nome e o Gmail. A pessoa entra com &quot;Entrar com
+            Gmail&quot;.
           </p>
           <Input
             label="Nome"
@@ -315,7 +394,7 @@ export default function Permissions() {
             required
           />
           <Input
-            label="E-mail Google"
+            label="Gmail"
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}

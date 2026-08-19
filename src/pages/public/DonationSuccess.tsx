@@ -50,18 +50,16 @@ export default function DonationSuccess() {
       const data = await checkoutApi.getReceipt(id, { token });
       setReceipt(data);
       setError(null);
-      if (data.accessToken) {
-        persistGuestCheckoutSession(id, data.accessToken);
-        if (!tokenFromUrl) {
-          setSearchParams(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              next.set('token', data.accessToken);
-              return next;
-            },
-            { replace: true }
-          );
-        }
+      persistGuestCheckoutSession(id, token);
+      if (!tokenFromUrl) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('token', token);
+            return next;
+          },
+          { replace: true }
+        );
       }
     } catch (err) {
       setReceipt(null);

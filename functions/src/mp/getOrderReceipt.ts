@@ -107,7 +107,6 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
 
     res.json({
       ok: true,
-      accessToken: String(pedido.accessToken || ''),
       sandbox: (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox',
       pedido: {
         id: pedidoId,
@@ -168,7 +167,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
   } catch (error) {
     functions.logger.error('[getOrderReceipt]', error);
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'erro',
+      error: 'Não foi possível carregar o pedido',
     });
   }
 });
