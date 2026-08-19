@@ -85,7 +85,6 @@ export default function UsagePanel() {
     <div className="space-y-6 max-w-3xl">
       <PageHeader
         title="Painel"
-        subtitle="Acessos do site e uso do banco Firebase. Atualiza sozinho a cada 5 minutos (mais leve que a cada minuto)."
         actions={
           <Button
             type="button"
