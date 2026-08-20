@@ -95,7 +95,6 @@ async function analyzeRollingWindow(
   apiKey: string,
   nowMs = Date.now()
 ): Promise<RollingWindowStats | null> {
-  const sinceMs = nowMs - WINDOW_MS;
   const timestamps: number[] = [];
   let after: string | undefined;
 
@@ -121,7 +120,8 @@ async function analyzeRollingWindow(
       for (const item of data) {
         const t = Date.parse(String(item.created_at || ''));
         if (!Number.isFinite(t)) continue;
-        if (t >= sinceMs) timestamps.push(t);
+        // Idade estritamente < 24h: no instante oldest+24h a vaga já libera.
+        if (nowMs - t < WINDOW_MS) timestamps.push(t);
         else older = true;
       }
       if (!json.has_more || older) break;
@@ -145,14 +145,21 @@ function summarizeWindow(
 
   const oldest = Math.min(...timestamps);
   const nextReleaseMs = oldest + WINDOW_MS;
-  // Quantos envios liberam no mesmo instante (mesmo created_at / mesmo segundo).
-  const nextReleaseCount = timestamps.filter((t) => t === oldest).length;
+  // Agrupa por segundo — envios no mesmo segundo liberam juntos.
+  const oldestSec = Math.floor(oldest / 1000);
+  const nextReleaseCount = timestamps.filter(
+    (t) => Math.floor(t / 1000) === oldestSec
+  ).length;
+
+  // Se já passou, não exibir horário antigo (o snapshot seguinte recalcula).
+  if (nextReleaseMs <= nowMs) {
+    return { used: timestamps.length, nextReleaseAt: null, nextReleaseCount: null };
+  }
 
   return {
     used: timestamps.length,
-    nextReleaseAt:
-      nextReleaseMs > nowMs ? new Date(nextReleaseMs).toISOString() : null,
-    nextReleaseCount: nextReleaseMs > nowMs ? nextReleaseCount : null,
+    nextReleaseAt: new Date(nextReleaseMs).toISOString(),
+    nextReleaseCount,
   };
 }
 
@@ -343,6 +350,11 @@ async function isResendWindowExhausted(): Promise<boolean> {
   try {
     const snap = await liveRef().get();
     const data = snap.data() || {};
+    const nextAt = Date.parse(String(data.emailsNextReleaseAt || ''));
+    // Snapshot antigo com liberação já vencida: não bloquear; deixa o envio
+    // (e o persist pós-envio) atualizar a cota.
+    if (Number.isFinite(nextAt) && nextAt <= Date.now()) return false;
+
     const remaining = data.emailsWindowRemaining;
     if (typeof remaining === 'number' && remaining <= 0) return true;
     const used = Number(data.emailsWindowUsed ?? data.emailsToday);

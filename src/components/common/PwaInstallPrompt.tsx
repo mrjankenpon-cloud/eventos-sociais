@@ -15,9 +15,9 @@ import { pingInstalledApp } from '../../lib/appInstallPing';
 /** Aparece só depois que a pessoa rola a página, perto do rodapé. */
 const SCROLL_RATIO_TO_SHOW = 0.45;
 
-/** Sobe acima do rodapé fixo de inscrição, presente até o breakpoint lg. */
+/** Sobe acima do CTA fixo de inscrição quando a página reserva --sticky-bottom-space. */
 const POSITION =
-  'fixed z-[90] left-3 right-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-6 sm:w-[21rem] lg:bottom-6';
+  'fixed z-[90] left-3 right-3 bottom-[calc(var(--sticky-bottom-space,0px)+0.75rem+env(safe-area-inset-bottom,0px))] sm:left-auto sm:right-6 sm:w-[21rem] lg:bottom-6';
 
 export function PwaInstallPrompt() {
   const { canInstall, install } = usePwaInstall();

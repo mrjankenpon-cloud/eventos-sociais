@@ -14,7 +14,7 @@ export function LegalPage({
   children: ReactNode;
 }) {
   return (
-    <div className="pb-16 sm:pb-20 lg:pb-24 min-h-[60vh] bg-surface-muted">
+    <div className="pb-8 sm:pb-12 lg:pb-16 min-h-[50vh] bg-surface-muted">
       <div className="page-container-readable pt-6 sm:pt-10 lg:pt-14">
         <Link
           to={ROUTES.PUBLIC.HOME}

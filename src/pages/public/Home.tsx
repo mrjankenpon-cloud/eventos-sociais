@@ -85,7 +85,7 @@ export default function Home() {
   const list = featured.length > 0 ? events.filter((e) => !e.eventoDestaque) : events;
 
   return (
-    <div className="pb-16 sm:pb-20 lg:pb-24 min-h-[60vh] bg-surface-muted">
+    <div className="pb-8 sm:pb-12 lg:pb-16 min-h-[50vh] bg-surface-muted">
       <InstitutionsStrip />
 
       <div className="page-container pt-5 sm:pt-8 lg:pt-12 space-y-8 sm:space-y-12 lg:space-y-16">

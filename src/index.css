@@ -36,6 +36,8 @@
   --page-max: 90rem;
   --page-gutter: max(1rem, env(safe-area-inset-left));
   --page-gutter-right: max(1rem, env(safe-area-inset-right));
+  /* Espaço reservado sob o conteúdo para CTAs/prompts fixos no mobile */
+  --sticky-bottom-space: 0px;
 }
 
 @media (min-width: 640px) {
@@ -95,7 +97,10 @@ html.header-compact {
   body {
     margin: 0;
     min-width: 0;
+    min-height: 100dvh;
     overflow-x: clip;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     color: var(--color-text-primary);
     background-color: var(--color-surface);
     -webkit-font-smoothing: antialiased;

@@ -35,7 +35,12 @@ import { DataTable, type DataTableColumn } from '../../components/admin/DataTabl
 import { Badge, Button, PageLoader, Alert, AppImage } from '../../components/ui';
 import { EventStatusBadge } from '../../components/admin/EventStatusBadge';
 import { formatEventDate, formatCurrency } from '../../lib/utils';
-import { getEventSalonRemaining, getEventTicketsOffered } from '../../lib/eventData';
+import {
+  getEventIsolatedOffered,
+  getEventIsolatedRemaining,
+  getEventSalonRemaining,
+  getEventTicketsOffered,
+} from '../../lib/eventData';
 import { getEventDisplayStatus } from '../../lib/eventDisplayStatus';
 import { isTicketPurchase, purchasePayerKey } from '../../lib/donations';
 
@@ -222,6 +227,9 @@ export default function Dashboard() {
 
     return {
       vagas: selectedEvent.vagas || 0,
+      vagasRestantes: getEventSalonRemaining(selectedEvent),
+      outrasVagas: getEventIsolatedOffered(selectedEvent),
+      outrasVagasRestantes: getEventIsolatedRemaining(selectedEvent),
       inscritos: ativos.length,
       ingressosPagos,
       ingressosPendentes,
@@ -382,12 +390,43 @@ export default function Dashboard() {
       className: 'text-center',
       render: (event) => {
         const remaining = getEventSalonRemaining(event);
+        const total = Math.max(0, event.vagas || 0);
         return (
-          <span
-            className={`font-black ${remaining < 10 ? 'text-red-500' : 'text-gray-900'}`}
-          >
-            {remaining}
-          </span>
+          <div className="leading-tight">
+            <span
+              className={`font-black tabular-nums ${remaining < 10 ? 'text-red-500' : 'text-gray-900'}`}
+            >
+              {remaining}
+            </span>
+            <p className="text-[10px] font-bold text-gray-400 mt-0.5">
+              de {total} no salão
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'outrasVagas',
+      header: 'Outras',
+      className: 'text-center',
+      hideOnMobile: true,
+      render: (event) => {
+        const offered = getEventIsolatedOffered(event);
+        if (offered <= 0) {
+          return <span className="text-xs font-bold text-gray-300">—</span>;
+        }
+        const remaining = getEventIsolatedRemaining(event);
+        return (
+          <div className="leading-tight">
+            <span
+              className={`font-black tabular-nums ${remaining < 5 ? 'text-amber-600' : 'text-gray-900'}`}
+            >
+              {remaining}
+            </span>
+            <p className="text-[10px] font-bold text-gray-400 mt-0.5">
+              de {offered} isoladas
+            </p>
+          </div>
         );
       },
     },
@@ -648,7 +687,7 @@ export default function Dashboard() {
       value: generalStats.disponibilizados,
       icon: Ticket,
       accent: THEME.colors.primary,
-      hint: 'Vagas oferecidas nos eventos',
+      hint: 'Salão + cotas isoladas (outras vagas)',
       href: ROUTES.ADMIN.EVENTS,
     },
     {
@@ -694,10 +733,24 @@ export default function Dashboard() {
     eventStats && selectedEvent
       ? [
           {
-            title: 'Quantidade de vagas',
+            title: 'Vagas do salão',
             value: eventStats.vagas,
             icon: Ticket,
             accent: THEME.colors.primary,
+            hint: `${eventStats.vagasRestantes} restantes`,
+            sensitive: false,
+            onClick: () =>
+              navigate(ROUTES.ADMIN.EVENT_EDIT.replace(':id', selectedEvent.id)),
+          },
+          {
+            title: 'Outras vagas',
+            value: eventStats.outrasVagas,
+            icon: Ticket,
+            accent: '#0d9488',
+            hint:
+              eventStats.outrasVagas > 0
+                ? `${eventStats.outrasVagasRestantes} restantes · cotas isoladas`
+                : 'Sem cotas isoladas',
             sensitive: false,
             onClick: () =>
               navigate(ROUTES.ADMIN.EVENT_EDIT.replace(':id', selectedEvent.id)),
@@ -865,7 +918,7 @@ export default function Dashboard() {
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 items-stretch">
               {eventCards.map((card) => (
                 <StatCard
                   key={card.title}
@@ -873,6 +926,7 @@ export default function Dashboard() {
                   value={card.value}
                   icon={card.icon}
                   accent={card.accent}
+                  hint={card.hint}
                   sensitive={card.sensitive}
                   onClick={card.onClick}
                 />

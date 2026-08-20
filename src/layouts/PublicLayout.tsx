@@ -16,9 +16,9 @@ export default function PublicLayout() {
   useMpDeviceId();
 
   return (
-    <div className="min-h-screen bg-surface-muted flex flex-col overflow-x-hidden min-w-0">
+    <div className="min-h-dvh bg-surface-muted flex flex-col min-w-0">
       <Header />
-      <main className="flex-grow min-w-0 pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
+      <main className="flex-1 min-w-0 pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
         <PublicErrorBoundary>
           <Suspense
             fallback={
@@ -36,6 +36,15 @@ export default function PublicLayout() {
         </PublicErrorBoundary>
       </main>
       <Footer />
+      {/* Permite rolar o rodapé acima de CTAs/prompts fixos no mobile */}
+      <div
+        className="shrink-0 pointer-events-none lg:hidden"
+        style={{
+          height:
+            'max(var(--sticky-bottom-space, 0px), env(safe-area-inset-bottom, 0px))',
+        }}
+        aria-hidden
+      />
       <PwaInstallPrompt />
       <PushEnablePrompt />
       <input type="hidden" id="deviceId" name="deviceId" readOnly />

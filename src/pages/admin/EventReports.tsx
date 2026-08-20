@@ -22,6 +22,11 @@ import { DataTable, type DataTableColumn } from '../../components/admin/DataTabl
 import { Badge, Button, PageLoader, EmptyState, Toast } from '../../components/ui';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { formatCurrency } from '../../lib/utils';
+import {
+  getEventIsolatedOffered,
+  getEventIsolatedRemaining,
+  getEventSalonRemaining,
+} from '../../lib/eventData';
 import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { useAuth } from '../../contexts/AuthContext';
@@ -207,6 +212,9 @@ export default function EventReports() {
 
     return {
       vagas: event?.vagas ?? 0,
+      vagasRestantes: event ? getEventSalonRemaining(event) : 0,
+      outrasVagas: event ? getEventIsolatedOffered(event) : 0,
+      outrasVagasRestantes: event ? getEventIsolatedRemaining(event) : 0,
       inscritos: active.length,
       ingressosPagos,
       ingressosPendentes,
@@ -448,11 +456,22 @@ export default function EventReports() {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
-          title="Vagas do evento"
+          title="Vagas do salão"
           value={stats.vagas}
           icon={PieChart}
+          hint={`${stats.vagasRestantes} restantes`}
+        />
+        <StatCard
+          title="Outras vagas"
+          value={stats.outrasVagas}
+          icon={Ticket}
+          hint={
+            stats.outrasVagas > 0
+              ? `${stats.outrasVagasRestantes} restantes · cotas isoladas`
+              : 'Sem cotas isoladas'
+          }
         />
         <StatCard title="Inscritos" value={stats.inscritos} icon={Users} />
         <StatCard

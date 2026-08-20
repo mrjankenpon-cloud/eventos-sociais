@@ -82,6 +82,22 @@ export default function UsagePanel() {
     }
   };
 
+  // Quando a próxima liberação vence, o Firestore fica desatualizado até o ciclo
+  // de 5 min — dispara um refresh automático (e no horário marcado).
+  useEffect(() => {
+    const iso = live?.emailsNextReleaseAt;
+    if (!iso || busy) return;
+    const at = Date.parse(iso);
+    if (!Number.isFinite(at)) return;
+    const delay = Math.max(0, at - Date.now()) + 2_000;
+    const timer = window.setTimeout(() => {
+      void refreshUsageSnapshot().catch(() => {
+        /* o botão Atualizar agora continua disponível */
+      });
+    }, Math.min(delay, 2_147_000_000));
+    return () => window.clearTimeout(timer);
+  }, [live?.emailsNextReleaseAt, busy]);
+
   if (loading) return <PageLoader label="Abrindo o painel de uso..." />;
 
   const t = tone(live?.overall);
@@ -240,12 +256,29 @@ export default function UsagePanel() {
               ) : null}
               {live?.emailsNextReleaseAt ? (
                 <p className="text-xs text-gray-500">
-                  Próxima liberação: {formatWhen(live.emailsNextReleaseAt)}
-                  {live.emailsNextReleaseCount != null
-                    ? ` (${live.emailsNextReleaseCount.toLocaleString('pt-BR')} ${
-                        live.emailsNextReleaseCount === 1 ? 'envio' : 'envios'
-                      })`
-                    : ''}
+                  {Date.parse(live.emailsNextReleaseAt) <= Date.now() ? (
+                    <>
+                      Liberação prevista em{' '}
+                      {formatWhen(live.emailsNextReleaseAt)} — atualizando a
+                      contagem…
+                    </>
+                  ) : (
+                    <>
+                      Próxima liberação: {formatWhen(live.emailsNextReleaseAt)}
+                      {live.emailsNextReleaseCount != null
+                        ? ` (${live.emailsNextReleaseCount.toLocaleString('pt-BR')} ${
+                            live.emailsNextReleaseCount === 1
+                              ? 'envio'
+                              : 'envios'
+                          })`
+                        : ''}
+                    </>
+                  )}
+                </p>
+              ) : null}
+              {live?.emailsUpdatedAt ? (
+                <p className="text-xs text-gray-400">
+                  Cota de e-mail sincronizada: {formatWhen(live.emailsUpdatedAt)}
                 </p>
               ) : null}
             </>

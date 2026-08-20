@@ -35,7 +35,7 @@ export function PushEnablePrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed z-[85] left-3 right-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-6 sm:w-[21rem] lg:bottom-6">
+    <div className="fixed z-[85] left-3 right-3 bottom-[calc(var(--sticky-bottom-space,0px)+0.75rem+env(safe-area-inset-bottom,0px))] sm:left-auto sm:right-6 sm:w-[21rem] lg:bottom-6">
       <div className="rounded-3xl border border-gray-100 bg-white/95 backdrop-blur-md p-4 shadow-2xl shadow-black/10">
         <div className="flex items-start gap-3">
           <span className="w-11 h-11 shrink-0 rounded-2xl bg-brand text-white flex items-center justify-center">

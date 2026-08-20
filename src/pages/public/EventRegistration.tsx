@@ -258,7 +258,7 @@ export default function EventRegistration() {
   }
 
   return (
-    <div className="pb-20 sm:pb-24 lg:pb-28 min-h-[60vh] bg-surface-muted">
+    <div className="pb-8 sm:pb-12 lg:pb-16 min-h-[50vh] bg-surface-muted">
       <div className="page-container-readable pt-6 sm:pt-10 lg:pt-14">
         <Link
           to={`/evento/${event.id}`}

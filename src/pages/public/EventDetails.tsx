@@ -32,6 +32,7 @@ import { ImageLightbox } from '../../components/public/ImageLightbox';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
 import { getActiveTicketTypes } from '../../lib/eventData';
 import { prefetchEventRegistration } from '../../lib/prefetchPublic';
+import { useStickyBottomSpace } from '../../hooks/useStickyBottomSpace';
 import { THEME } from '../../theme';
 
 export default function EventDetails() {
@@ -42,6 +43,13 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [shareCopied, setShareCopied] = useState(false);
   const [openPhoto, setOpenPhoto] = useState<number | null>(null);
+
+  const showMobileCta =
+    Boolean(event) &&
+    event!.permitirCompraOnline !== false &&
+    event!.permitirInscricao !== false;
+
+  useStickyBottomSpace(showMobileCta);
 
   const loadEvent = useCallback(async () => {
     if (!id) {
@@ -168,8 +176,8 @@ export default function EventDetails() {
   }
 
   return (
-    <div className="pb-24 lg:pb-16 min-h-screen bg-white">
-      <div className="relative h-[38vh] min-h-[240px] sm:min-h-[320px] md:min-h-[380px] lg:min-h-[440px] max-h-[560px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
+    <div className="min-h-[50vh] bg-white pb-[max(1.5rem,calc(var(--sticky-bottom-space,0px)+1rem))] lg:pb-16">
+      <div className="relative h-[min(48dvh,340px)] min-h-[220px] sm:min-h-[300px] md:min-h-[380px] lg:min-h-[440px] md:h-auto max-h-[560px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
         <AppImage
           src={event.banner}
           alt=""
@@ -366,17 +374,16 @@ export default function EventDetails() {
         />
       </div>
 
-      {event.permitirCompraOnline !== false &&
-      event.permitirInscricao !== false ? (
-        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur-md px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {showMobileCta ? (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur-md px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] supports-[backdrop-filter]:bg-white/90">
           <Link
-            to={`/evento/${event.id}/inscricao`}
+            to={`/evento/${event!.id}/inscricao`}
             className="w-full h-12 bg-brand text-white rounded-xl font-black text-base flex items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98]"
             onTouchStart={() => {
               void prefetchEventRegistration();
             }}
           >
-            {event.textoBotao}
+            {event!.textoBotao}
           </Link>
         </div>
       ) : null}

@@ -30,13 +30,29 @@ export function getEventSalonRemaining(event: Event): number {
   return Math.max(0, (event.vagas || 0) - getEventSalonSold(event));
 }
 
-/** Ingressos oferecidos: vagas do salão + cotas que não disputam o salão. */
-export function getEventTicketsOffered(event: Event): number {
-  const salon = Math.max(0, event.vagas || 0);
-  const extra = (event.tiposIngresso ?? [])
+/** Cotas isoladas oferecidas (não disputam as vagas do salão). */
+export function getEventIsolatedOffered(event: Event): number {
+  return (event.tiposIngresso ?? [])
     .filter((t) => t.ativo && !typeCompetesForEventSeats(t))
     .reduce((s, t) => s + Math.max(0, t.quantidade || 0), 0);
-  return salon + extra;
+}
+
+/** Cotas isoladas ainda disponíveis para venda. */
+export function getEventIsolatedRemaining(event: Event): number {
+  return (event.tiposIngresso ?? [])
+    .filter((t) => t.ativo && !typeCompetesForEventSeats(t))
+    .reduce((s, t) => {
+      const sold = Math.max(0, t.quantidadeVendida || 0);
+      if (typeof t.quantidadeDisponivel === 'number') {
+        return s + Math.max(0, t.quantidadeDisponivel);
+      }
+      return s + Math.max(0, (t.quantidade || 0) - sold);
+    }, 0);
+}
+
+/** Ingressos oferecidos: vagas do salão + cotas que não disputam o salão. */
+export function getEventTicketsOffered(event: Event): number {
+  return Math.max(0, event.vagas || 0) + getEventIsolatedOffered(event);
 }
 
 /** Quantidade ainda disponível para compra deste tipo. */
