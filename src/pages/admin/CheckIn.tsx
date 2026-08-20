@@ -33,11 +33,14 @@ import {
 } from '../../lib/ticketUpgrade';
 import { isTicketPurchase } from '../../lib/donations';
 import { THEME } from '../../theme';
+import { ingressosService } from '../../services/firebase/ingressos';
+import type { TicketType as EventTicketType } from '../../types/models/event';
 export default function CheckIn() {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [tickets, setTickets] = useState<TicketType[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<EventTicketType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { message, show, clear } = useFlashMessage();
@@ -59,12 +62,24 @@ export default function CheckIn() {
     async function loadData() {
       if (!id) return;
       try {
-        const [eventData, purchasesData] = await Promise.all([
+        const [eventData, purchasesData, typesData] = await Promise.all([
           eventService.getById(id),
-          purchaseService.getByEventId(id),
+          purchaseService.getByEventId(id).catch((err) => {
+            console.warn('[CheckIn] purchases', err);
+            return [] as Purchase[];
+          }),
+          ingressosService.asTicketTypes(id).catch((err) => {
+            console.warn('[CheckIn] ticket types', err);
+            return [] as EventTicketType[];
+          }),
         ]);
         if (eventData) setEvent(eventData);
         setPurchases(purchasesData);
+        setTicketTypes(
+          typesData.length > 0
+            ? typesData
+            : eventData?.tiposIngresso ?? []
+        );
 
         let ticketsData: TicketType[] = [];
         try {
@@ -72,7 +87,6 @@ export default function CheckIn() {
         } catch (err) {
           console.warn('[CheckIn] getByEventId tickets', err);
         }
-        // Se a listagem por evento falhar/vier vazia, tenta pelos pedidos.
         if (ticketsData.length === 0 && purchasesData.length > 0) {
           const nested = await Promise.all(
             purchasesData
@@ -322,36 +336,49 @@ export default function CheckIn() {
 
   const checkinStats = useMemo(() => {
     const countableTickets = tickets.filter(isCountableEventTicket);
-    const feitosTickets = countableTickets.filter(isTicketCheckedIn).length;
+    const feitos = countableTickets.filter(isTicketCheckedIn).length;
 
-    // Fonte principal: tickets emitidos. Fallback: quantidade nos pedidos de ingresso.
-    if (countableTickets.length > 0) {
-      const total = countableTickets.length;
-      const feitos = feitosTickets;
-      const disponiveis = Math.max(0, total - feitos);
-      return { total, disponiveis, feitos, fromTickets: true as const };
-    }
+    const soldFromTypes = soldCheckinQtyFromTypes(
+      ticketTypes.length > 0 ? ticketTypes : event?.tiposIngresso
+    );
 
-    const ticketOrders = purchases.filter(
-      (p) =>
-        isTicketPurchase(p) &&
-        (p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente')
+    const soldFromPurchases = purchases
+      .filter(
+        (p) => isTicketPurchase(p) && p.statusPagamento === 'confirmado'
+      )
+      .reduce((acc, p) => {
+        const fromItens = (p.itens || []).reduce(
+          (s, i) => s + Math.max(0, Number(i.quantidade) || 0),
+          0
+        );
+        const qty = Math.max(
+          fromItens,
+          Math.max(0, Number(p.quantidadeIngressos) || 0)
+        );
+        return acc + qty;
+      }, 0);
+
+    const salonSold = Math.max(
+      0,
+      Number(event?.vagasVendidasCompetindo) || 0
     );
-    const confirmados = ticketOrders.filter(
-      (p) => p.statusPagamento === 'confirmado'
+
+    // Maior fonte confiável: tickets emitidos, tipos vendidos, pedidos, salão.
+    const total = Math.max(
+      countableTickets.length,
+      soldFromTypes,
+      soldFromPurchases,
+      salonSold
     );
-    const total = confirmados.reduce(
-      (acc, p) => acc + Math.max(0, Number(p.quantidadeIngressos) || 0),
-      0
-    );
-    // Sem tickets na coleção ainda: nada checkado; tudo disponível entre confirmados.
+    const disponiveis = Math.max(0, total - feitos);
+
     return {
       total,
-      disponiveis: total,
-      feitos: 0,
-      fromTickets: false as const,
+      disponiveis,
+      feitos,
+      capacidade: Math.max(0, Number(event?.vagas) || 0),
     };
-  }, [tickets, purchases]);
+  }, [tickets, purchases, ticketTypes, event]);
 
   if (loading) return <PageLoader label="Carregando participantes..." />;
   if (!event) {
@@ -430,16 +457,20 @@ export default function CheckIn() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
           <StatCard
-            title="Ingressos disponíveis"
-            value={checkinStats.disponiveis}
+            title="Ingressos do evento"
+            value={checkinStats.total}
             icon={TicketIcon}
             accent={THEME.colors.primary}
             hint={
               checkinStats.total > 0
-                ? checkinStats.fromTickets
-                  ? `Sem check-in · ${checkinStats.total.toLocaleString('pt-BR')} emitidos neste evento`
-                  : `${checkinStats.total.toLocaleString('pt-BR')} em pedidos confirmados`
-                : 'Nenhum ingresso confirmado neste evento'
+                ? `${checkinStats.disponiveis.toLocaleString('pt-BR')} ainda sem check-in${
+                    checkinStats.capacidade > 0
+                      ? ` · ${checkinStats.capacidade.toLocaleString('pt-BR')} vagas no salão`
+                      : ''
+                  }`
+                : checkinStats.capacidade > 0
+                  ? `Capacidade do salão: ${checkinStats.capacidade.toLocaleString('pt-BR')} (ainda sem vendas)`
+                  : 'Nenhum ingresso vendido neste evento'
             }
           />
           <StatCard
@@ -451,7 +482,7 @@ export default function CheckIn() {
               checkinStats.total > 0
                 ? `${Math.round(
                     (checkinStats.feitos / checkinStats.total) * 100
-                  )}% de ${checkinStats.total.toLocaleString('pt-BR')}`
+                  )}% de ${checkinStats.total.toLocaleString('pt-BR')} · ${checkinStats.disponiveis.toLocaleString('pt-BR')} restantes`
                 : 'Aguardando o primeiro check-in'
             }
           />
@@ -912,6 +943,24 @@ function EventMeta({
       </div>
     </div>
   );
+}
+
+/** Soma vendas dos tipos que entram no check-in de entrada (exclui retirada). */
+function soldCheckinQtyFromTypes(
+  types: EventTicketType[] | undefined
+): number {
+  if (!types?.length) return 0;
+  return types.reduce((acc, t) => {
+    if (t.ativo === false) return acc;
+    const nat = String(t.natureza || '').toLowerCase();
+    const key = String(t.key || '').toLowerCase();
+    const modo = String(t.checkinModo || '').toLowerCase();
+    if (nat === 'retirada' || key === 'retirada' || key.startsWith('retirada')) {
+      return acc;
+    }
+    if (modo === 'retirada' || modo === 'nao_aplicavel') return acc;
+    return acc + Math.max(0, Number(t.quantidadeVendida) || 0);
+  }, 0);
 }
 
 /** Ingressos válidos do evento (exclui cancelados / bloqueados). */

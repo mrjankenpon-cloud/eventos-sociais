@@ -73,7 +73,7 @@ function AdminShell() {
   const avatar = live?.avatar || user?.avatar;
 
   return (
-    <div className="h-dvh bg-surface-admin flex overflow-hidden min-w-0">
+    <div className="min-h-dvh md:h-dvh bg-surface-admin flex md:overflow-hidden min-w-0">
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
@@ -182,7 +182,7 @@ function AdminShell() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 md:overflow-hidden">
         <header className="h-14 sm:h-16 md:h-20 bg-white border-b border-gray-100 px-3 sm:px-5 md:px-6 flex items-center justify-between gap-2 shrink-0 z-30 min-w-0">
           <button
             type="button"
@@ -248,7 +248,7 @@ function AdminShell() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <main className="flex-1 min-h-0 min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 pb-[max(1rem,env(safe-area-inset-bottom))] md:overflow-y-auto md:overflow-x-hidden">
           <Suspense
             fallback={
               <ProcessingOverlay

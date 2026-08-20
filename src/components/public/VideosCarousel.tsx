@@ -92,7 +92,7 @@ export function VideosCarousel() {
 
         <div
           ref={scrollerRef}
-          className="flex gap-3 sm:gap-4 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-3 sm:gap-4 overflow-x-auto overscroll-x-contain touch-pan-x touch-pan-y snap-x snap-mandatory pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {items.map((video, index) => {
             const thumb = resolveVideoThumbnail(video);

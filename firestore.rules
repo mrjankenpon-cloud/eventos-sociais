@@ -201,21 +201,21 @@ service cloud.firestore {
 
     // ---- pedidos — create/update financeiro só Admin SDK ----
     match /pedidos/{id} {
-      allow read: if isOperador();
+      allow read: if isStaff();
       allow create, update: if false;
       allow delete: if isAdmin();
     }
 
     // ---- pagamentos (histórico MP) — só Admin SDK escreve ----
     match /pagamentos/{id} {
-      allow read: if isOperador();
+      allow read: if isStaff();
       allow create, update, delete: if false;
     }
 
     // ---- tickets emitidos — create só Admin SDK ----
     // Operador só pode marcar check-in / retirada (não financeiro).
     match /tickets/{id} {
-      allow read: if isOperador();
+      allow read: if isStaff();
       allow create: if false;
       allow update: if isOperador()
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -237,7 +237,7 @@ service cloud.firestore {
 
     // ---- checkins ----
     match /checkins/{id} {
-      allow read: if isOperador();
+      allow read: if isStaff();
       allow create, update: if isOperador();
       allow delete: if isAdmin();
     }
