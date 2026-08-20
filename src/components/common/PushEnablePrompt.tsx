@@ -6,37 +6,92 @@ import {
   enableAppPush,
   syncInstalledPushSubscription,
 } from '../../lib/pushNotifications';
+import { getScrollMetrics, onPageScroll } from '../../lib/pageScroll';
 import { Button } from '../ui/Button';
 
-/** Só aparece no app instalado, para ligar os avisos de eventos novos. */
+const SNOOZE_KEY = 'delphos:push-prompt-snooze';
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+/** Esconde o card perto do fim para o rodapé ficar clicável. */
+const HIDE_NEAR_FOOTER_RATIO = 0.82;
+
+function isPushPromptSnoozed(): boolean {
+  try {
+    const raw = localStorage.getItem(SNOOZE_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    return Number.isFinite(at) && Date.now() - at < SNOOZE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function snoozePushPrompt() {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Só no app instalado. Overlay fixo fora do fluxo do documento
+ * (evita empurrar/piscar o rodapé na home do atalho).
+ */
 export function PushEnablePrompt() {
   const [show, setShow] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [nearFooter, setNearFooter] = useState(false);
 
   useEffect(() => {
     if (!isPwaInstalled() || !canUseWebPush()) return;
+    if (isPushPromptSnoozed()) return;
 
     if (Notification.permission === 'granted') {
       void syncInstalledPushSubscription();
       return;
     }
 
-    if (Notification.permission === 'denied') {
-      setBlocked(true);
-      setShow(true);
-      return;
-    }
+    const timer = window.setTimeout(() => {
+      if (Notification.permission === 'denied') {
+        setBlocked(true);
+        setShow(true);
+        return;
+      }
+      if (Notification.permission === 'default') {
+        setShow(true);
+      }
+    }, 1800);
 
-    if (Notification.permission === 'default') {
-      setShow(true);
-    }
+    return () => window.clearTimeout(timer);
   }, []);
 
-  if (!show) return null;
+  useEffect(() => {
+    if (!show) return;
+
+    const check = () => {
+      const { top, view, height } = getScrollMetrics();
+      const ratio = (top + view) / Math.max(height, 1);
+      setNearFooter(ratio >= HIDE_NEAR_FOOTER_RATIO);
+    };
+
+    check();
+    return onPageScroll(check, { passive: true });
+  }, [show]);
+
+  if (!show || nearFooter) return null;
+
+  const dismiss = () => {
+    snoozePushPrompt();
+    setShow(false);
+  };
 
   return (
-    <div className="px-3 pb-4 pt-1 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-lg rounded-3xl border border-gray-100 bg-white p-4 shadow-[var(--shadow-card)]">
+    <div
+      role="dialog"
+      aria-label="Ativar avisos de eventos"
+      className="fixed z-[90] left-3 right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:left-auto sm:right-6 sm:w-[21rem]"
+    >
+      <div className="rounded-3xl border border-gray-100 bg-white/95 backdrop-blur-md p-4 shadow-2xl shadow-black/10">
         <div className="flex items-start gap-3">
           <span className="w-11 h-11 shrink-0 rounded-2xl bg-brand text-white flex items-center justify-center">
             <Bell size={20} aria-hidden="true" />
@@ -59,6 +114,7 @@ export function PushEnablePrompt() {
                   onClick={() => {
                     void enableAppPush().then((ok) => {
                       if (ok) {
+                        snoozePushPrompt();
                         setShow(false);
                         return;
                       }
@@ -71,7 +127,7 @@ export function PushEnablePrompt() {
               ) : null}
               <button
                 type="button"
-                onClick={() => setShow(false)}
+                onClick={dismiss}
                 className="text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-900 transition-colors px-2 py-2"
               >
                 {blocked ? 'Entendi' : 'Agora não'}

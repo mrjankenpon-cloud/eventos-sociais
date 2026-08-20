@@ -7,25 +7,18 @@ function shouldRegisterServiceWorker(): boolean {
   return !CRAWLER.test(navigator.userAgent || '');
 }
 
+/**
+ * Registra o SW sem forçar reload — reload no controllerchange fazia o app
+ * instalado piscar/travar ao abrir (home + rodapé).
+ */
 export function registerPwa(): void {
   if (!shouldRegisterServiceWorker()) return;
-
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
-        void reg.update();
-        // Se já houver worker esperando, ativa na próxima visita.
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
+        void reg.update().catch(() => undefined);
       })
       .catch(() => {
         /* crawlers e browsers sem SW não devem quebrar a página */

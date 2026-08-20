@@ -14,15 +14,10 @@ export default function Header() {
     return onPageScroll(handleScroll, { passive: true });
   }, []);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('header-compact', isScrolled);
-    return () => document.documentElement.classList.remove('header-compact');
-  }, [isScrolled]);
-
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
+        'fixed top-0 left-0 right-0 z-50 transition-[box-shadow] duration-300',
         isScrolled ? 'shadow-2xl shadow-black/40' : '',
         THEME.gradient.header
       )}
@@ -38,7 +33,7 @@ export default function Header() {
           aria-label="Instituto DELPHOS — início"
         >
           <span
-            className={`text-white/90 font-medium tracking-[0.12em] uppercase transition-all duration-500 group-hover:text-white ${
+            className={`text-white/90 font-medium tracking-[0.12em] uppercase transition-opacity duration-300 group-hover:text-white ${
               isScrolled
                 ? 'text-[10px] sm:text-xs'
                 : 'text-[11px] sm:text-xs md:text-sm'
@@ -47,7 +42,7 @@ export default function Header() {
             Instituto
           </span>
           <span
-            className={`text-white font-bold tracking-[0.12em] sm:tracking-[0.2em] md:tracking-[0.28em] uppercase leading-tight transition-all duration-500 group-hover:opacity-90 ${
+            className={`text-white font-bold tracking-[0.12em] sm:tracking-[0.2em] md:tracking-[0.28em] uppercase leading-tight transition-opacity duration-300 group-hover:opacity-90 ${
               isScrolled
                 ? 'text-base sm:text-lg'
                 : 'text-lg sm:text-xl md:text-[1.35rem]'
@@ -77,7 +72,7 @@ export default function Header() {
               width={503}
               height={496}
               decoding="async"
-              className={`w-auto object-contain drop-shadow-md transition-all duration-500 ${
+              className={`w-auto object-contain drop-shadow-md transition-[height] duration-300 ${
                 isScrolled
                   ? 'h-9 sm:h-12 md:h-14'
                   : 'h-10 sm:h-12 md:h-14 lg:h-[4.25rem]'
@@ -89,7 +84,7 @@ export default function Header() {
               width={1024}
               height={1024}
               decoding="async"
-              className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-all duration-500 ${
+              className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-[height] duration-300 ${
                 isScrolled
                   ? 'h-8 sm:h-10 md:h-12'
                   : 'h-9 sm:h-10 md:h-12 lg:h-[3.75rem]'

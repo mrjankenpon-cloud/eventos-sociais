@@ -71,22 +71,6 @@
   }
 }
 
-html.header-compact {
-  --header-height: 4.25rem;
-}
-
-@media (min-width: 640px) {
-  html.header-compact {
-    --header-height: 5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  html.header-compact {
-    --header-height: 5.3125rem;
-  }
-}
-
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -96,7 +80,8 @@ html.header-compact {
   body {
     margin: 0;
     min-width: 0;
-    min-height: 100dvh;
+    min-height: 100%;
+    min-height: 100svh;
     color: var(--color-text-primary);
     background-color: var(--color-surface);
     -webkit-font-smoothing: antialiased;
@@ -104,7 +89,8 @@ html.header-compact {
   }
 
   #root {
-    min-height: 100dvh;
+    min-height: 100%;
+    min-height: 100svh;
   }
 
   h1,
@@ -181,9 +167,10 @@ html.header-compact {
     min-width: 0;
   }
 
-  /* Shell do site público: scroll nativo (compatível com zoom no celular). */
+  /* Shell do site público: altura estável (svh) — dvh no PWA faz o rodapé piscar. */
   .public-shell {
-    min-height: 100dvh;
+    min-height: 100%;
+    min-height: 100svh;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -194,15 +181,11 @@ html.header-compact {
     flex: 1 0 auto;
     min-width: 0;
     padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
-    padding-bottom: max(
-      var(--sticky-bottom-space, 0px),
-      env(safe-area-inset-bottom, 0px)
-    );
+    padding-bottom: var(--sticky-bottom-space, 0px);
   }
 
   .public-shell > footer {
     flex-shrink: 0;
-    margin-top: auto;
   }
 
   .public-events-grid {

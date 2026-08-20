@@ -10,15 +10,24 @@ export default defineConfig(() => {
       react(), 
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // Sem autoUpdate + skipWaiting agressivo: no atalho instalado isso
+        // ativava SW novo e piscava/travava a home (rodapé).
+        registerType: 'prompt',
         injectRegister: false,
         workbox: {
-          clientsClaim: true,
-          skipWaiting: true,
+          clientsClaim: false,
+          skipWaiting: false,
           cleanupOutdatedCaches: true,
           importScripts: ['/push-sw.js'],
         },
-          includeAssets: ['favicon.png', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'push-sw.js'],
+        includeAssets: [
+          'favicon.png',
+          'apple-touch-icon.png',
+          'mask-icon.svg',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'push-sw.js',
+        ],
         manifest: {
           name: 'DELPHOS - Gestão de Eventos',
           short_name: 'DELPHOS',

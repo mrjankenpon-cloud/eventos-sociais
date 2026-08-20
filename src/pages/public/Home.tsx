@@ -56,14 +56,6 @@ export default function Home() {
   }, [loadEvents]);
 
   useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void loadEvents();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [loadEvents]);
-
-  useEffect(() => {
     const idle =
       typeof window !== 'undefined' && 'requestIdleCallback' in window
         ? window.requestIdleCallback.bind(window)

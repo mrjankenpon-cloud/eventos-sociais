@@ -19,7 +19,7 @@ export default function Footer() {
   const { canInstall, install } = usePwaInstall();
 
   return (
-    <footer className="shrink-0 bg-[#061c37] pt-3 pb-3 sm:pt-3.5 sm:pb-3.5 md:pt-4 md:pb-4">
+    <footer className="shrink-0 bg-[#061c37] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:pt-3.5 md:pt-4 md:pb-4">
       <div className="page-container">
         <div className="w-full h-px bg-white/15 mb-2.5 sm:mb-3" />
 
