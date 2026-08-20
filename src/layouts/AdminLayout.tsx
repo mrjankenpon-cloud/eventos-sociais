@@ -73,7 +73,7 @@ function AdminShell() {
   const avatar = live?.avatar || user?.avatar;
 
   return (
-    <div className="h-full bg-surface-admin flex overflow-hidden min-w-0">
+    <div className="h-dvh bg-surface-admin flex overflow-hidden min-w-0">
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div

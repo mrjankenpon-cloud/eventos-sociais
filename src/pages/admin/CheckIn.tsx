@@ -31,6 +31,7 @@ import {
   MEIA_CONVERTIDA_OBS,
   wasMeiaConvertedToInteira,
 } from '../../lib/ticketUpgrade';
+import { isTicketPurchase } from '../../lib/donations';
 import { THEME } from '../../theme';
 export default function CheckIn() {
   const { id } = useParams();
@@ -58,13 +59,30 @@ export default function CheckIn() {
     async function loadData() {
       if (!id) return;
       try {
-        const [eventData, purchasesData, ticketsData] = await Promise.all([
+        const [eventData, purchasesData] = await Promise.all([
           eventService.getById(id),
           purchaseService.getByEventId(id),
-          ticketService.getByEventId(id),
         ]);
         if (eventData) setEvent(eventData);
         setPurchases(purchasesData);
+
+        let ticketsData: TicketType[] = [];
+        try {
+          ticketsData = await ticketService.getByEventId(id);
+        } catch (err) {
+          console.warn('[CheckIn] getByEventId tickets', err);
+        }
+        // Se a listagem por evento falhar/vier vazia, tenta pelos pedidos.
+        if (ticketsData.length === 0 && purchasesData.length > 0) {
+          const nested = await Promise.all(
+            purchasesData
+              .filter(isTicketPurchase)
+              .map((p) =>
+                ticketService.getByPurchaseId(p.id).catch(() => [] as TicketType[])
+              )
+          );
+          ticketsData = nested.flat();
+        }
         setTickets(ticketsData);
       } catch (error) {
         console.error(error);
@@ -303,15 +321,37 @@ export default function CheckIn() {
   }, [purchases, ticketsByPurchase, searchTerm]);
 
   const checkinStats = useMemo(() => {
-    const doEvento = tickets.filter(isCountableEventTicket);
-    const feitos = doEvento.filter(isTicketCheckedIn);
-    const disponiveis = doEvento.filter(isTicketPending);
+    const countableTickets = tickets.filter(isCountableEventTicket);
+    const feitosTickets = countableTickets.filter(isTicketCheckedIn).length;
+
+    // Fonte principal: tickets emitidos. Fallback: quantidade nos pedidos de ingresso.
+    if (countableTickets.length > 0) {
+      const total = countableTickets.length;
+      const feitos = feitosTickets;
+      const disponiveis = Math.max(0, total - feitos);
+      return { total, disponiveis, feitos, fromTickets: true as const };
+    }
+
+    const ticketOrders = purchases.filter(
+      (p) =>
+        isTicketPurchase(p) &&
+        (p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente')
+    );
+    const confirmados = ticketOrders.filter(
+      (p) => p.statusPagamento === 'confirmado'
+    );
+    const total = confirmados.reduce(
+      (acc, p) => acc + Math.max(0, Number(p.quantidadeIngressos) || 0),
+      0
+    );
+    // Sem tickets na coleção ainda: nada checkado; tudo disponível entre confirmados.
     return {
-      total: doEvento.length,
-      disponiveis: disponiveis.length,
-      feitos: feitos.length,
+      total,
+      disponiveis: total,
+      feitos: 0,
+      fromTickets: false as const,
     };
-  }, [tickets]);
+  }, [tickets, purchases]);
 
   if (loading) return <PageLoader label="Carregando participantes..." />;
   if (!event) {
@@ -396,8 +436,10 @@ export default function CheckIn() {
             accent={THEME.colors.primary}
             hint={
               checkinStats.total > 0
-                ? `Ainda sem check-in · ${checkinStats.total.toLocaleString('pt-BR')} no evento`
-                : 'Nenhum ingresso emitido neste evento'
+                ? checkinStats.fromTickets
+                  ? `Sem check-in · ${checkinStats.total.toLocaleString('pt-BR')} emitidos neste evento`
+                  : `${checkinStats.total.toLocaleString('pt-BR')} em pedidos confirmados`
+                : 'Nenhum ingresso confirmado neste evento'
             }
           />
           <StatCard
@@ -409,7 +451,7 @@ export default function CheckIn() {
               checkinStats.total > 0
                 ? `${Math.round(
                     (checkinStats.feitos / checkinStats.total) * 100
-                  )}% dos ${checkinStats.total.toLocaleString('pt-BR')} ingressos`
+                  )}% de ${checkinStats.total.toLocaleString('pt-BR')}`
                 : 'Aguardando o primeiro check-in'
             }
           />

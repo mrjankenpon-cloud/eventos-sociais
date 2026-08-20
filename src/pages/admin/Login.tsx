@@ -46,14 +46,14 @@ export default function Login() {
 
   if (authLoading || isAuthenticated) {
     return (
-      <div className="h-full min-h-0 bg-surface-admin flex items-center justify-center">
+      <div className="min-h-dvh bg-surface-admin flex items-center justify-center">
         <div className="w-8 h-8 border-3 border-black/10 border-t-black rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain bg-surface-admin flex items-center justify-center p-4 sm:p-6">
+    <div className="min-h-dvh overflow-y-auto bg-surface-admin flex items-center justify-center p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}

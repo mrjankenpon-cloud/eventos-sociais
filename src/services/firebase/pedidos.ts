@@ -574,10 +574,35 @@ export const pedidosService = {
   },
 
   async getTicketsByEventId(eventId: string): Promise<Ticket[]> {
+    const matchesEvent = (t: Ticket) =>
+      t.eventoId === eventId ||
+      String((t as { eventId?: string }).eventId || '') === eventId;
+
     try {
       const q = query(col(COLLECTIONS.tickets), where('eventoId', '==', eventId));
       const snap = await getDocs(q);
-      return snap.docs.map((d) => mapDoc<Ticket>(d));
+      if (!snap.empty) {
+        return snap.docs.map((d) => mapDoc<Ticket>(d));
+      }
+    } catch (error) {
+      console.warn('[pedidos.getTicketsByEventId] query eventoId', error);
+    }
+
+    // Fallback: tickets ligados aos pedidos do evento (índice/regras podem falhar na query).
+    try {
+      const purchases = await this.getByEventId(eventId);
+      const nested = await Promise.all(
+        purchases.map((p) => this.getTicketsByPurchaseId(p.id).catch(() => []))
+      );
+      const byPurchase = nested.flat();
+      if (byPurchase.length > 0) return byPurchase;
+    } catch (error) {
+      console.warn('[pedidos.getTicketsByEventId] via pedidos', error);
+    }
+
+    try {
+      const snap = await getDocs(col(COLLECTIONS.tickets));
+      return snap.docs.map((d) => mapDoc<Ticket>(d)).filter(matchesEvent);
     } catch (error) {
       wrapError('pedidos.getTicketsByEventId', error);
     }
