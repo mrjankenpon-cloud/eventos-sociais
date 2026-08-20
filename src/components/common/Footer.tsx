@@ -74,7 +74,8 @@ export default function Footer() {
                 href="https://hervenhub.com.br"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-gold/90 font-black hover:underline"
+                className="font-black hover:underline"
+                style={{ color: '#F5C400' }}
               >
                 Herven Hub
               </a>
