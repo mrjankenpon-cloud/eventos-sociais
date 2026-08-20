@@ -226,12 +226,12 @@ function InstitutionModal({
       maxWidth="2xl"
     >
       {institution && (
-        <div className="space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-5">
           {institution.imagemDestaque && (
             <AppImage
               src={institution.imagemDestaque}
               alt=""
-              className="w-full h-44 sm:h-56 object-cover rounded-2xl"
+              className="w-full max-h-[min(50vh,28rem)] h-auto object-contain rounded-2xl bg-gray-50"
             />
           )}
           <div className="flex items-center gap-4">

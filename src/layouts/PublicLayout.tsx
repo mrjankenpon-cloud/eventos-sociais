@@ -29,11 +29,11 @@ export default function PublicLayout() {
     <div className="public-shell">
       <Header />
       <div ref={scrollRef} className="public-shell-scroll" id="public-scroll">
-        <main className="min-w-0">
+        <main className="min-w-0 flex-1 flex flex-col">
           <PublicErrorBoundary>
             <Suspense
               fallback={
-                <div className="min-h-[50vh] relative">
+                <div className="min-h-[50vh] relative flex-1">
                   <ProcessingOverlay
                     open
                     label="Processando"
@@ -47,8 +47,9 @@ export default function PublicLayout() {
           </PublicErrorBoundary>
         </main>
         <Footer />
-        {/* Em fluxo: não cobre o rodapé nem trava o scroll no app instalado */}
-        <PushEnablePrompt />
+        <div className="shrink-0">
+          <PushEnablePrompt />
+        </div>
       </div>
       <PwaInstallPrompt />
       <input type="hidden" id="deviceId" name="deviceId" readOnly />

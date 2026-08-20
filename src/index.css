@@ -201,6 +201,8 @@ html.header-compact {
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -210,6 +212,17 @@ html.header-compact {
       var(--sticky-bottom-space, 0px),
       env(safe-area-inset-bottom, 0px)
     );
+  }
+
+  /* Empurra o rodapé para a base da tela quando o conteúdo é curto. */
+  .public-shell-scroll > main {
+    flex: 1 0 auto;
+    min-width: 0;
+  }
+
+  .public-shell-scroll > footer {
+    flex-shrink: 0;
+    margin-top: auto;
   }
 
   .public-events-grid {
@@ -290,7 +303,8 @@ html.header-compact {
 }
 
 .site-content-doc img {
-  @apply my-4 rounded-2xl max-w-full h-auto;
+  @apply my-4 rounded-2xl max-w-full h-auto object-contain;
+  display: block;
 }
 
 .site-content-doc img.ProseMirror-selectednode {

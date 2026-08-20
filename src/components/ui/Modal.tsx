@@ -29,6 +29,7 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -42,8 +43,6 @@ export function Modal({
     '4xl': 'max-w-4xl',
   };
 
-  // Só na abertura do modal — não reexecutar quando onClose muda de identidade
-  // (senão cada tecla no formulário rouba o foco de volta ao botão X).
   useEffect(() => {
     if (!isOpen) return;
 
@@ -54,6 +53,9 @@ export function Modal({
     const firstField = panel?.querySelector<HTMLElement>(INITIAL_FIELD);
     const focusables = panel?.querySelectorAll<HTMLElement>(FOCUSABLE);
     (firstField ?? focusables?.[0])?.focus();
+
+    // Garante que o corpo do modal comece no topo ao abrir.
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -86,12 +88,15 @@ export function Modal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-6 lg:p-10 overflow-y-auto">
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center md:items-center p-0 md:p-5 lg:p-8"
+          role="presentation"
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => onCloseRef.current()}
             aria-hidden="true"
           />
@@ -105,14 +110,20 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              'relative w-full bg-white rounded-t-[1.75rem] md:rounded-[var(--radius-dialog)] shadow-2xl overflow-hidden flex flex-col max-h-[min(92dvh,800px)] my-auto',
+              'relative z-10 flex w-full min-h-0 flex-col overflow-hidden bg-white shadow-2xl',
+              'rounded-t-[1.75rem] md:rounded-[var(--radius-dialog)]',
+              // Altura limitada ao viewport; o corpo (abaixo) é quem rola até o fim.
+              'h-[min(92dvh,100%)] max-h-[min(92dvh,100%)] md:h-auto md:max-h-[min(90dvh,920px)]',
               widths[maxWidth],
               className
             )}
           >
-            <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 md:pt-10 pb-4 flex items-start justify-between gap-4">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-50 px-4 pb-4 pt-6 sm:px-6 sm:pt-8 md:px-10 md:pt-10">
               {title ? (
-                <h2 id={titleId} className="text-xl sm:text-2xl font-black text-gray-900">
+                <h2
+                  id={titleId}
+                  className="text-xl sm:text-2xl font-black text-gray-900 pr-2"
+                >
                   {title}
                 </h2>
               ) : (
@@ -127,7 +138,10 @@ export function Modal({
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-            <div className="px-4 sm:px-6 md:px-10 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-8 md:pb-10 overflow-y-auto min-w-0">
+            <div
+              ref={bodyRef}
+              className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 sm:px-6 md:px-10 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-8 md:pb-10"
+            >
               {children}
             </div>
           </motion.div>
