@@ -11,6 +11,7 @@ import {
 } from '../../hooks/usePwaInstall';
 import { enableAppPush } from '../../lib/pushNotifications';
 import { pingInstalledApp } from '../../lib/appInstallPing';
+import { getScrollMetrics, onPageScroll } from '../../lib/pageScroll';
 
 /** Aparece só depois que a pessoa rola a página, perto do rodapé. */
 const SCROLL_RATIO_TO_SHOW = 0.45;
@@ -29,18 +30,27 @@ export function PwaInstallPrompt() {
       return;
     }
 
+    let detach: (() => void) | undefined;
     const check = () => {
-      const scrolled = window.scrollY + window.innerHeight;
-      const ratio = scrolled / Math.max(document.body.scrollHeight, 1);
+      const { top, view, height } = getScrollMetrics();
+      const ratio = (top + view) / Math.max(height, 1);
       if (ratio >= SCROLL_RATIO_TO_SHOW) {
         setVisible(true);
-        window.removeEventListener('scroll', check);
+        detach?.();
+        detach = undefined;
       }
     };
 
-    window.addEventListener('scroll', check, { passive: true });
-    check();
-    return () => window.removeEventListener('scroll', check);
+    // #public-scroll pode montar um tick depois do layout.
+    const timer = window.setTimeout(() => {
+      detach = onPageScroll(check, { passive: true });
+      check();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      detach?.();
+    };
   }, [canInstall]);
 
   const dismiss = () => {

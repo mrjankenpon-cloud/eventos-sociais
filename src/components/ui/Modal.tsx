@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { lockPageScroll } from '../../lib/pageScroll';
 
 interface ModalProps {
   isOpen: boolean;
@@ -47,8 +48,7 @@ export function Modal({
     if (!isOpen) return;
 
     previousFocus.current = document.activeElement as HTMLElement;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockPageScroll();
 
     const panel = panelRef.current;
     const firstField = panel?.querySelector<HTMLElement>(INITIAL_FIELD);
@@ -77,7 +77,7 @@ export function Modal({
 
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = originalOverflow;
+      unlock();
       document.removeEventListener('keydown', onKeyDown);
       previousFocus.current?.focus();
     };

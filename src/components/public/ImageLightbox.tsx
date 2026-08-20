@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppImage } from '../ui/AppImage';
 import { THEME } from '../../theme';
+import { lockPageScroll } from '../../lib/pageScroll';
 
 interface ImageLightboxProps {
   images: string[];
@@ -35,8 +36,7 @@ export function ImageLightbox({
   useEffect(() => {
     if (!isOpen) return;
 
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockPageScroll();
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -53,7 +53,7 @@ export function ImageLightbox({
 
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = originalOverflow;
+      unlock();
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [isOpen, index, goTo, onClose]);

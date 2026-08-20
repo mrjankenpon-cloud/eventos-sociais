@@ -21,6 +21,7 @@ import { ROUTES } from '../../config';
 import { QRScanner } from '../../components/admin/QRScanner';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { SearchField } from '../../components/admin/SearchField';
+import { StatCard } from '../../components/admin/StatCard';
 import { Modal, Button, Badge, PageLoader, EmptyState, Toast, AppImage } from '../../components/ui';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
@@ -30,7 +31,7 @@ import {
   MEIA_CONVERTIDA_OBS,
   wasMeiaConvertedToInteira,
 } from '../../lib/ticketUpgrade';
-
+import { THEME } from '../../theme';
 export default function CheckIn() {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
@@ -301,6 +302,17 @@ export default function CheckIn() {
     );
   }, [purchases, ticketsByPurchase, searchTerm]);
 
+  const checkinStats = useMemo(() => {
+    const presencial = tickets.filter(isPresencialTicket);
+    const aprovados = presencial.filter(
+      (t) => t.checkinRealizado === true || t.status === 'Utilizado'
+    );
+    return {
+      presencial: presencial.length,
+      aprovados: aprovados.length,
+    };
+  }, [tickets]);
+
   if (loading) return <PageLoader label="Carregando participantes..." />;
   if (!event) {
     return (
@@ -375,6 +387,29 @@ export default function CheckIn() {
             </div>
           </div>
         </section>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+          <StatCard
+            title="Ingressos presenciais"
+            value={checkinStats.presencial}
+            icon={TicketIcon}
+            accent={THEME.colors.primary}
+            hint="Entradas válidas para o salão"
+          />
+          <StatCard
+            title="Check-ins feitos"
+            value={checkinStats.aprovados}
+            icon={UserCheck}
+            accent={THEME.colors.status.active}
+            hint={
+              checkinStats.presencial > 0
+                ? `${Math.round(
+                    (checkinStats.aprovados / checkinStats.presencial) * 100
+                  )}% do presencial`
+                : 'Aguardando entradas'
+            }
+          />
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <SearchField
@@ -831,6 +866,22 @@ function EventMeta({
       </div>
     </div>
   );
+}
+
+function isPresencialTicket(t: TicketType): boolean {
+  if (
+    t.status === 'Cancelado' ||
+    t.status === 'Reembolsado' ||
+    t.status === 'Bloqueado'
+  ) {
+    return false;
+  }
+  if (t.natureza === 'retirada') return false;
+  const modo = String(
+    (t as { checkinModo?: string }).checkinModo || ''
+  ).toLowerCase();
+  if (modo === 'retirada' || modo === 'nao_aplicavel') return false;
+  return true;
 }
 
 function isMeiaTicket(t: TicketType): boolean {

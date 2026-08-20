@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 import { APP_CONFIG, ROUTES } from '../../config';
 import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
+import { getScrollTop, onPageScroll } from '../../lib/pageScroll';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(getScrollTop() > 20);
+    handleScroll();
+    return onPageScroll(handleScroll, { passive: true });
   }, []);
 
   useEffect(() => {

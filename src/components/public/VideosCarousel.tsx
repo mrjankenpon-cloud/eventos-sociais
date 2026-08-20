@@ -9,6 +9,7 @@ import {
   parseVideoLink,
   resolveVideoThumbnail,
 } from '../../lib/videoLink';
+import { lockPageScroll } from '../../lib/pageScroll';
 
 export function VideosCarousel() {
   const [items, setItems] = useState<SiteVideo[]>([]);
@@ -35,14 +36,13 @@ export function VideosCarousel() {
 
   useEffect(() => {
     if (!active) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockPageScroll();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setActive(null);
     };
     document.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = original;
+      unlock();
       document.removeEventListener('keydown', onKey);
     };
   }, [active]);

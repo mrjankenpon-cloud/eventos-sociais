@@ -1,5 +1,5 @@
-import { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Suspense, useEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { PwaInstallPrompt } from '../components/common/PwaInstallPrompt';
@@ -15,38 +15,42 @@ export default function PublicLayout() {
   usePublicSiteVisitPing();
   useMpDeviceId();
 
+  const location = useLocation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // No PWA o scroll fica neste container — resetar ao trocar de rota.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    else window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
+
   return (
-    <div className="min-h-dvh bg-surface-muted flex flex-col min-w-0">
+    <div className="public-shell">
       <Header />
-      <main className="flex-1 min-w-0 pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
-        <PublicErrorBoundary>
-          <Suspense
-            fallback={
-              <div className="min-h-[50vh] relative">
-                <ProcessingOverlay
-                  open
-                  label="Processando"
-                  detail="Carregando a próxima etapa..."
-                />
-              </div>
-            }
-          >
-            <Outlet />
-          </Suspense>
-        </PublicErrorBoundary>
-      </main>
-      <Footer />
-      {/* Permite rolar o rodapé acima de CTAs/prompts fixos no mobile */}
-      <div
-        className="shrink-0 pointer-events-none lg:hidden"
-        style={{
-          height:
-            'max(var(--sticky-bottom-space, 0px), env(safe-area-inset-bottom, 0px))',
-        }}
-        aria-hidden
-      />
+      <div ref={scrollRef} className="public-shell-scroll" id="public-scroll">
+        <main className="min-w-0">
+          <PublicErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="min-h-[50vh] relative">
+                  <ProcessingOverlay
+                    open
+                    label="Processando"
+                    detail="Carregando a próxima etapa..."
+                  />
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </PublicErrorBoundary>
+        </main>
+        <Footer />
+        {/* Em fluxo: não cobre o rodapé nem trava o scroll no app instalado */}
+        <PushEnablePrompt />
+      </div>
       <PwaInstallPrompt />
-      <PushEnablePrompt />
       <input type="hidden" id="deviceId" name="deviceId" readOnly />
     </div>
   );
