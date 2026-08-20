@@ -303,13 +303,13 @@ export default function CheckIn() {
   }, [purchases, ticketsByPurchase, searchTerm]);
 
   const checkinStats = useMemo(() => {
-    const presencial = tickets.filter(isPresencialTicket);
-    const aprovados = presencial.filter(
-      (t) => t.checkinRealizado === true || t.status === 'Utilizado'
-    );
+    const doEvento = tickets.filter(isCountableEventTicket);
+    const feitos = doEvento.filter(isTicketCheckedIn);
+    const disponiveis = doEvento.filter(isTicketPending);
     return {
-      presencial: presencial.length,
-      aprovados: aprovados.length,
+      total: doEvento.length,
+      disponiveis: disponiveis.length,
+      feitos: feitos.length,
     };
   }, [tickets]);
 
@@ -390,23 +390,27 @@ export default function CheckIn() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
           <StatCard
-            title="Ingressos presenciais"
-            value={checkinStats.presencial}
+            title="Ingressos disponíveis"
+            value={checkinStats.disponiveis}
             icon={TicketIcon}
             accent={THEME.colors.primary}
-            hint="Entradas válidas para o salão"
+            hint={
+              checkinStats.total > 0
+                ? `Ainda sem check-in · ${checkinStats.total.toLocaleString('pt-BR')} no evento`
+                : 'Nenhum ingresso emitido neste evento'
+            }
           />
           <StatCard
             title="Check-ins feitos"
-            value={checkinStats.aprovados}
+            value={checkinStats.feitos}
             icon={UserCheck}
             accent={THEME.colors.status.active}
             hint={
-              checkinStats.presencial > 0
+              checkinStats.total > 0
                 ? `${Math.round(
-                    (checkinStats.aprovados / checkinStats.presencial) * 100
-                  )}% do presencial`
-                : 'Aguardando entradas'
+                    (checkinStats.feitos / checkinStats.total) * 100
+                  )}% dos ${checkinStats.total.toLocaleString('pt-BR')} ingressos`
+                : 'Aguardando o primeiro check-in'
             }
           />
         </div>
@@ -868,7 +872,8 @@ function EventMeta({
   );
 }
 
-function isPresencialTicket(t: TicketType): boolean {
+/** Ingressos válidos do evento (exclui cancelados / bloqueados). */
+function isCountableEventTicket(t: TicketType): boolean {
   if (
     t.status === 'Cancelado' ||
     t.status === 'Reembolsado' ||
@@ -876,12 +881,18 @@ function isPresencialTicket(t: TicketType): boolean {
   ) {
     return false;
   }
+  // Produtos só de retirada não entram na fila de check-in de entrada.
   if (t.natureza === 'retirada') return false;
   const modo = String(
     (t as { checkinModo?: string }).checkinModo || ''
   ).toLowerCase();
   if (modo === 'retirada' || modo === 'nao_aplicavel') return false;
   return true;
+}
+
+function isTicketCheckedIn(t: TicketType): boolean {
+  if (t.natureza === 'retirada') return Boolean(t.retiradaRealizada);
+  return t.checkinRealizado === true || t.status === 'Utilizado';
 }
 
 function isMeiaTicket(t: TicketType): boolean {
