@@ -12,11 +12,18 @@ export interface UsageLive {
   readsPct?: number;
   writesPct?: number;
   deletesPct?: number;
+  /** Usados na janela móvel de 24h (alias histórico). */
   emailsToday?: number | null;
   emailsMonth?: number | null;
   emailsDayPct?: number;
   emailsMonthPct?: number;
   emailsUpdatedAt?: string;
+  /** Usados nas últimas 24h (janela móvel Resend). */
+  emailsWindowUsed?: number | null;
+  emailsWindowRemaining?: number | null;
+  /** Quando o envio mais antigo da janela libera a vaga de novo. */
+  emailsNextReleaseAt?: string | null;
+  emailsNextReleaseCount?: number | null;
   monitoringOk?: boolean;
   monitoringNote?: string;
   overall?: UsageLevel;

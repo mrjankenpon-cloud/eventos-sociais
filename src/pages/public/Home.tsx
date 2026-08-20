@@ -10,33 +10,57 @@ import { Alert } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Spinner';
 import { eventService } from '../../services/event.service';
 import { Event } from '../../types';
-import { cachedPublicQuery } from '../../lib/publicDataCache';
+import {
+  peekPublicQuery,
+  refreshPublicQuery,
+} from '../../lib/publicDataCache';
 import { prefetchPurchaseFunnel } from '../../lib/prefetchPublic';
 
+const EVENTS_CACHE_KEY = 'events.published';
+
 export default function Home() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<Event[]>(
+    () => peekPublicQuery<Event[]>(EVENTS_CACHE_KEY) ?? []
+  );
+  const [loading, setLoading] = useState(
+    () => peekPublicQuery<Event[]>(EVENTS_CACHE_KEY) === undefined
+  );
   const [error, setError] = useState<string | null>(null);
 
   const loadEvents = useCallback(async () => {
+    const hadCache = peekPublicQuery<Event[]>(EVENTS_CACHE_KEY) !== undefined;
+    if (!hadCache) setLoading(true);
+
     try {
-      const data = await cachedPublicQuery('events.published', () =>
+      // Sempre atualiza em rede; se já havia cache, a lista já está na tela.
+      const data = await refreshPublicQuery(EVENTS_CACHE_KEY, () =>
         eventService.getPublished()
       );
       setEvents(data);
       setError(null);
     } catch (err) {
       console.error('Erro ao carregar eventos:', err);
-      setError('Não foi possível carregar os eventos. Tente novamente em instantes.');
-      setEvents([]);
+      if (!hadCache) {
+        setError(
+          'Não foi possível carregar os eventos. Tente novamente em instantes.'
+        );
+        setEvents([]);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     void loadEvents();
+  }, [loadEvents]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadEvents();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [loadEvents]);
 
   useEffect(() => {

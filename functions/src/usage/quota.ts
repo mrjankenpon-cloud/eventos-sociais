@@ -11,8 +11,11 @@ export const FREE_DAILY = {
   deletes: 20_000,
 } as const;
 
-/** Plano gratuito Resend: 100 e-mails/dia e 3.000/mês. */
+/** Plano gratuito Resend: 100 e-mails / janela móvel de 24h e 3.000 / mês. */
 export const RESEND_FREE = {
+  /** Capacidade na janela móvel de 24h (não zera à meia-noite). */
+  emailsWindow: 100,
+  /** @deprecated Use emailsWindow — mantido para compatibilidade. */
   emailsDay: 100,
   emailsMonth: 3_000,
 } as const;

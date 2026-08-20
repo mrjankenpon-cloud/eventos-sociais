@@ -12,25 +12,24 @@ const LEGAL_LINKS = [
   { to: ROUTES.PUBLIC.DONATIONS, label: 'Doações' },
 ] as const;
 
+const linkClass =
+  'text-white/85 hover:text-accent-gold text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] sm:tracking-[0.16em] py-1 px-0.5 transition-colors';
+
 export default function Footer() {
   const { canInstall, install } = usePwaInstall();
 
   return (
-    <footer className="bg-[#061c37] pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-6 sm:pb-6">
+    <footer className="bg-[#061c37] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-3.5 sm:pb-3.5 md:pt-4 md:pb-4">
       <div className="page-container">
-        <div className="w-full h-px bg-white/20 mb-4" />
+        <div className="w-full h-px bg-white/15 mb-2.5 sm:mb-3" />
 
-        <div className="flex flex-col items-center gap-3 sm:gap-3.5">
+        <div className="flex flex-col items-center gap-2 sm:gap-2.5">
           <nav
             aria-label="Institucional"
-            className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5"
+            className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-0.5"
           >
             {LEGAL_LINKS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="text-white text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
-              >
+              <Link key={item.to} to={item.to} className={linkClass}>
                 {item.label}
               </Link>
             ))}
@@ -38,18 +37,12 @@ export default function Footer() {
 
           <nav
             aria-label="Acesso"
-            className="flex flex-col sm:flex-row items-center gap-1 sm:gap-6"
+            className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-0.5"
           >
-            <Link
-              to={ROUTES.PUBLIC.ORDER_LOOKUP}
-              className="text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
-            >
+            <Link to={ROUTES.PUBLIC.ORDER_LOOKUP} className={linkClass}>
               Já comprou? Receber ingressos
             </Link>
-            <Link
-              to={ROUTES.ADMIN.DASHBOARD}
-              className="text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 inline-flex items-center transition-colors hover:text-accent-gold"
-            >
+            <Link to={ROUTES.ADMIN.DASHBOARD} className={linkClass}>
               Área Restrita
             </Link>
             {canInstall && (
@@ -59,35 +52,32 @@ export default function Footer() {
                   void enableAppPush();
                   void install();
                 }}
-                className="inline-flex items-center gap-1.5 text-white/90 text-xs font-black uppercase tracking-[0.2em] min-h-11 transition-colors hover:text-accent-gold"
+                className={`inline-flex items-center gap-1 ${linkClass}`}
               >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                <Download className="w-3 h-3" aria-hidden="true" />
                 Instalar App Delphos
               </button>
             )}
           </nav>
 
-          <div className="text-center space-y-1 max-w-lg">
-            <p className="text-white text-[11px] tracking-wide leading-snug">
-              © {new Date().getFullYear()} {APP_CONFIG.name} • Todos os direitos
-              reservados.
-            </p>
-            <p className="text-white text-[11px] leading-snug">
+          <div className="text-center max-w-xl space-y-0.5 px-1">
+            <p className="text-white/70 text-[9px] sm:text-[10px] tracking-wide leading-tight">
+              © {new Date().getFullYear()} {APP_CONFIG.name} ·{' '}
               {ORG.razaoSocial} · CNPJ {ORG.cnpj}
-              <br />
+            </p>
+            <p className="text-white/55 text-[9px] sm:text-[10px] leading-tight">
               {orgAddressLine()}
             </p>
-            <p className="text-white text-[10px] tracking-wider uppercase font-medium leading-snug">
-              Este site foi desenvolvido por{' '}
+            <p className="text-white/45 text-[8px] sm:text-[9px] tracking-wider uppercase font-medium leading-tight">
+              Desenvolvido por{' '}
               <a
                 href="https://hervenhub.com.br"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-gold font-black hover:underline"
+                className="text-accent-gold/90 font-black hover:underline"
               >
                 Herven Hub
               </a>
-              .
             </p>
           </div>
         </div>

@@ -28,6 +28,13 @@ import { eventFormToEventoPayload, eventoToUiEvent } from './mappers';
 import { ingressosService } from './ingressos';
 import { logsService } from './logs';
 import { persistEventMedia } from './media';
+import { invalidatePublicQuery } from '../../lib/publicDataCache';
+
+const PUBLIC_EVENTS_CACHE_KEY = 'events.published';
+
+function bustPublicEventsCache(): void {
+  invalidatePublicQuery(PUBLIC_EVENTS_CACHE_KEY);
+}
 import { deleteImage } from './storage';
 import { pedidosService } from './pedidos';
 import { checkinsService } from './checkins';
@@ -106,6 +113,7 @@ export const eventosService = {
         after: { titulo: created.titulo, status: created.publicado ? 'publicado' : 'rascunho' },
       });
 
+      bustPublicEventsCache();
       return created;
     } catch (error) {
       wrapError('eventos.create', error);
@@ -189,6 +197,7 @@ export const eventosService = {
         after: { titulo: updated.titulo, publicado: updated.publicado },
       });
 
+      bustPublicEventsCache();
       return updated;
     } catch (error) {
       wrapError('eventos.update', error);
@@ -220,6 +229,8 @@ export const eventosService = {
         before: { status: current.status, publicado: current.publicado },
         after: { status: 'arquivado', publicado: false },
       });
+
+      bustPublicEventsCache();
     } catch (error) {
       wrapError('eventos.delete', error);
     }
@@ -240,6 +251,7 @@ export const eventosService = {
         documentoId: id,
         descricao: 'Evento removido permanentemente (hard delete)',
       });
+      bustPublicEventsCache();
     } catch (error) {
       wrapError('eventos.hardDelete', error);
     }

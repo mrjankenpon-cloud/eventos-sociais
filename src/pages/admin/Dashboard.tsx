@@ -33,8 +33,10 @@ import { SearchField } from '../../components/admin/SearchField';
 import { StatCard } from '../../components/admin/StatCard';
 import { DataTable, type DataTableColumn } from '../../components/admin/DataTable';
 import { Badge, Button, PageLoader, Alert, AppImage } from '../../components/ui';
+import { EventStatusBadge } from '../../components/admin/EventStatusBadge';
 import { formatEventDate, formatCurrency } from '../../lib/utils';
 import { getEventSalonRemaining, getEventTicketsOffered } from '../../lib/eventData';
+import { getEventDisplayStatus } from '../../lib/eventDisplayStatus';
 import { isTicketPurchase, purchasePayerKey } from '../../lib/donations';
 
 type ViewMode = 'general' | 'event' | 'report';
@@ -169,8 +171,13 @@ export default function Dashboard() {
   }, [events, ticketPurchases, tickets]);
 
   const generalStats = useMemo(() => {
-    const published = events.filter((e) => e.publicado).length;
-    const closed = events.filter((e) => !e.publicado).length;
+    const now = new Date();
+    const available = events.filter(
+      (e) => getEventDisplayStatus(e, now).kind === 'disponivel'
+    ).length;
+    const closed = events.filter(
+      (e) => getEventDisplayStatus(e, now).kind === 'encerrado'
+    ).length;
     const disponibilizados = events.reduce(
       (acc, e) => acc + getEventTicketsOffered(e),
       0
@@ -182,7 +189,7 @@ export default function Dashboard() {
     );
 
     return {
-      published,
+      available,
       closed,
       disponibilizados,
       vendidos: soldTickets.length,
@@ -336,11 +343,7 @@ export default function Dashboard() {
     {
       key: 'status',
       header: 'Status',
-      render: (event) => (
-        <Badge variant={event.publicado ? 'published' : 'draft'}>
-          {event.publicado ? 'Publicado' : 'Encerrado'}
-        </Badge>
-      ),
+      render: (event) => <EventStatusBadge event={event} />,
     },
     {
       key: 'compras',
@@ -627,18 +630,18 @@ export default function Dashboard() {
     report?: ReportType;
   }> = [
     {
-      title: 'Eventos publicados',
-      value: generalStats.published,
+      title: 'Eventos disponíveis',
+      value: generalStats.available,
       icon: Globe,
       accent: THEME.colors.status.active,
-      href: `${ROUTES.ADMIN.EVENTS}?status=published`,
+      href: `${ROUTES.ADMIN.EVENTS}?status=available`,
     },
     {
       title: 'Eventos encerrados',
       value: generalStats.closed,
       icon: XCircle,
       accent: THEME.colors.text.muted,
-      href: `${ROUTES.ADMIN.EVENTS}?status=draft`,
+      href: `${ROUTES.ADMIN.EVENTS}?status=ended`,
     },
     {
       title: 'Ingressos disponibilizados',

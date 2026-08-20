@@ -113,6 +113,8 @@ export type OrderReceiptResult = {
     pixQrCodeBase64?: string | null;
     pixTicketUrl?: string | null;
     pixExpiresAt?: string | null;
+    /** Resultado do e-mail de confirmação (quando já tentou enviar). */
+    emailDelivery?: 'sent' | 'queued' | 'delayed' | null;
     itens?: Array<{
       ingressoId: string;
       nome: string;

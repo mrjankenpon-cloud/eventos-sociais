@@ -301,7 +301,7 @@ export function TicketPassList({
           onClick={() => window.print()}
         >
           <Printer size={14} aria-hidden="true" />
-          Imprimir
+          Salvar PDF / Imprimir
         </Button>
       </div>
 

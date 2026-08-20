@@ -15,6 +15,7 @@ import {
 import { Button, Alert, Badge, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TicketPassList } from '../../components/public/TicketPass';
+import { DeliveryKeepCopyCard } from '../../components/public/DeliveryKeepCopyCard';
 import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { formatCurrency } from '../../lib/utils';
@@ -90,10 +91,27 @@ export default function OrderSuccess() {
   }, [load]);
 
   useEffect(() => {
-    if (!receipt || receipt.pedido.status !== 'pendente') return;
+    if (!receipt) return;
+    const status = receipt.pedido.status;
+    const waitingPayment = status === 'pendente';
+    const waitingTickets =
+      status === 'confirmado' &&
+      receipt.pedido.tipo !== 'doacao' &&
+      receipt.tickets.length === 0;
+    const waitingEmailMeta =
+      status === 'confirmado' &&
+      receipt.pedido.emailDelivery == null &&
+      String(receipt.pedido.email || '').includes('@');
+    if (!waitingPayment && !waitingTickets && !waitingEmailMeta) return;
+
+    const ms = waitingPayment
+      ? mpReturn.fromMp
+        ? 2000
+        : 4000
+      : 2500;
     const t = window.setInterval(() => {
       void load();
-    }, mpReturn.fromMp ? 2000 : 4000);
+    }, ms);
     return () => window.clearInterval(t);
   }, [receipt, load, mpReturn.fromMp]);
 
@@ -368,24 +386,43 @@ export default function OrderSuccess() {
           </div>
 
           {isConfirmed && tickets.length > 0 ? (
-            <TicketPassList
-              tickets={tickets}
-              evento={{
-                titulo: pedido.eventoTitulo,
-                data: pedido.eventoData,
-                horaInicio: pedido.eventoHoraInicio,
-                horaFim: pedido.eventoHoraFim,
-                local: pedido.eventoLocal,
-                endereco: pedido.eventoEndereco,
-                cidade: pedido.eventoCidade,
-              }}
-              comprador={{
-                nome: pedido.nomeComprador,
-                email: pedido.email,
-                telefone: pedido.telefone,
-                cpf: pedido.cpf,
-              }}
-            />
+            <>
+              <DeliveryKeepCopyCard
+                kind="ingresso"
+                emailMayDelay={pedido.emailDelivery === 'delayed'}
+                onSavePdf={() => window.print()}
+                canShare={typeof navigator !== 'undefined' && Boolean(navigator.share)}
+                onShare={() => {
+                  void navigator
+                    .share?.({
+                      title: pedido.eventoTitulo || 'Meus ingressos DELPHOS',
+                      text: 'Meus ingressos DELPHOS — guarde este link ou o PDF salvo no aparelho.',
+                      url: window.location.href,
+                    })
+                    .catch(() => {
+                      /* usuário cancelou */
+                    });
+                }}
+              />
+              <TicketPassList
+                tickets={tickets}
+                evento={{
+                  titulo: pedido.eventoTitulo,
+                  data: pedido.eventoData,
+                  horaInicio: pedido.eventoHoraInicio,
+                  horaFim: pedido.eventoHoraFim,
+                  local: pedido.eventoLocal,
+                  endereco: pedido.eventoEndereco,
+                  cidade: pedido.eventoCidade,
+                }}
+                comprador={{
+                  nome: pedido.nomeComprador,
+                  email: pedido.email,
+                  telefone: pedido.telefone,
+                  cpf: pedido.cpf,
+                }}
+              />
+            </>
           ) : isConfirmed ? (
             <Alert variant="info">
               Pagamento confirmado. Ingressos sendo gerados…
@@ -394,8 +431,8 @@ export default function OrderSuccess() {
 
           {isConfirmed ? (
             <Alert variant="success" className="print:hidden">
-              Obrigado por participar. Guarde esta página ou imprima o ingresso.
-              Você também pode recuperar os QR Codes depois em{' '}
+              Obrigado por participar. Guarde o PDF no aparelho ou imprima o
+              ingresso. Depois você também pode recuperar os QR Codes em{' '}
               <Link
                 to={ROUTES.PUBLIC.ORDER_LOOKUP}
                 className="font-bold text-brand underline"

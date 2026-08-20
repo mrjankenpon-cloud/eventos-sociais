@@ -30,14 +30,15 @@ export function PaymentThankYou({
         </p>
       );
     }
-    if (confirmed) {
-      return (
-        <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
-          {hello} Sua doação foi confirmada. Boas ações são sempre bem-vindas —
-          o certificado está abaixo e também no e-mail cadastrado.
-        </p>
-      );
-    }
+  if (confirmed) {
+    return (
+      <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
+        {hello} Sua doação foi confirmada. Boas ações são sempre bem-vindas —
+        o certificado está abaixo. Salve o PDF no aparelho e, se quiser,
+        confira também o e-mail cadastrado.
+      </p>
+    );
+  }
     return null;
   }
 
@@ -53,8 +54,9 @@ export function PaymentThankYou({
   if (confirmed) {
     return (
       <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
-        {hello} Seu pagamento foi confirmado. Abaixo estão seus ingressos, com
-        texto e código. Também enviamos o acesso para o e-mail da inscrição.
+        {hello} Seu pagamento foi confirmado. Abaixo estão seus ingressos.
+        Salve o PDF no aparelho para apresentar na porta — e, se quiser,
+        use também o e-mail da inscrição.
       </p>
     );
   }

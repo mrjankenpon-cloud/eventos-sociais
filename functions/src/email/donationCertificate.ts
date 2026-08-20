@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { db, getAppUrl } from '../mp/helpers';
 import { sendEmailViaResend } from './resend';
+import { persistPedidoEmailDelivery } from './emailDelivery';
 import {
   ORG,
   donationCertificateNumber,
@@ -27,7 +28,7 @@ export async function sendDonationCertificateEmail(pedido: {
   dataCompra?: string;
   certificadoNumero?: string;
   accessToken?: string;
-}): Promise<{ sent: boolean }> {
+}): Promise<{ sent: boolean; delayed?: boolean }> {
   const email = String(pedido.email || '')
     .trim()
     .toLowerCase();
@@ -92,33 +93,36 @@ export async function sendDonationCertificateEmail(pedido: {
       ],
     });
 
-    if (result.sent) {
-      await db()
-        .collection('pedidos')
-        .doc(pedido.id)
-        .set(
-          {
-            confirmationEmailSentAt:
-              admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-    }
+    await persistPedidoEmailDelivery(pedido.id, result);
 
     await db().collection('logs').add({
-      acao: result.sent ? 'email_sent' : 'email_queued',
+      acao: result.sent
+        ? 'email_sent'
+        : result.delayed
+          ? 'email_delayed'
+          : 'email_queued',
       colecao: 'pedidos',
       documentoId: pedido.id,
       descricao: result.sent
         ? 'E-mail de certificado de doação enviado'
-        : 'E-mail de certificado de doação enfileirado',
+        : result.delayed
+          ? 'E-mail de certificado adiado (cota Resend)'
+          : 'E-mail de certificado de doação enfileirado',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { sent: Boolean(result.sent) };
+    return { sent: Boolean(result.sent), delayed: Boolean(result.delayed) };
   } catch (err) {
     functions.logger.error('[sendDonationCertificateEmail]', err);
+    try {
+      await persistPedidoEmailDelivery(pedido.id, {
+        sent: false,
+        queued: true,
+        delayed: false,
+      });
+    } catch {
+      /* ignore */
+    }
     return { sent: false };
   }
 }

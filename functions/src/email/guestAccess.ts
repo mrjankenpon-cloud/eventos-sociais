@@ -3,6 +3,7 @@ import * as functions from 'firebase-functions/v1';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { db, getAppUrl, sha256 } from '../mp/helpers';
 import { sendEmailViaResend } from './resend';
+import { persistPedidoEmailDelivery } from './emailDelivery';
 
 /** Validade do link de acesso guest (horas). */
 export const GUEST_LINK_TTL_HOURS = 48;
@@ -239,7 +240,7 @@ export async function sendGuestAccessEmail(input: {
   pedidoId?: string;
   eventoTitulo?: string;
   tickets?: EmailTicketRow[];
-}): Promise<{ queued: boolean; sent: boolean }> {
+}): Promise<{ queued: boolean; sent: boolean; delayed?: boolean }> {
   const { accessUrl } = await createGuestAccessToken({
     email: input.email,
     purpose: input.purpose,
@@ -285,17 +286,27 @@ export async function sendGuestAccessEmail(input: {
     });
 
     await db().collection('logs').add({
-      acao: result.sent ? 'email_sent' : 'email_queued',
+      acao: result.sent
+        ? 'email_sent'
+        : result.delayed
+          ? 'email_delayed'
+          : 'email_queued',
       colecao: 'guestAccessTokens',
       documentoId: input.email,
       descricao: result.sent
         ? `E-mail ${input.purpose} enviado via Resend (${tickets.length} ingresso(s))`
-        : `E-mail ${input.purpose} enfileirado (Resend ainda não configurado)`,
+        : result.delayed
+          ? `E-mail ${input.purpose} adiado (cota Resend — janela 24h)`
+          : `E-mail ${input.purpose} enfileirado (Resend ainda não configurado)`,
       metadata: { pedidoId: input.pedidoId || null, tickets: tickets.length },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { sent: Boolean(result.sent), queued: Boolean(result.queued) };
+    return {
+      sent: Boolean(result.sent),
+      queued: Boolean(result.queued),
+      delayed: Boolean(result.delayed),
+    };
   } catch (err) {
     functions.logger.error('[sendGuestAccessEmail]', err);
     await db().collection('logs').add({
@@ -305,7 +316,7 @@ export async function sendGuestAccessEmail(input: {
       descricao: err instanceof Error ? err.message : 'falha no envio',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { sent: false, queued: true };
+    return { sent: false, queued: true, delayed: false };
   }
 }
 
@@ -315,7 +326,7 @@ export async function sendOrderConfirmationEmail(pedido: {
   email?: string;
   nomeComprador?: string;
   eventoId?: string;
-}): Promise<{ sent: boolean }> {
+}): Promise<{ sent: boolean; delayed?: boolean }> {
   const email = String(pedido.email || '')
     .trim()
     .toLowerCase();
@@ -335,20 +346,9 @@ export async function sendOrderConfirmationEmail(pedido: {
     tickets,
   });
 
-  if (result.sent) {
-    await db()
-      .collection('pedidos')
-      .doc(pedido.id)
-      .set(
-        {
-          confirmationEmailSentAt:
-            admin.firestore.FieldValue.serverTimestamp(),
-          confirmationEmailTicketCount: tickets.length,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-  }
+  await persistPedidoEmailDelivery(pedido.id, result, {
+    confirmationEmailTicketCount: tickets.length,
+  });
 
-  return { sent: result.sent };
+  return { sent: result.sent, delayed: result.delayed };
 }

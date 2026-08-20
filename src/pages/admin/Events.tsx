@@ -9,6 +9,7 @@ import {
   MapPin,
   Calendar,
   ExternalLink,
+  Bell,
 } from 'lucide-react';
 import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
@@ -22,11 +23,16 @@ import {
   ArchiveEventDialog,
   type ReportDisposition,
 } from '../../components/admin/ArchiveEventDialog';
-import { Button, Badge, Alert, PageLoader, AppImage } from '../../components/ui';
+import { EventStatusBadge } from '../../components/admin/EventStatusBadge';
+import { Button, Alert, PageLoader, AppImage } from '../../components/ui';
 import { formatEventDate } from '../../lib/utils';
 import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
+import {
+  getEventDisplayStatus,
+  isEventArchived,
+} from '../../lib/eventDisplayStatus';
 
-type StatusFilter = 'all' | 'published' | 'draft';
+type StatusFilter = 'all' | 'available' | 'draft' | 'ended';
 
 export default function Events() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -41,8 +47,12 @@ export default function Events() {
 
   useEffect(() => {
     const status = searchParams.get('status');
-    if (status === 'published' || status === 'draft') {
-      setStatusFilter(status);
+    if (status === 'available' || status === 'published') {
+      setStatusFilter('available');
+    } else if (status === 'draft') {
+      setStatusFilter('draft');
+    } else if (status === 'ended') {
+      setStatusFilter('ended');
     } else {
       setStatusFilter('all');
     }
@@ -114,15 +124,17 @@ export default function Events() {
   };
 
   const filteredEvents = useMemo(() => {
+    const now = new Date();
     return events.filter((e) => {
       const matchesSearch =
         e.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.local.toLowerCase().includes(searchTerm.toLowerCase());
-      const archived = e.status === 'arquivado' || Boolean(e.arquivado);
+      const kind = getEventDisplayStatus(e, now).kind;
       const matchesStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'published' && e.publicado && !archived) ||
-        (statusFilter === 'draft' && !e.publicado);
+        (statusFilter === 'available' && kind === 'disponivel') ||
+        (statusFilter === 'draft' && kind === 'rascunho') ||
+        (statusFilter === 'ended' && kind === 'encerrado');
       return matchesSearch && matchesStatus;
     });
   }, [events, searchTerm, statusFilter]);
@@ -174,18 +186,7 @@ export default function Events() {
     {
       key: 'status',
       header: 'Status',
-      render: (event) => {
-        const archived = event.status === 'arquivado' || Boolean(event.arquivado);
-        return (
-          <Badge
-            variant={
-              archived ? 'danger' : event.publicado ? 'published' : 'draft'
-            }
-          >
-            {archived ? 'Arquivado' : event.publicado ? 'Publicado' : 'Encerrado'}
-          </Badge>
-        );
-      },
+      render: (event) => <EventStatusBadge event={event} />,
     },
     {
       key: 'acoes',
@@ -266,19 +267,20 @@ export default function Events() {
           {(
             [
               { id: 'all', label: 'Todos' },
-              { id: 'published', label: 'Publicados' },
-              { id: 'draft', label: 'Encerrados' },
+              { id: 'available', label: 'Disponíveis' },
+              { id: 'draft', label: 'Rascunhos' },
+              { id: 'ended', label: 'Encerrados' },
             ] as const
           ).map((chip) => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  onClick={() => {
-                    const next = new URLSearchParams(searchParams);
-                    if (chip.id === 'all') next.delete('status');
-                    else next.set('status', chip.id);
-                    setSearchParams(next, { replace: true });
-                  }}
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                if (chip.id === 'all') next.delete('status');
+                else next.set('status', chip.id);
+                setSearchParams(next, { replace: true });
+              }}
               className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-colors ${
                 statusFilter === chip.id
                   ? 'bg-brand text-white'
@@ -290,6 +292,28 @@ export default function Events() {
           ))}
         </div>
       </div>
+
+      <p className="text-xs text-gray-500 font-medium flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span>
+          <span className="font-bold text-gray-700">Rascunho</span> — criado,
+          ainda não publicado
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="font-bold text-emerald-700">Disponível</span>
+          <Bell size={11} className="text-emerald-700" aria-hidden="true" />
+          — no ar; sino = aviso enviado
+        </span>
+        <span>
+          <span className="font-bold text-gray-700">Encerrado</span> — passou do
+          horário de fim
+        </span>
+        {events.some((e) => isEventArchived(e)) ? (
+          <span>
+            <span className="font-bold text-red-600">Arquivado</span> — removido
+            do site
+          </span>
+        ) : null}
+      </p>
 
       {isLoading ? (
         <PageLoader label="Carregando eventos..." />

@@ -150,7 +150,7 @@ export function ManualDoc() {
           [
             'Eventos',
             'Lista todos os eventos. Daqui você cria, edita, abre check-in, abre relatório ou arquiva/exclui.',
-            'Botão Novo Evento; ícones em cada linha; filtros Publicado / Encerrado; busca pelo nome.',
+            'Botão Novo Evento; ícones em cada linha; filtros Disponíveis / Rascunhos / Encerrados; busca pelo nome.',
           ],
           [
             'Doações',
@@ -189,7 +189,7 @@ export function ManualDoc() {
           ],
           [
             'Painel',
-            'Frequência de visitas no site e quanto o banco Firebase já usou da faixa gratuita do dia (leituras, escritas, exclusões). Também mostra e-mails enviados no Resend (100/dia e 3.000/mês). Avisa se está tranquilo, em atenção ou perto do limite. Em 80% ou mais, os administradores recebem um e-mail (uma vez por dia).',
+            'Frequência de visitas no site e quanto o banco Firebase já usou da faixa gratuita do dia (leituras, escritas, exclusões). Também mostra e-mails no Resend: 100 por janela móvel de 24h (não zera à meia-noite) e 3.000/mês. Avisa se está tranquilo, em atenção ou perto do limite. Em 80% ou mais, os administradores recebem um e-mail (uma vez por dia).',
             'Abra a aba e leia o cartão colorido. “Atualizar agora” puxa as métricas oficiais na hora; o resto entra sozinho a cada 5 minutos.',
           ],
         ]}
@@ -386,7 +386,7 @@ export function ManualDoc() {
           [
             'Evento publicado',
             'Aparece no site para o público.',
-            'Rascunho: só quem tem painel vê na lista (como encerrado/não publicado).',
+            'Rascunho: só quem tem painel vê na lista (não aparece no site).',
           ],
           [
             'Enviar notificação',
@@ -440,9 +440,11 @@ export function ManualDoc() {
       <DocH3>Na lista Eventos</DocH3>
       <DocUl>
         <li>
-          Status <strong>Publicado</strong> — no ar. <strong>Encerrado</strong>{' '}
-          — não publicado. <strong>Arquivado</strong> — saiu do site, dados
-          podem continuar no painel.
+          Status <strong>Rascunho</strong> — criado e ainda não publicado.{' '}
+          <strong>Disponível</strong> — no ar (ícone de sino se o aviso push já
+          foi enviado). <strong>Encerrado</strong> — passou do horário de fim
+          do evento. <strong>Arquivado</strong> — saiu do site; dados podem
+          continuar no painel.
         </li>
         <li>A lupa filtra pelo nome.</li>
         <li>Clique na linha ou no lápis para editar (mesmas fichas da criação).</li>

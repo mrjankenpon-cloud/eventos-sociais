@@ -5,6 +5,7 @@ import { checkoutApi, type GuestTicketsResult } from '../../services/checkout.ap
 import { Button, Alert, PageLoader, Badge } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TicketPassList } from '../../components/public/TicketPass';
+import { DeliveryKeepCopyCard } from '../../components/public/DeliveryKeepCopyCard';
 import { formatCurrency } from '../../lib/utils';
 import { ROUTES } from '../../config';
 
@@ -102,7 +103,26 @@ export default function MyTickets() {
             Não há ingressos válidos para exibir neste momento (pedidos
             pendentes ou cancelados).
           </Alert>
-        ) : null}
+        ) : (
+          <DeliveryKeepCopyCard
+            kind="ingresso"
+            onSavePdf={() => window.print()}
+            canShare={
+              typeof navigator !== 'undefined' && Boolean(navigator.share)
+            }
+            onShare={() => {
+              void navigator
+                .share?.({
+                  title: 'Meus ingressos DELPHOS',
+                  text: 'Meus ingressos DELPHOS — guarde o PDF no aparelho.',
+                  url: window.location.href,
+                })
+                .catch(() => {
+                  /* cancelado */
+                });
+            }}
+          />
+        )}
 
         {data.orders.map((order) => (
           <section key={order.id} className="space-y-4">

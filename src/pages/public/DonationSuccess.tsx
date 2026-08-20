@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Clock, Printer, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { checkoutApi, type OrderReceiptResult } from '../../services/checkout.api';
 import {
   persistGuestCheckoutSession,
   readGuestCheckoutToken,
 } from '../../lib/guestCheckout';
 import { DonationCertificate } from '../../components/public/DonationCertificate';
+import { DeliveryKeepCopyCard } from '../../components/public/DeliveryKeepCopyCard';
 import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { donationCertificateNumber } from '../../lib/orgInfo';
@@ -80,8 +81,21 @@ export default function DonationSuccess() {
   }, [load]);
 
   useEffect(() => {
-    if (!receipt || receipt.pedido.status !== 'pendente') return;
-    const t = window.setInterval(() => void load(), mpReturn.fromMp ? 2000 : 4000);
+    if (!receipt) return;
+    const status = receipt.pedido.status;
+    const waitingPayment = status === 'pendente';
+    const waitingEmailMeta =
+      status === 'confirmado' &&
+      receipt.pedido.emailDelivery == null &&
+      String(receipt.pedido.email || '').includes('@');
+    if (!waitingPayment && !waitingEmailMeta) return;
+
+    const ms = waitingPayment
+      ? mpReturn.fromMp
+        ? 2000
+        : 4000
+      : 2500;
+    const t = window.setInterval(() => void load(), ms);
     return () => window.clearInterval(t);
   }, [receipt, load, mpReturn.fromMp]);
 
@@ -253,6 +267,25 @@ export default function DonationSuccess() {
 
         {isConfirmed ? (
           <>
+            <DeliveryKeepCopyCard
+              kind="certificado"
+              emailMayDelay={pedido.emailDelivery === 'delayed'}
+              onSavePdf={() => window.print()}
+              canShare={
+                typeof navigator !== 'undefined' && Boolean(navigator.share)
+              }
+              onShare={() => {
+                void navigator
+                  .share?.({
+                    title: 'Certificado de doação DELPHOS',
+                    text: 'Meu certificado de doação DELPHOS — guarde o PDF no aparelho.',
+                    url: window.location.href,
+                  })
+                  .catch(() => {
+                    /* cancelado */
+                  });
+              }}
+            />
             <DonationCertificate
               data={{
                 numero,
@@ -266,13 +299,6 @@ export default function DonationSuccess() {
               }}
             />
             <div className="mt-6 flex flex-col sm:flex-row gap-3 print:hidden">
-              <Button
-                className="flex-1 rounded-2xl"
-                onClick={() => window.print()}
-              >
-                <Printer className="w-4 h-4 mr-2" aria-hidden="true" />
-                Imprimir certificado
-              </Button>
               <Link to={ROUTES.PUBLIC.HOME} className="flex-1">
                 <Button variant="secondary" className="w-full rounded-2xl">
                   Voltar à home

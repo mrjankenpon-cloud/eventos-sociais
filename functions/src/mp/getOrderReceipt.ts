@@ -174,6 +174,14 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         pixQrCodeBase64: pedido.pixQrCodeBase64 || null,
         pixTicketUrl: pedido.pixTicketUrl || null,
         pixExpiresAt: pedido.pixExpiresAt || pedido.reservaExpiraEm || null,
+        emailDelivery:
+          pedido.emailDelivery === 'sent' ||
+          pedido.emailDelivery === 'queued' ||
+          pedido.emailDelivery === 'delayed'
+            ? pedido.emailDelivery
+            : pedido.confirmationEmailSentAt
+              ? 'sent'
+              : null,
       },
       tickets,
     });

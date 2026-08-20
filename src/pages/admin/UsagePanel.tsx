@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Activity, Gauge, Mail, RefreshCw, Users } from 'lucide-react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Button, PageLoader, Alert } from '../../components/ui';
@@ -204,17 +204,52 @@ export default function UsagePanel() {
             <Mail size={14} /> E-mails (faixa gratuita do Resend)
           </p>
           <p className="text-sm text-gray-500 leading-relaxed">
-            No plano gratuito: 100 envios por dia e 3.000 por mês. Ingressos,
-            doações e avisos do painel entram nessa conta.
+            No plano gratuito: até 100 envios na janela móvel de 24 horas e
+            3.000 por mês. A cota de 100 <strong>não</strong> zera à
+            meia-noite — cada e-mail libera a vaga cerca de 24h após o envio.
+            Ingressos, doações e avisos do painel entram nessa conta.
           </p>
         </div>
         <Meter
-          title="E-mails hoje"
-          hint="Limite diário do plano gratuito (100)."
-          used={live?.emailsToday}
+          title="E-mails nas últimas 24h"
+          hint="Janela móvel do plano gratuito (100). Cada envio libera a vaga ~24h depois."
+          used={live?.emailsWindowUsed ?? live?.emailsToday}
           cap={100}
           pct={live?.emailsDayPct ?? 0}
           color={barTone(live?.emailsDayPct ?? 0)}
+          footer={
+            <>
+              {live?.emailsWindowRemaining != null ||
+              live?.emailsWindowUsed != null ||
+              live?.emailsToday != null ? (
+                <p className="text-xs text-gray-600 font-semibold">
+                  Restantes agora:{' '}
+                  {(
+                    live?.emailsWindowRemaining ??
+                    Math.max(
+                      0,
+                      100 -
+                        Math.round(
+                          Number(live?.emailsWindowUsed ?? live?.emailsToday) ||
+                            0
+                        )
+                    )
+                  ).toLocaleString('pt-BR')}{' '}
+                  de 100
+                </p>
+              ) : null}
+              {live?.emailsNextReleaseAt ? (
+                <p className="text-xs text-gray-500">
+                  Próxima liberação: {formatWhen(live.emailsNextReleaseAt)}
+                  {live.emailsNextReleaseCount != null
+                    ? ` (${live.emailsNextReleaseCount.toLocaleString('pt-BR')} ${
+                        live.emailsNextReleaseCount === 1 ? 'envio' : 'envios'
+                      })`
+                    : ''}
+                </p>
+              ) : null}
+            </>
+          }
         />
         <Meter
           title="E-mails no mês"
@@ -242,6 +277,7 @@ function Meter({
   cap,
   pct,
   color,
+  footer,
 }: {
   title: string;
   hint: string;
@@ -249,6 +285,7 @@ function Meter({
   cap: number;
   pct: number;
   color: string;
+  footer?: ReactNode;
 }) {
   const has = used != null;
   return (
@@ -263,6 +300,7 @@ function Meter({
       </div>
       <Bar pct={has ? pct : 0} color={color} />
       <p className="text-xs text-gray-400">{hint}</p>
+      {footer}
     </div>
   );
 }

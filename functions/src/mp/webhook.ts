@@ -340,6 +340,9 @@ async function processPaymentApproved(
       const needsEmail =
         String(pdata.status || '') === 'confirmado' &&
         !pdata.confirmationEmailSentAt &&
+        !['sent', 'queued', 'delayed'].includes(
+          String(pdata.emailDelivery || '')
+        ) &&
         String(pdata.email || '').includes('@');
       if (needsEmail) {
         await sendDonationCertificateEmail({
@@ -352,6 +355,8 @@ async function processPaymentApproved(
           dataCompra: String(pdata.dataCompra || ''),
           certificadoNumero: String(pdata.certificadoNumero || ''),
           accessToken: String(pdata.accessToken || ''),
+        }).catch((err) => {
+          functions.logger.warn('[mpWebhook] e-mail doação (best-effort)', err);
         });
       }
     }
@@ -397,6 +402,9 @@ async function processPaymentApproved(
     const needsEmail =
       statusOk &&
       !pdata.confirmationEmailSentAt &&
+      !['sent', 'queued', 'delayed'].includes(
+        String(pdata.emailDelivery || '')
+      ) &&
       String(pdata.email || '').includes('@');
     if (needsEmail) {
       await sendOrderConfirmationEmail({
@@ -404,6 +412,8 @@ async function processPaymentApproved(
         email: String(pdata.email || ''),
         nomeComprador: String(pdata.nomeComprador || ''),
         eventoId: String(pdata.eventoId || ''),
+      }).catch((err) => {
+        functions.logger.warn('[mpWebhook] e-mail ingresso (best-effort)', err);
       });
     }
   }

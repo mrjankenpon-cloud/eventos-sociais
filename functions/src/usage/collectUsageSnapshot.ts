@@ -198,9 +198,19 @@ export async function collectUsageSnapshot(): Promise<void> {
       : Number.isFinite(Number(prev.emailsMonth))
         ? Number(prev.emailsMonth)
         : null;
-  const emailsDayPct = pctOf(emailsToday, RESEND_FREE.emailsDay);
+  const emailsDayPct = pctOf(emailsToday, RESEND_FREE.emailsWindow);
   const emailsMonthPct = pctOf(emailsMonth, RESEND_FREE.emailsMonth);
   const emailsKnown = emailsToday != null || emailsMonth != null;
+  const emailsWindowUsed =
+    resend.emailsWindowUsed != null ? resend.emailsWindowUsed : emailsToday;
+  const emailsWindowRemaining =
+    resend.emailsWindowRemaining != null
+      ? resend.emailsWindowRemaining
+      : emailsWindowUsed != null
+        ? Math.max(0, RESEND_FREE.emailsWindow - emailsWindowUsed)
+        : null;
+  const emailsNextReleaseAt = resend.emailsNextReleaseAt;
+  const emailsNextReleaseCount = resend.emailsNextReleaseCount;
 
   let overall: UsageLevel = 'ok';
   if (monitoringOk) {
@@ -274,6 +284,10 @@ export async function collectUsageSnapshot(): Promise<void> {
       emailsMonth,
       emailsDayPct,
       emailsMonthPct,
+      emailsWindowUsed,
+      emailsWindowRemaining,
+      emailsNextReleaseAt,
+      emailsNextReleaseCount,
       ...(criticalAlertDay
         ? { criticalAlertDay, criticalAlertAt }
         : {}),

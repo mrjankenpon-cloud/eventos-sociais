@@ -367,6 +367,11 @@ export const createCheckoutSession = functions.https.onRequest(
           email,
           nomeComprador: nome,
           eventoId,
+        }).catch((err) => {
+          functions.logger.warn(
+            '[createCheckoutSession] e-mail gratuito (best-effort)',
+            err
+          );
         });
 
         res.json({

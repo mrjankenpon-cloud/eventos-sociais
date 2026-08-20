@@ -96,9 +96,9 @@ export async function notifyAdminsIfCriticalUsage(params: {
     params.deletesPct
   );
   const emailsDayLine = line(
-    'E-mails hoje (Resend)',
+    'E-mails nas últimas 24h (Resend)',
     params.emailsToday,
-    RESEND_FREE.emailsDay,
+    RESEND_FREE.emailsWindow,
     params.emailsDayPct
   );
   const emailsMonthLine = line(
