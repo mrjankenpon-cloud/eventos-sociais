@@ -52,9 +52,9 @@ export function InstituteIntroBanner() {
                 <p className="text-white/80 font-medium tracking-[0.28em] uppercase text-[10px] sm:text-xs">
                   {saibaMais.kicker}
                 </p>
-                <h2 className="mt-1.5 text-white font-bold tracking-[0.28em] sm:tracking-[0.34em] uppercase text-2xl sm:text-[1.75rem] leading-none">
+                <h1 className="mt-1.5 text-white font-bold tracking-[0.28em] sm:tracking-[0.34em] uppercase text-2xl sm:text-[1.75rem] leading-none">
                   {saibaMais.title}
-                </h2>
+                </h1>
                 <span
                   className="mt-4 mx-auto sm:mx-0 block h-px w-12 bg-accent-gold/80"
                   aria-hidden="true"

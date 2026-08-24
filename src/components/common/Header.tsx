@@ -55,13 +55,6 @@ export default function Header() {
         <div className="shrink-0 flex items-center gap-1.5 sm:gap-3 lg:gap-5 min-w-0">
           <nav aria-label="Principal" className="flex items-center gap-1.5 sm:gap-2">
             <Link
-              to="/"
-              className="inline-flex items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-[10px] font-black uppercase tracking-[0.14em] sm:tracking-[0.18em] px-2.5 sm:px-3 py-1.5 transition-colors"
-              title="Eventos beneficentes do Instituto Delphos"
-            >
-              Eventos
-            </Link>
-            <Link
               to={ROUTES.PUBLIC.DONATIONS}
               className="inline-flex items-center rounded-full bg-white/15 hover:bg-white/25 text-white text-[10px] font-black uppercase tracking-[0.14em] sm:tracking-[0.18em] px-2.5 sm:px-3 py-1.5 transition-colors"
               title="Doações para eventos beneficentes"
