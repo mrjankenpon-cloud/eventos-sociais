@@ -39,7 +39,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <div className="relative h-44 sm:h-[60%] overflow-hidden shrink-0">
           <AppImage
             src={event.banner}
-            alt=""
+            alt={event.titulo}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />

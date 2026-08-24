@@ -6,18 +6,15 @@ import { siteContentService } from '../services/firebase/siteContent';
 /** Carrega o conteúdo público com fallback para os textos padrão. */
 export function useSiteContent() {
   const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const reload = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await siteContentService.get();
       setContent(data);
     } catch (error) {
       console.warn('Não foi possível carregar o conteúdo do site:', error);
       setContent(structuredClone(DEFAULT_SITE_CONTENT));
-    } finally {
-      setLoading(false);
     }
   }, []);
 

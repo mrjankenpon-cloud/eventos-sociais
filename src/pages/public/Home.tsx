@@ -89,6 +89,17 @@ export default function Home() {
 
         <InstituteIntroBanner />
 
+        <section className="max-w-3xl space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+            Eventos beneficentes do Instituto Delphos
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+            Programação, ingressos e ações solidárias em Barueri e região.
+            Participe de um evento ou apoie as instituições parceiras com uma
+            doação.
+          </p>
+        </section>
+
         {!loading && featured.length > 0 && (
           <section aria-label="Eventos em destaque">
             <BannerList events={featured} />

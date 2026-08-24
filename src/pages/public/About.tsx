@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { LegalPage } from '../../components/public/LegalPage';
 import { RichContent } from '../../components/public/RichContent';
 import { AppImage } from '../../components/ui/AppImage';
-import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { institutionService } from '../../services/institution.service';
 import { cachedPublicQuery } from '../../lib/publicDataCache';
 import type { Institution } from '../../types';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { stripLeadingH1 } from '../../lib/siteContent';
 
 function institutionHref(inst: Institution): string | undefined {
   const site = inst.site?.trim();
@@ -15,7 +15,7 @@ function institutionHref(inst: Institution): string | undefined {
 }
 
 export default function About() {
-  const { content, loading } = useSiteContent();
+  const { content } = useSiteContent();
   const [partners, setPartners] = useState<Institution[]>([]);
 
   useEffect(() => {
@@ -35,17 +35,12 @@ export default function About() {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-[50vh]">
-        <ProcessingOverlay open label="Carregando" detail="Abrindo a página Sobre..." />
-      </div>
-    );
-  }
-
   return (
-    <LegalPage>
-      <RichContent html={content.about.html} />
+    <LegalPage
+      title="Sobre o Instituto Delphos"
+      subtitle="Eventos beneficentes, convívio e apoio a instituições parceiras em Barueri."
+    >
+      <RichContent html={stripLeadingH1(content.about.html)} />
 
       {partners.length > 0 ? (
         <section className="space-y-3">

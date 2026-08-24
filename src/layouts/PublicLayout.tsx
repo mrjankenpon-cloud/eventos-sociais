@@ -6,6 +6,7 @@ import { PwaInstallPrompt } from '../components/common/PwaInstallPrompt';
 import { PushEnablePrompt } from '../components/common/PushEnablePrompt';
 import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 import { PublicErrorBoundary } from '../components/public/PublicErrorBoundary';
+import { PublicSeo } from '../components/public/PublicSeo';
 import { useInstalledAppPing } from '../lib/appInstallPing';
 import { usePublicSiteVisitPing } from '../lib/siteVisitPing';
 import { useMpDeviceId } from '../lib/useMpDeviceId';
@@ -22,29 +23,32 @@ export default function PublicLayout() {
   }, [location.pathname, location.search]);
 
   return (
-    <div className="public-shell">
-      <Header />
-      <main className="min-w-0">
-        <PublicErrorBoundary>
-          <Suspense
-            fallback={
-              <div className="min-h-[50vh] relative">
-                <ProcessingOverlay
-                  open
-                  label="Processando"
-                  detail="Carregando a próxima etapa..."
-                />
-              </div>
-            }
-          >
-            <Outlet />
-          </Suspense>
-        </PublicErrorBoundary>
-      </main>
-      <Footer />
-      <PushEnablePrompt />
-      <PwaInstallPrompt />
-      <input type="hidden" id="deviceId" name="deviceId" readOnly />
-    </div>
+    <PublicSeo>
+      <div className="public-shell">
+        <Header />
+        <main className="min-w-0">
+          <PublicErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="min-h-[50vh] relative">
+                  <ProcessingOverlay
+                    open
+                    contained
+                    label="Carregando"
+                    detail="Preparando a página..."
+                  />
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </PublicErrorBoundary>
+        </main>
+        <Footer />
+        <PushEnablePrompt />
+        <PwaInstallPrompt />
+        <input type="hidden" id="deviceId" name="deviceId" readOnly />
+      </div>
+    </PublicSeo>
   );
 }

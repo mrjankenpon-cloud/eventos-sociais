@@ -1,26 +1,14 @@
 import { LegalPage } from '../../components/public/LegalPage';
 import { RichContent } from '../../components/public/RichContent';
-import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { stripLeadingH1 } from '../../lib/siteContent';
 
 export default function Privacy() {
-  const { content, loading } = useSiteContent();
-
-  if (loading) {
-    return (
-      <div className="min-h-[50vh]">
-        <ProcessingOverlay
-          open
-          label="Carregando"
-          detail="Abrindo a Política de Privacidade..."
-        />
-      </div>
-    );
-  }
+  const { content } = useSiteContent();
 
   return (
-    <LegalPage>
-      <RichContent html={content.privacy.html} />
+    <LegalPage title="Privacidade">
+      <RichContent html={stripLeadingH1(content.privacy.html)} />
     </LegalPage>
   );
 }

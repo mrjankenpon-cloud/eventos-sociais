@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   name: 'DELPHOS',
-  description: 'Gestão de eventos beneficentes e institucionais.',
+  description: 'Eventos beneficentes e institucionais do Instituto Delphos.',
   contact: {
     email: 'ingressos@institutodelphos.com.br',
     phone: '(11) 4193-5616',

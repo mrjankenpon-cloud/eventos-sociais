@@ -28,6 +28,9 @@ export default function Footer() {
             aria-label="Institucional"
             className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-1"
           >
+            <Link to="/" className={linkClass}>
+              Eventos beneficentes
+            </Link>
             {LEGAL_LINKS.map((item) => (
               <Link key={item.to} to={item.to} className={linkClass}>
                 {item.label}
@@ -61,6 +64,10 @@ export default function Footer() {
           </nav>
 
           <div className="text-center max-w-xl space-y-0.5 px-2">
+            <p className="text-white/70 text-[9px] sm:text-[10px] tracking-wide leading-snug">
+              Eventos beneficentes, ingressos e doações do Instituto Delphos
+              em Barueri/SP.
+            </p>
             <p className="text-white/70 text-[9px] sm:text-[10px] tracking-wide leading-snug">
               © {new Date().getFullYear()} {APP_CONFIG.name} ·{' '}
               {ORG.razaoSocial} · CNPJ {ORG.cnpj}

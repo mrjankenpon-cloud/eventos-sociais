@@ -11,8 +11,8 @@ const ADDRESS = orgAddressLine();
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   about: {
     html: `
-<h1>Sobre</h1>
-<p><em>Quem somos, o que fazemos e com quem caminhamos.</em></p>
+<h1>Sobre o Instituto Delphos</h1>
+<p><em>Eventos beneficentes, convívio e apoio a instituições parceiras em Barueri.</em></p>
 
 <h2>O Instituto Delphos</h2>
 <p>O <strong>Instituto Delphos</strong> é a face pública da <strong>${ORG.razaoSocial}</strong>, organização religiosa com situação cadastral ativa, dedicada a iniciativas de convívio, cultura e solidariedade. Desde ${ORG.dataAberturaLabel}, a entidade promove encontros e ações que aproximam pessoas, instituições e causas sociais.</p>
@@ -128,8 +128,8 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
   donations: {
     html: `
-<h1>Doações</h1>
-<p><em>Sua contribuição fortalece eventos, convívio e o apoio às instituições parceiras.</em></p>
+<h1>Doações para eventos beneficentes</h1>
+<p><em>Sua contribuição fortalece os eventos beneficentes do Instituto Delphos e o apoio às instituições parceiras.</em></p>
 <p>Toda doação é voluntária e bem-vinda. Você pode pagar por <strong>PIX</strong> nesta página (QR Code ou copia e cola) ou com <strong>cartão de crédito</strong> (Visa, Master, Elo, Amex) ou <strong>débito Elo</strong> no Mercado Pago. Após a confirmação, você recebe um <strong>certificado de doação</strong> — um recibo para guardar e um gesto de agradecimento da ${ORG.shortBrand}.</p>
 
 <h2>Doações e Imposto de Renda</h2>

@@ -217,3 +217,8 @@ export function normalizeSiteContent(raw: unknown): SiteContent {
     donations: normalizePage(base.donations, 'donations'),
   };
 }
+
+/** Remove o H1 do HTML do CMS quando a página já expõe o título no layout. */
+export function stripLeadingH1(html: string): string {
+  return html.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i, '').trim();
+}

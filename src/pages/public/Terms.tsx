@@ -1,22 +1,14 @@
 import { LegalPage } from '../../components/public/LegalPage';
 import { RichContent } from '../../components/public/RichContent';
-import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { stripLeadingH1 } from '../../lib/siteContent';
 
 export default function Terms() {
-  const { content, loading } = useSiteContent();
-
-  if (loading) {
-    return (
-      <div className="min-h-[50vh]">
-        <ProcessingOverlay open label="Carregando" detail="Abrindo o Termo de Uso..." />
-      </div>
-    );
-  }
+  const { content } = useSiteContent();
 
   return (
-    <LegalPage>
-      <RichContent html={content.terms.html} />
+    <LegalPage title="Termo de Uso">
+      <RichContent html={stripLeadingH1(content.terms.html)} />
     </LegalPage>
   );
 }

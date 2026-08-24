@@ -6,14 +6,87 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="description" content="DELPHOS — Gestão de eventos beneficentes e institucionais." />
+    <title>Eventos beneficentes | Instituto Delphos</title>
+    <meta
+      name="description"
+      content="Eventos beneficentes do Instituto Delphos em Barueri/SP. Veja a programação, compre ingressos e apoie instituições parceiras com doações."
+    />
+    <link rel="canonical" href="https://institutodelphos.com.br/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Instituto Delphos" />
+    <meta property="og:title" content="Eventos beneficentes | Instituto Delphos" />
+    <meta
+      property="og:description"
+      content="Programação, ingressos e doações para eventos beneficentes do Instituto Delphos em Barueri e região."
+    />
+    <meta property="og:url" content="https://institutodelphos.com.br/" />
+    <meta property="og:image" content="https://institutodelphos.com.br/delphos-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Eventos beneficentes | Instituto Delphos" />
+    <meta
+      name="twitter:description"
+      content="Programação, ingressos e doações para eventos beneficentes do Instituto Delphos."
+    />
     <meta name="google-site-verification" content="uSFx1Lj1XCcUZFFn0YXOJ_4B4V4o2tnrxoX7hqmjoQs" />
     <meta name="theme-color" content="#1655a3" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>DELPHOS</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": ["Organization", "NGO"],
+            "@id": "https://institutodelphos.com.br/#organizacao",
+            "name": "Instituto Delphos",
+            "alternateName": ["DELPHOS", "Augusta e Respeitável Loja Simbólica Delphos"],
+            "url": "https://institutodelphos.com.br",
+            "logo": "https://institutodelphos.com.br/delphos-logo.png",
+            "email": "ingressos@institutodelphos.com.br",
+            "telephone": "(11) 4193-5616",
+            "taxID": "11.581.131/0001-26",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Rua Festival, 96",
+              "addressLocality": "Barueri",
+              "addressRegion": "SP",
+              "postalCode": "06410-280",
+              "addressCountry": "BR"
+            },
+            "description": "Eventos beneficentes do Instituto Delphos em Barueri/SP. Programação, ingressos e doações para instituições parceiras.",
+            "foundingDate": "2010-02-12",
+            "areaServed": {
+              "@type": "City",
+              "name": "Barueri",
+              "containedInPlace": { "@type": "State", "name": "São Paulo" }
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://institutodelphos.com.br/#website",
+            "url": "https://institutodelphos.com.br",
+            "name": "Instituto Delphos",
+            "inLanguage": "pt-BR",
+            "publisher": { "@id": "https://institutodelphos.com.br/#organizacao" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
+    <noscript>
+      <h1>Eventos beneficentes do Instituto Delphos</h1>
+      <p>
+        Programação, ingressos e doações para ações solidárias em Barueri e região.
+        Habilite o JavaScript para ver os eventos e concluir inscrições.
+      </p>
+      <ul>
+        <li><a href="/">Eventos beneficentes</a></li>
+        <li><a href="/sobre">Sobre o Instituto Delphos</a></li>
+        <li><a href="/doacoes">Doações</a></li>
+      </ul>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

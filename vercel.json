@@ -11,8 +11,12 @@
     }
   ],
   "rewrites": [
+    { "source": "/doacoes", "destination": "/doacoes/index.html" },
+    { "source": "/sobre", "destination": "/sobre/index.html" },
+    { "source": "/termos", "destination": "/termos/index.html" },
+    { "source": "/privacidade", "destination": "/privacidade/index.html" },
     {
-      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html).*)",
+      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html|doacoes|sobre|termos|privacidade).*)",
       "destination": "/index.html"
     }
   ]

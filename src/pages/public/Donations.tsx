@@ -8,7 +8,6 @@ import {
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
-import { ProcessingOverlay } from '../../components/ui/ProcessingOverlay';
 import { checkoutApi } from '../../services/checkout.api';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
 import { formatCurrency } from '../../lib/utils';
@@ -22,13 +21,14 @@ import {
 import { ROUTES } from '../../config';
 import { cn } from '../../lib/utils';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { stripLeadingH1 } from '../../lib/siteContent';
 
 const SUGGESTED = [30, 50, 100, 250, 500, 1000];
 const MIN_DONATION = 10;
 
 export default function Donations() {
   const navigate = useNavigate();
-  const { content, loading: contentLoading } = useSiteContent();
+  const { content } = useSiteContent();
   const donations = content.donations;
   const [amount, setAmount] = useState(100);
   const [custom, setCustom] = useState('');
@@ -107,17 +107,12 @@ export default function Donations() {
     }
   };
 
-  if (contentLoading) {
-    return (
-      <div className="min-h-[50vh]">
-        <ProcessingOverlay open label="Carregando" detail="Abrindo a página de doações..." />
-      </div>
-    );
-  }
-
   return (
-    <LegalPage>
-      <RichContent html={donations.html} />
+    <LegalPage
+      title="Doações para eventos beneficentes"
+      subtitle="Apoie as ações solidárias do Instituto Delphos em Barueri e região."
+    >
+      <RichContent html={stripLeadingH1(donations.html)} />
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6" noValidate>
         {error ? (

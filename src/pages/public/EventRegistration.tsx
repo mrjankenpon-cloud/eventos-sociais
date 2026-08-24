@@ -28,6 +28,7 @@ import {
   isEventPastEnd,
 } from '../../lib/eventDisplayStatus';
 import { prefetchOrderSuccess } from '../../lib/prefetchPublic';
+import { useSeoOverride } from '../../components/public/PublicSeo';
 import { TicketTypeInfo } from '../../components/public/TicketTypeInfo';
 import {
   PaymentMethodPicker,
@@ -110,6 +111,16 @@ export default function EventRegistration() {
   useEffect(() => {
     void prefetchOrderSuccess();
   }, []);
+
+  useSeoOverride({
+    title: event
+      ? `Inscrição: ${event.titulo}`
+      : 'Inscrição em evento beneficente',
+    description: event
+      ? `Inscreva-se no evento beneficente ${event.titulo}, do Instituto Delphos.`
+      : 'Inscrição em evento beneficente do Instituto Delphos.',
+    noIndex: true,
+  });
 
   const activeTickets = useMemo(
     () => (event ? getActiveTicketTypes(event) : []),

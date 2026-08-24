@@ -12,14 +12,14 @@ import AdminLayout from './layouts/AdminLayout';
 import Home from './pages/public/Home';
 import EventDetails from './pages/public/EventDetails';
 import EventRegistration from './pages/public/EventRegistration';
+import About from './pages/public/About';
+import Donations from './pages/public/Donations';
 
 const OrderSuccess = lazy(() => import('./pages/public/OrderSuccess'));
 const OrderLookup = lazy(() => import('./pages/public/OrderLookup'));
 const MyTickets = lazy(() => import('./pages/public/MyTickets'));
-const About = lazy(() => import('./pages/public/About'));
 const Terms = lazy(() => import('./pages/public/Terms'));
 const Privacy = lazy(() => import('./pages/public/Privacy'));
-const Donations = lazy(() => import('./pages/public/Donations'));
 const DonationSuccess = lazy(() => import('./pages/public/DonationSuccess'));
 
 const Login = lazy(() => import('./pages/admin/Login'));

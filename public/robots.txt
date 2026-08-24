@@ -2,5 +2,8 @@ User-agent: *
 Allow: /
 Disallow: /controle
 Disallow: /controle/
+Disallow: /pedido/
+Disallow: /meus-ingressos
+Disallow: /doacao/
 
 Sitemap: https://institutodelphos.com.br/sitemap.xml

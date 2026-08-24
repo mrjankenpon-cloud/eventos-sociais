@@ -25,6 +25,7 @@ import { isMasterAdminUser } from '../config/masterAdmin';
 import { ProcessingOverlay } from '../components/ui/ProcessingOverlay';
 import { StaffAvatar } from '../components/admin/StaffAvatar';
 import { AdminPresenceProvider, useAdminPresence } from '../contexts/AdminPresenceContext';
+import { usePageSeo } from '../hooks/usePageSeo';
 
 export default function AdminLayout() {
   return (
@@ -41,6 +42,12 @@ function AdminShell() {
   const { logout, user } = useAuth();
   const { onlineStaff, staff } = useAdminPresence();
   useInstalledAppPing();
+  usePageSeo({
+    title: 'Área restrita',
+    description: 'Painel administrativo do Instituto Delphos.',
+    path: location.pathname,
+    noIndex: true,
+  });
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');

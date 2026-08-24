@@ -38,6 +38,8 @@ import {
   isEventPastEnd,
 } from '../../lib/eventDisplayStatus';
 import { THEME } from '../../theme';
+import { useSeoOverride } from '../../components/public/PublicSeo';
+import { eventJsonLd } from '../../lib/seo';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -122,6 +124,32 @@ export default function EventDetails() {
     return (fromImagens ?? event.galeria ?? []).filter(Boolean);
   }, [event]);
 
+  const eventSeo = useMemo(() => {
+    if (!event) return null;
+    const description = (
+      event.descricaoCurta ||
+      event.subtitulo ||
+      `Evento beneficente do Instituto Delphos: ${event.titulo}.`
+    ).slice(0, 160);
+    return {
+      title: `${event.titulo} | Evento beneficente`,
+      description,
+      image: event.banner || undefined,
+      jsonLd: eventJsonLd({
+        id: event.id,
+        titulo: event.titulo,
+        descricao: description,
+        data: event.data,
+        horaInicio: event.horaInicio,
+        local: event.local,
+        endereco: event.endereco,
+        cidade: event.cidade,
+        banner: event.banner,
+      }),
+    };
+  }, [event]);
+  useSeoOverride(eventSeo);
+
   const registrationOpen = useMemo(() => {
     if (!event) return false;
     return (
@@ -189,7 +217,7 @@ export default function EventDetails() {
       <div className="relative h-[min(48dvh,340px)] min-h-[220px] sm:min-h-[300px] md:min-h-[380px] lg:min-h-[440px] md:h-auto max-h-[560px] w-full -mt-[calc(var(--header-height)+env(safe-area-inset-top))] pt-[calc(var(--header-height)+env(safe-area-inset-top))]">
         <AppImage
           src={event.banner}
-          alt=""
+          alt={event.titulo}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
