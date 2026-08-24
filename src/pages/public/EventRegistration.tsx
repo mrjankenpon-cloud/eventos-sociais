@@ -23,6 +23,10 @@ import {
   getTicketAvailableQty,
   getTicketStatus,
 } from '../../lib/eventData';
+import {
+  getEventDisplayStatus,
+  isEventPastEnd,
+} from '../../lib/eventDisplayStatus';
 import { prefetchOrderSuccess } from '../../lib/prefetchPublic';
 import { TicketTypeInfo } from '../../components/public/TicketTypeInfo';
 import {
@@ -182,6 +186,14 @@ export default function EventRegistration() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !isFormValid || cartLines.length === 0) return;
+    if (getEventDisplayStatus(event).kind !== 'disponivel') {
+      setSubmitError(
+        isEventPastEnd(event)
+          ? 'Este evento já encerrou.'
+          : 'Inscrições indisponíveis para este evento.'
+      );
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -242,6 +254,38 @@ export default function EventRegistration() {
   }
 
   if (!event) {
+    return (
+      <div className="page-container py-20">
+        <EmptyState
+          title="Evento não encontrado"
+          description="Não foi possível abrir a inscrição para este evento."
+          action={
+            <Link to="/">
+              <Button>Voltar à home</Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (isEventPastEnd(event) || getEventDisplayStatus(event).kind === 'encerrado') {
+    return (
+      <div className="page-container py-20">
+        <EmptyState
+          title="Inscrições encerradas"
+          description="Este evento já encerrou. Não é mais possível se inscrever."
+          action={
+            <Link to={`/evento/${event.id}`}>
+              <Button>Voltar para o evento</Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (getEventDisplayStatus(event).kind !== 'disponivel') {
     return (
       <div className="page-container py-20">
         <EmptyState

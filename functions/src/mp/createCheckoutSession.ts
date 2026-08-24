@@ -70,12 +70,31 @@ function cors(res: functions.Response) {
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
+function getEventEndAt(evento: Record<string, unknown>): Date | null {
+  const data = String(evento.data || '').trim();
+  if (!data) return null;
+  if (data.includes('T')) {
+    const parsed = new Date(data);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const rawFim = String(evento.horaFim || '').trim();
+  const time = /^\d{2}:\d{2}$/.test(rawFim)
+    ? `${rawFim}:00`
+    : /^\d{2}:\d{2}:\d{2}$/.test(rawFim)
+      ? rawFim
+      : '23:59:59';
+  const end = new Date(`${data}T${time}-03:00`);
+  return Number.isNaN(end.getTime()) ? null : end;
+}
+
 function vendasAbertas(evento: Record<string, unknown>): boolean {
   if (evento.arquivado === true || evento.status === 'arquivado') return false;
   const publicado =
     evento.publicado === true || evento.status === 'publicado';
   if (!publicado) return false;
   if (evento.permitirCompraOnline === false) return false;
+  const end = getEventEndAt(evento);
+  if (end && Date.now() >= end.getTime()) return false;
   const encerramRaw = evento.vendasEncerramEm;
   if (encerramRaw) {
     const encerram = new Date(String(encerramRaw)).getTime();

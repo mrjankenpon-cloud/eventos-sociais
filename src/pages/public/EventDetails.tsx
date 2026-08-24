@@ -33,6 +33,10 @@ import { formatCurrency, formatEventDate } from '../../lib/utils';
 import { getActiveTicketTypes } from '../../lib/eventData';
 import { prefetchEventRegistration } from '../../lib/prefetchPublic';
 import { useStickyBottomSpace } from '../../hooks/useStickyBottomSpace';
+import {
+  getEventDisplayStatus,
+  isEventPastEnd,
+} from '../../lib/eventDisplayStatus';
 import { THEME } from '../../theme';
 
 export default function EventDetails() {
@@ -43,13 +47,6 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [shareCopied, setShareCopied] = useState(false);
   const [openPhoto, setOpenPhoto] = useState<number | null>(null);
-
-  const showMobileCta =
-    Boolean(event) &&
-    event!.permitirCompraOnline !== false &&
-    event!.permitirInscricao !== false;
-
-  useStickyBottomSpace(showMobileCta);
 
   const loadEvent = useCallback(async () => {
     if (!id) {
@@ -124,6 +121,18 @@ export default function EventDetails() {
     const fromImagens = event.imagens?.filter((i) => !i.isCover).map((i) => i.url);
     return (fromImagens ?? event.galeria ?? []).filter(Boolean);
   }, [event]);
+
+  const registrationOpen = useMemo(() => {
+    if (!event) return false;
+    return (
+      getEventDisplayStatus(event).kind === 'disponivel' &&
+      event.permitirCompraOnline !== false &&
+      event.permitirInscricao !== false
+    );
+  }, [event]);
+  const eventEnded = event ? isEventPastEnd(event) : false;
+  const showMobileCta = registrationOpen;
+  useStickyBottomSpace(showMobileCta);
 
   const handleShare = useCallback(async () => {
     if (!event) return;
@@ -326,7 +335,7 @@ export default function EventDetails() {
                   </div>
                 )}
 
-                {event.permitirCompraOnline !== false && event.permitirInscricao !== false && (
+                {registrationOpen ? (
                   <Link
                     to={`/evento/${event.id}/inscricao`}
                     className="hidden lg:flex w-full h-12 bg-brand text-white rounded-xl font-black text-base items-center justify-center hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40"
@@ -342,7 +351,11 @@ export default function EventDetails() {
                   >
                     {event.textoBotao}
                   </Link>
-                )}
+                ) : eventEnded ? (
+                  <p className="text-center text-sm font-bold text-gray-500 py-2">
+                    Este evento já encerrou
+                  </p>
+                ) : null}
 
                 <button
                   type="button"

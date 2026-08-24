@@ -25,6 +25,7 @@ import {
   type PaginateOptions,
 } from './helpers';
 import { eventFormToEventoPayload, eventoToUiEvent } from './mappers';
+import { getEventDisplayStatus } from '../../lib/eventDisplayStatus';
 import { ingressosService } from './ingressos';
 import { logsService } from './logs';
 import { persistEventMedia } from './media';
@@ -282,7 +283,7 @@ export const eventosService = {
   async getActive(): Promise<Event[]> {
     try {
       const all = await this.getAll();
-      return all.filter((e) => e.publicado);
+      return all.filter((e) => getEventDisplayStatus(e).kind === 'disponivel');
     } catch (error) {
       wrapError('eventos.getActive', error);
     }
@@ -300,7 +301,9 @@ export const eventosService = {
       const list = await hydrateEvents(
         snap.docs.map((d) => mapDoc<Evento & Record<string, unknown>>(d))
       );
-      return list.sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
+      return list
+        .filter((e) => getEventDisplayStatus(e).kind === 'disponivel')
+        .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
     } catch (primaryError) {
       console.warn(
         '[eventos.getPublished] query status falhou, tentando publicado==true',
@@ -317,9 +320,11 @@ export const eventosService = {
             .map((d) => mapDoc<Evento & Record<string, unknown>>(d))
             .filter((e) => e.status !== 'arquivado' && !Boolean(e.arquivado))
         );
-        return list.sort((a, b) =>
-          String(a.data || '').localeCompare(String(b.data || ''))
-        );
+        return list
+          .filter((e) => getEventDisplayStatus(e).kind === 'disponivel')
+          .sort((a, b) =>
+            String(a.data || '').localeCompare(String(b.data || ''))
+          );
       } catch (fallbackError) {
         console.error('[eventos.getPublished] fallback falhou', fallbackError);
         return [];
