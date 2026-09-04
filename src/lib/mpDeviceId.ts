@@ -51,7 +51,7 @@ export function readMpDeviceSessionId(): string | undefined {
 }
 
 export async function waitMpDeviceSessionId(
-  timeoutMs = 2500
+  timeoutMs = 4500
 ): Promise<string | undefined> {
   const started = Date.now();
   let id = readMpDeviceSessionId();

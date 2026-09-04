@@ -74,6 +74,38 @@ function verifyWebhookSignature(req: functions.Request): boolean {
   return ok;
 }
 
+/**
+ * Se a assinatura HMAC falhar (secret do painel Webhooks != Client Secret),
+ * ainda autenticamos buscando o recurso com o Access Token do vendedor.
+ * Só processa se a API MP devolver o pagamento/pedido.
+ */
+async function authenticateWebhookPayload(
+  req: functions.Request
+): Promise<{ ok: boolean; via: 'signature' | 'api' | 'none' }> {
+  if (verifyWebhookSignature(req)) {
+    return { ok: true, via: 'signature' };
+  }
+
+  const dataId = extractWebhookDataId(
+    req as { query?: Record<string, unknown>; body?: unknown }
+  );
+  if (!dataId) return { ok: false, via: 'none' };
+
+  try {
+    if (dataId.toUpperCase().startsWith('ORD')) {
+      await mpFetch(`/v1/orders/${dataId}`);
+    } else {
+      await mpFetch(`/v1/payments/${dataId}`);
+    }
+    functions.logger.warn(
+      '[mpWebhook] assinatura inválida, mas recurso autenticado via API — revise MERCADOPAGO_WEBHOOK_SECRET no painel Webhooks (não use Client Secret)'
+    );
+    return { ok: true, via: 'api' };
+  } catch {
+    return { ok: false, via: 'none' };
+  }
+}
+
 /** Idempotência forte: doc id determinístico por payment+status. */
 async function recordPagamentoOnce(input: {
   pedidoId: string;
@@ -612,7 +644,8 @@ export const mpWebhook = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    if (!verifyWebhookSignature(req)) {
+    const auth = await authenticateWebhookPayload(req);
+    if (!auth.ok) {
       res.status(401).json({ error: 'Assinatura inválida' });
       return;
     }

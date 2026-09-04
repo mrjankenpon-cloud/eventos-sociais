@@ -10,7 +10,6 @@ import {
   getAppUrl,
   isoWithOffset,
   clientIpFromRequest,
-  mpAdditionalInfoPayer,
   mpCheckoutPayer,
   mpFetch,
   mpDeviceHeaders,
@@ -23,6 +22,11 @@ import {
 } from './helpers';
 import { donationCertificateNumber } from '../orgInfo';
 import { allowAttempt, requestIp } from '../http/rateLimit';
+import {
+  authTypeFromRequest,
+  loadBuyerPurchaseProfile,
+  mpIndustryPayer,
+} from './industry';
 
 const MIN_DONATION = 10;
 const MAX_DONATION = 50_000;
@@ -283,7 +287,12 @@ export const createDonationSession = functions.https.onRequest(
               unit_price: valor,
             },
           ],
-          payer: mpAdditionalInfoPayer({ nome, telefone }),
+          payer: mpIndustryPayer({
+            nome,
+            telefone,
+            authenticationType: authTypeFromRequest(req),
+            profile: await loadBuyerPurchaseProfile(email),
+          }),
         },
         external_reference: pedidoRef.id,
         metadata: {

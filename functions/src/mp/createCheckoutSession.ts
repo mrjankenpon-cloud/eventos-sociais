@@ -10,7 +10,6 @@ import {
   getAppUrl,
   isoWithOffset,
   clientIpFromRequest,
-  mpAdditionalInfoPayer,
   mpCheckoutPayer,
   mpFetch,
   mpDeviceHeaders,
@@ -25,8 +24,11 @@ import { emitTicketsForPedido, releaseStockLines, reserveStockLines } from './st
 import { sendOrderConfirmationEmail } from '../email/guestAccess';
 import { allowAttempt, requestIp } from '../http/rateLimit';
 import {
+  authTypeFromRequest,
   eventDateForMp,
+  loadBuyerPurchaseProfile,
   mpCheckoutProItems,
+  mpIndustryPayer,
   mpPreferenceIndustryItems,
 } from './industry';
 
@@ -408,6 +410,7 @@ export const createCheckoutSession = functions.https.onRequest(
       const successUrl = `${appUrl}/pedido/${pedidoRef.id}/sucesso`;
       const clientIp = clientIpFromRequest(req);
       const eventDate = eventDateForMp(evento);
+      const buyerProfile = await loadBuyerPurchaseProfile(email);
       const industryItems = resolved.map((l) => ({
         id: l.ingressoId,
         title: `${String(evento.titulo || 'Evento')} | ${l.nome}`.slice(0, 256),
@@ -496,7 +499,13 @@ export const createCheckoutSession = functions.https.onRequest(
           additional_info: {
             ...(clientIp ? { ip_address: clientIp } : {}),
             items: mpPreferenceIndustryItems(industryItems),
-            payer: mpAdditionalInfoPayer({ nome, telefone }),
+            // Perfil completo reduz recusas cc_rejected_high_risk no Checkout Pro.
+            payer: mpIndustryPayer({
+              nome,
+              telefone,
+              authenticationType: authTypeFromRequest(req),
+              profile: buyerProfile,
+            }),
           },
           external_reference: pedidoRef.id,
           metadata: {
