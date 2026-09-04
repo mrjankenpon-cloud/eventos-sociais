@@ -4,6 +4,7 @@ import {
   db,
   extractMpFees,
   extractNumericPaymentIdFromUrl,
+  isMercadoPagoSandbox,
   mapOrderStatusToMp,
   MpOrderPix,
   mpFetch,
@@ -37,7 +38,7 @@ function verifyWebhookSignature(req: functions.Request): boolean {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET || '';
   const skip =
     process.env.MERCADOPAGO_WEBHOOK_SKIP_VERIFY === 'true' ||
-    process.env.MERCADOPAGO_MODE === 'sandbox';
+    isMercadoPagoSandbox();
 
   if (!secret) {
     if (skip) {

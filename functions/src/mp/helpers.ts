@@ -5,9 +5,9 @@ export const RESERVE_MINUTES = 15;
 export const MP_API = 'https://api.mercadopago.com';
 
 export function getAccessToken(): string {
-  const token = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
+  const token = String(process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
   if (!token) {
-    throw new Error('MERCADOPAGO_ACCESS_TOKEN não configurado');
+    throw new Error('Gateway de pagamento não configurado (token ausente)');
   }
   return token;
 }
@@ -20,7 +20,13 @@ export function getAppUrl(): string {
   ).replace(/\/$/, '');
 }
 
+/**
+ * Sandbox só quando MODE=sandbox E o token é TEST-.
+ * Token APP_USR- (produção) nunca opera em sandbox, mesmo se MODE estiver errado.
+ */
 export function isMercadoPagoSandbox(): boolean {
+  const token = String(process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
+  if (token.startsWith('APP_USR-')) return false;
   return (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox';
 }
 
@@ -29,22 +35,44 @@ export function isLiveMpAccessToken(): boolean {
   return getAccessToken().startsWith('APP_USR-');
 }
 
+/**
+ * Modo efetivo: APP_USR- ⇒ production; TEST- ⇒ sandbox;
+ * senão usa MERCADOPAGO_MODE (default production).
+ */
+export function effectiveMercadoPagoMode(): 'production' | 'sandbox' {
+  const token = String(process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
+  if (token.startsWith('APP_USR-')) return 'production';
+  if (token.startsWith('TEST-')) return 'sandbox';
+  const mode = (process.env.MERCADOPAGO_MODE || 'production').toLowerCase();
+  return mode === 'sandbox' ? 'sandbox' : 'production';
+}
+
 /** Impede misturar MODE=production com token TEST- e o inverso. */
 export function assertMercadoPagoCredentials(): void {
+  const token = getAccessToken();
+  const live = token.startsWith('APP_USR-');
+  const test = token.startsWith('TEST-');
   const mode = (process.env.MERCADOPAGO_MODE || '').toLowerCase();
-  const live = isLiveMpAccessToken();
-  if (mode === 'production' && !live) {
+
+  if (!live && !test) {
+    throw new Error(
+      'Credenciais Mercado Pago inválidas: token deve ser APP_USR- (produção) ou TEST-.'
+    );
+  }
+  // Token live manda: ignora MODE=sandbox residual.
+  if (live) {
+    if (mode === 'sandbox') {
+      // Soft: não bloqueia checkout — isMercadoPagoSandbox() já força production.
+    }
+    if (!String(process.env.MERCADOPAGO_WEBHOOK_SECRET || '').trim()) {
+      throw new Error('Webhook do Mercado Pago não configurado (secret ausente)');
+    }
+    return;
+  }
+  if (mode === 'production') {
     throw new Error(
       'Credenciais Mercado Pago inconsistentes: MODE=production exige token APP_USR.'
     );
-  }
-  if (mode === 'sandbox' && live) {
-    throw new Error(
-      'Credenciais Mercado Pago inconsistentes: MODE=sandbox exige token TEST-.'
-    );
-  }
-  if (live && !String(process.env.MERCADOPAGO_WEBHOOK_SECRET || '').trim()) {
-    throw new Error('MERCADOPAGO_WEBHOOK_SECRET obrigatório em produção');
   }
 }
 
@@ -221,7 +249,7 @@ export function clientSafeMessage(error: unknown, fallback: string): string {
   const msg = error.message.trim();
   if (!msg) return fallback;
   if (
-    /APP_USR-|TEST-[a-z0-9]|Bearer |re_[A-Za-z0-9]|BEGIN |access.?token|vapid|webhook.?secret/i.test(
+    /APP_USR-|TEST-[a-z0-9]|Bearer |re_[A-Za-z0-9]|BEGIN |access.?token|vapid|webhook.?secret|MERCADOPAGO_/i.test(
       msg
     )
   ) {

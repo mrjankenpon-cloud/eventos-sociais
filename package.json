@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
-    "ensure-admin": "tsx scripts/ensure-admin.ts"
+    "ensure-admin": "tsx scripts/ensure-admin.ts",
+    "sync-functions-env": "node scripts/sync-functions-env.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

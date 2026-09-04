@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import { timingSafeEqual } from 'crypto';
-import { db } from './helpers';
+import { db, isMercadoPagoSandbox } from './helpers';
 import { syncPendingPedidoFromMp } from './webhook';
 import { loadEventTicketSummary } from './eventSummary';
 
@@ -119,7 +119,7 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
 
     res.json({
       ok: true,
-      sandbox: (process.env.MERCADOPAGO_MODE || '').toLowerCase() === 'sandbox',
+      sandbox: isMercadoPagoSandbox(),
       pedido: {
         id: pedidoId,
         status: pedido.status,

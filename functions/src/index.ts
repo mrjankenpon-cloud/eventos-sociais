@@ -1,8 +1,11 @@
 /**
  * DELPHOS Cloud Functions — Mercado Pago + stubs legados.
  *
- * Carrega functions/.env só em runtime local, se o arquivo existir.
- * Secrets reais NUNCA vão no Git; o deploy ignora `.env` (firebase.json).
+ * Carrega functions/.env em runtime local, se o arquivo existir.
+ * Secrets NUNCA vão no Git; o deploy ignora `.env` no pacote de source
+ * (firebase.json), mas o Firebase CLI aplica as vars do `.env` no deploy.
+ *
+ * Para MERGE seguro sem apagar Resend/MP: npm run sync-functions-env
  */
 import * as path from 'path';
 import * as fs from 'fs';
