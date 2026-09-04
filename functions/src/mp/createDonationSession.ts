@@ -142,6 +142,41 @@ export const createDonationSession = functions.https.onRequest(
         });
         return;
       }
+      if (metodo === 'checkout_pro' && !deviceSessionId) {
+        res.status(400).json({
+          error:
+            'Não foi possível preparar a segurança do pagamento (Device ID). Recarregue a página ou doe com PIX.',
+        });
+        return;
+      }
+
+      // Bloqueio: recusas high_risk recentes do mesmo documento (evita spam no antifraude MP).
+      if (metodo === 'checkout_pro' && documento.length >= 11) {
+        const recent = await db()
+          .collection('pedidos')
+          .where('cpf', '==', documento)
+          .where('mpStatusDetail', '==', 'cc_rejected_high_risk')
+          .limit(5)
+          .get()
+          .catch(() => null);
+        if (recent && !recent.empty) {
+          const cutoff = Date.now() - 20 * 60 * 1000;
+          const hot = recent.docs.some((d) => {
+            const row = d.data() || {};
+            const when = Date.parse(
+              String(row.dataCompra || row.updatedAt || '') || '0'
+            );
+            return Number.isFinite(when) && when >= cutoff;
+          });
+          if (hot) {
+            res.status(429).json({
+              error:
+                'O cartão foi recusado por segurança há pouco. Use PIX ou aguarde cerca de 20 minutos antes de tentar outro cartão.',
+            });
+            return;
+          }
+        }
+      }
 
       const accessToken = randomToken(32);
       const agora = new Date();

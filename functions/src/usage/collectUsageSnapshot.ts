@@ -198,6 +198,12 @@ export async function collectUsageSnapshot(): Promise<void> {
       : Number.isFinite(Number(prev.emailsMonth))
         ? Number(prev.emailsMonth)
         : null;
+  const emailsQuotaHeaderMonth =
+    resend.emailsQuotaHeaderMonth != null
+      ? resend.emailsQuotaHeaderMonth
+      : Number.isFinite(Number(prev.emailsQuotaHeaderMonth))
+        ? Number(prev.emailsQuotaHeaderMonth)
+        : null;
   const emailsDayPct = pctOf(emailsToday, RESEND_FREE.emailsWindow);
   const emailsMonthPct = pctOf(emailsMonth, RESEND_FREE.emailsMonth);
   const emailsKnown = emailsToday != null || emailsMonth != null;
@@ -282,6 +288,7 @@ export async function collectUsageSnapshot(): Promise<void> {
       details,
       emailsToday,
       emailsMonth,
+      emailsQuotaHeaderMonth,
       emailsDayPct,
       emailsMonthPct,
       emailsWindowUsed,

@@ -221,9 +221,10 @@ export default function UsagePanel() {
           </p>
           <p className="text-sm text-gray-500 leading-relaxed">
             No plano gratuito: até 100 envios na janela móvel de 24 horas e
-            3.000 por mês. A cota de 100 <strong>não</strong> zera à
-            meia-noite — cada e-mail libera a vaga cerca de 24h após o envio.
-            Ingressos, doações e avisos do painel entram nessa conta.
+            3.000 por mês civil (UTC). A cota de 100 <strong>não</strong> zera
+            à meia-noite — cada e-mail libera a vaga cerca de 24h após o envio.
+            O mês zera no dia 1º às 0h UTC. Ingressos, doações e avisos do
+            painel entram nessa conta.
           </p>
         </div>
         <Meter
@@ -285,12 +286,22 @@ export default function UsagePanel() {
           }
         />
         <Meter
-          title="E-mails no mês"
-          hint="Limite mensal do plano gratuito (3.000)."
+          title="E-mails neste mês (1–hoje, UTC)"
+          hint="Contagem por data de envio desde o dia 1º à 0h UTC (mês civil da cota Resend de 3.000). O filtro «últimos 30 dias» no site da Resend mistura agosto e setembro — não use esse total como «mês»."
           used={live?.emailsMonth}
           cap={3_000}
           pct={live?.emailsMonthPct ?? 0}
           color={barTone(live?.emailsMonthPct ?? 0)}
+          footer={
+            live?.emailsQuotaHeaderMonth != null &&
+            live.emailsQuotaHeaderMonth !== live.emailsMonth ? (
+              <p className="text-xs text-gray-400">
+                Cota Resend (header):{' '}
+                {Math.round(live.emailsQuotaHeaderMonth).toLocaleString('pt-BR')}{' '}
+                — referência da API; o número acima é o mês civil.
+              </p>
+            ) : null
+          }
         />
       </section>
 

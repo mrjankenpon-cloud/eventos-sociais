@@ -102,7 +102,7 @@ export async function notifyAdminsIfCriticalUsage(params: {
     params.emailsDayPct
   );
   const emailsMonthLine = line(
-    'E-mails no mês (Resend)',
+    'E-mails neste mês UTC (Resend)',
     params.emailsMonth,
     RESEND_FREE.emailsMonth,
     params.emailsMonthPct

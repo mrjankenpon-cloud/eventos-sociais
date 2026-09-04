@@ -14,7 +14,13 @@ export interface UsageLive {
   deletesPct?: number;
   /** Usados na janela móvel de 24h (alias histórico). */
   emailsToday?: number | null;
+  /** Envios no mês civil atual (UTC), 1º dia 00:00Z até agora. */
   emailsMonth?: number | null;
+  /**
+   * Header x-resend-monthly-quota (referência da cota Resend).
+   * Pode diferir da contagem civil; não exibir sozinho como "este mês".
+   */
+  emailsQuotaHeaderMonth?: number | null;
   emailsDayPct?: number;
   emailsMonthPct?: number;
   emailsUpdatedAt?: string;

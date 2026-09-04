@@ -11,10 +11,17 @@ import { liveRef, pctOf, RESEND_FREE } from '../usage/quota';
  *
  * Sem API Key: não falha o fluxo de compra — apenas registra e enfileira.
  *
- * Cota gratuita de envio: janela móvel de 24h (100), não dia civil à 00h00.
+ * Cotas:
+ * - 100 envios: janela móvel de 24h (não zera à meia-noite).
+ * - 3.000/mês: mês civil em UTC (docs Usage API: resets_at = 1º dia 00:00Z).
+ *   O header x-resend-monthly-quota acompanha essa cota, mas o painel web
+ *   "Last 30 days" mistura meses — por isso contamos via GET /emails.
  */
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Páginas de 100: cobre o teto gratuito mensal (3.000) se necessário. */
+const LIST_PAGE_LIMIT = 100;
+const LIST_MAX_PAGES = 30;
 
 export type SendEmailInput = {
   to: string;
@@ -27,7 +34,13 @@ export type SendEmailInput = {
 export type ResendQuota = {
   /** Alias compatível: usados na janela móvel de 24h. */
   emailsToday: number | null;
+  /** Envios no mês civil atual (UTC), via listagem created_at. */
   emailsMonth: number | null;
+  /**
+   * Valor bruto do header x-resend-monthly-quota (cota Resend).
+   * Pode divergir da contagem civil se houver inbound ou atraso; não usar sozinho como "mês" na UI.
+   */
+  emailsQuotaHeaderMonth: number | null;
   emailsWindowUsed: number | null;
   emailsWindowRemaining: number | null;
   emailsNextReleaseAt: string | null;
@@ -38,11 +51,18 @@ function emptyQuota(): ResendQuota {
   return {
     emailsToday: null,
     emailsMonth: null,
+    emailsQuotaHeaderMonth: null,
     emailsWindowUsed: null,
     emailsWindowRemaining: null,
     emailsNextReleaseAt: null,
     emailsNextReleaseCount: null,
   };
+}
+
+/** Início do mês civil em UTC (alinhado ao resets_at da Usage API Resend). */
+export function startOfUtcMonthMs(nowMs = Date.now()): number {
+  const d = new Date(nowMs);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0);
 }
 
 export function isResendConfigured(): boolean {
@@ -87,27 +107,43 @@ type RollingWindowStats = {
   nextReleaseCount: number | null;
 };
 
+type ListedEmailUsage = {
+  window: RollingWindowStats;
+  /** Envios com created_at >= 1º dia do mês UTC. */
+  monthUsed: number;
+};
+
 /**
- * Conta envios na janela móvel e calcula quando a capacidade começa a liberar
- * (created_at do mais antigo na janela + 24h).
+ * Lista GET /emails (mais recentes primeiro) e deriva:
+ * - uso na janela móvel de 24h + próxima liberação;
+ * - contagem do mês civil UTC (não confiar no filtro "Last 30 days" do dashboard).
  */
-async function analyzeRollingWindow(
+async function analyzeListedEmailUsage(
   apiKey: string,
   nowMs = Date.now()
-): Promise<RollingWindowStats | null> {
+): Promise<ListedEmailUsage | null> {
   const timestamps: number[] = [];
+  let monthUsed = 0;
+  const monthStart = startOfUtcMonthMs(nowMs);
   let after: string | undefined;
+  let sawAny = false;
 
   try {
-    // Teto 100/24h — uma página costuma bastar; segunda página só se necessário.
-    for (let page = 0; page < 2; page++) {
+    for (let page = 0; page < LIST_MAX_PAGES; page++) {
       const url = new URL('https://api.resend.com/emails');
-      url.searchParams.set('limit', '100');
+      url.searchParams.set('limit', String(LIST_PAGE_LIMIT));
       if (after) url.searchParams.set('after', after);
       const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
-      if (!res.ok) return timestamps.length ? summarizeWindow(timestamps, nowMs) : null;
+      if (!res.ok) {
+        return sawAny
+          ? {
+              window: summarizeWindow(timestamps, nowMs),
+              monthUsed,
+            }
+          : null;
+      }
 
       const json = (await res.json()) as {
         has_more?: boolean;
@@ -116,22 +152,30 @@ async function analyzeRollingWindow(
       const data = json.data || [];
       if (!data.length) break;
 
-      let older = false;
+      let olderThanMonth = false;
       for (const item of data) {
         const t = Date.parse(String(item.created_at || ''));
         if (!Number.isFinite(t)) continue;
+        sawAny = true;
+        if (t >= monthStart) monthUsed += 1;
+        else olderThanMonth = true;
         // Idade estritamente < 24h: no instante oldest+24h a vaga já libera.
         if (nowMs - t < WINDOW_MS) timestamps.push(t);
-        else older = true;
       }
-      if (!json.has_more || older) break;
+      // Lista é newest-first: ao passar do 1º do mês UTC, janela 24h também já acabou.
+      if (!json.has_more || olderThanMonth) break;
       after = data[data.length - 1]?.id;
       if (!after) break;
     }
 
-    return summarizeWindow(timestamps, nowMs);
+    return {
+      window: summarizeWindow(timestamps, nowMs),
+      monthUsed,
+    };
   } catch {
-    return timestamps.length ? summarizeWindow(timestamps, nowMs) : null;
+    return sawAny
+      ? { window: summarizeWindow(timestamps, nowMs), monthUsed }
+      : null;
   }
 }
 
@@ -167,7 +211,8 @@ async function persistResendQuota(quota: ResendQuota): Promise<void> {
   if (
     quota.emailsWindowUsed == null &&
     quota.emailsToday == null &&
-    quota.emailsMonth == null
+    quota.emailsMonth == null &&
+    quota.emailsQuotaHeaderMonth == null
   ) {
     return;
   }
@@ -185,6 +230,7 @@ async function persistResendQuota(quota: ResendQuota): Promise<void> {
       {
         emailsToday: used,
         emailsMonth: quota.emailsMonth,
+        emailsQuotaHeaderMonth: quota.emailsQuotaHeaderMonth,
         emailsWindowUsed: used,
         emailsWindowRemaining: remaining,
         emailsNextReleaseAt: quota.emailsNextReleaseAt,
@@ -215,10 +261,18 @@ export async function fetchResendUsage(): Promise<ResendQuota> {
       functions.logger.warn('[resend] cota', { status: res.status });
     }
 
-    const window = await analyzeRollingWindow(apiKey);
+    const listed = await analyzeListedEmailUsage(apiKey);
+    // Mês civil UTC via created_at; header só como referência / fallback.
+    const monthFromList = listed != null ? listed.monthUsed : null;
+    const emailsMonth = monthFromList != null ? monthFromList : headerMonth;
+
     let quota = applyWindowFields(
-      { ...empty, emailsMonth: headerMonth },
-      window
+      {
+        ...empty,
+        emailsMonth,
+        emailsQuotaHeaderMonth: headerMonth,
+      },
+      listed?.window ?? null
     );
 
     // Se a listagem falhar, usa o header daily só como fallback de uso.
@@ -285,16 +339,22 @@ export async function sendEmailViaResend(
     }),
   });
 
-  // Após envio, recalcula a janela (não confiar só no header "daily").
+  // Após envio, recalcula janela 24h + mês civil UTC (não confiar só nos headers).
   void (async () => {
     try {
-      const month = parseQuotaHeader(res, 'x-resend-monthly-quota');
-      const window = await analyzeRollingWindow(apiKey);
+      const headerMonth = parseQuotaHeader(res, 'x-resend-monthly-quota');
+      const listed = await analyzeListedEmailUsage(apiKey);
+      const monthFromList = listed != null ? listed.monthUsed : null;
+      const emailsMonth = monthFromList != null ? monthFromList : headerMonth;
       const quota = applyWindowFields(
-        { ...emptyQuota(), emailsMonth: month },
-        window
+        {
+          ...emptyQuota(),
+          emailsMonth,
+          emailsQuotaHeaderMonth: headerMonth,
+        },
+        listed?.window ?? null
       );
-      if (quota.emailsWindowUsed == null && month == null) {
+      if (quota.emailsWindowUsed == null && emailsMonth == null) {
         const headerDaily = parseQuotaHeader(res, 'x-resend-daily-quota');
         if (headerDaily != null) {
           await persistResendQuota({

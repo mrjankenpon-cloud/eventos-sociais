@@ -45,6 +45,23 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "eventoId", "order": "ASCENDING" },
+        { "fieldPath": "cpf", "order": "ASCENDING" },
+        { "fieldPath": "mpStatusDetail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pedidos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cpf", "order": "ASCENDING" },
+        { "fieldPath": "mpStatusDetail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pedidos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventoId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
