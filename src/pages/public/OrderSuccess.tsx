@@ -26,6 +26,7 @@ import {
   recordCardRejection,
   shouldPreferPixAfterCardRisk,
 } from '../../lib/checkoutAttemptGuard';
+import { CARD_CHECKOUT_ENABLED } from '../../components/public/PaymentMethodPicker';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
 
@@ -349,7 +350,7 @@ export default function OrderSuccess() {
                     <Button className="w-full rounded-2xl">Pagar com Pix</Button>
                   </Link>
                 ) : null}
-                {!preferPix && pedido.eventoId ? (
+                {!preferPix && pedido.eventoId && CARD_CHECKOUT_ENABLED ? (
                   <Link
                     to={`/evento/${pedido.eventoId}/inscricao?metodo=checkout_pro`}
                     className="flex-1"

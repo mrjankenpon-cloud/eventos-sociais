@@ -32,6 +32,7 @@ import { useSeoOverride } from '../../components/public/PublicSeo';
 import { TicketTypeInfo } from '../../components/public/TicketTypeInfo';
 import {
   PaymentMethodPicker,
+  CARD_CHECKOUT_ENABLED,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
 import { ensureMpSecurityScript } from '../../lib/mpDeviceId';
@@ -63,9 +64,7 @@ export default function EventRegistration() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
   const metodoFromUrl = searchParams.get('metodo');
-  const [metodo, setMetodo] = useState<CheckoutMetodo>(
-    metodoFromUrl === 'checkout_pro' ? 'checkout_pro' : 'pix'
-  );
+  const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
   /** Quantidade por tipo de ingresso (começa em 0). */
   const [qtyByType, setQtyByType] = useState<Record<string, number>>({});
   const submitLock = useRef(false);
@@ -122,9 +121,10 @@ export default function EventRegistration() {
   }, []);
 
   useEffect(() => {
-    if (metodoFromUrl === 'pix' || metodoFromUrl === 'checkout_pro') {
-      setMetodo(metodoFromUrl);
+    if (metodoFromUrl === 'pix') {
+      setMetodo('pix');
     }
+    // Cartão temporariamente desativado — ignora ?metodo=checkout_pro
   }, [metodoFromUrl]);
 
   useEffect(() => {
@@ -226,8 +226,13 @@ export default function EventRegistration() {
       return;
     }
 
+    const metodoEfetivo: CheckoutMetodo =
+      CARD_CHECKOUT_ENABLED && metodo === 'checkout_pro'
+        ? 'checkout_pro'
+        : 'pix';
+
     const cpfDigits = formData.cpf.replace(/\D/g, '');
-    if (total > 0 && metodo === 'checkout_pro') {
+    if (total > 0 && metodoEfetivo === 'checkout_pro') {
       const remain = cardCooldownRemainingSec(event.id, cpfDigits);
       if (remain > 0) {
         setSubmitError(
@@ -268,7 +273,7 @@ export default function EventRegistration() {
         quantidadeIngressos: totalQty,
         valorTotal: total,
         itens,
-        metodo: total === 0 ? undefined : metodo,
+        metodo: total === 0 ? undefined : metodoEfetivo,
       });
 
       persistGuestCheckoutSession(result.id, result.accessToken);
@@ -617,7 +622,7 @@ export default function EventRegistration() {
                 ? 'Processando...'
                 : total === 0
                   ? event.textoBotao || 'Confirmar Inscrição'
-                  : metodo === 'pix'
+                  : !CARD_CHECKOUT_ENABLED || metodo === 'pix'
                     ? `Pagar ${formatCurrency(total)} via PIX`
                     : `Pagar ${formatCurrency(total)} com cartão`}
             </Button>

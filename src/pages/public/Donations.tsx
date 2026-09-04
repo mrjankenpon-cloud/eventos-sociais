@@ -5,6 +5,7 @@ import { LegalPage } from '../../components/public/LegalPage';
 import { RichContent } from '../../components/public/RichContent';
 import {
   PaymentMethodPicker,
+  CARD_CHECKOUT_ENABLED,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
@@ -78,7 +79,10 @@ export default function Donations() {
     try {
       const result = await checkoutApi.createDonationSession({
         valor: effectiveAmount,
-        metodo,
+        metodo:
+          CARD_CHECKOUT_ENABLED && metodo === 'checkout_pro'
+            ? 'checkout_pro'
+            : 'pix',
         doador: {
           nome: nome.trim(),
           documento: docDigits,
@@ -260,7 +264,7 @@ export default function Donations() {
           disabled={!canSubmit}
         >
           <HeartHandshake className="w-4 h-4 mr-2" aria-hidden="true" />
-          {metodo === 'pix'
+          {!CARD_CHECKOUT_ENABLED || metodo === 'pix'
             ? `Doar ${formatCurrency(effectiveAmount)} via PIX`
             : `Doar ${formatCurrency(effectiveAmount)} com cartão`}
         </Button>
