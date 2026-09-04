@@ -35,7 +35,7 @@ export function ensureMpSecurityScript(view: 'home' | 'item' | 'checkout'): void
 }
 
 export function readMpDeviceSessionId(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
+  if (typeof document === 'undefined') return undefined;
   const fromGlobal = String(
     window.MP_DEVICE_SESSION_ID || window.deviceId || ''
   ).trim();
@@ -51,13 +51,30 @@ export function readMpDeviceSessionId(): string | undefined {
 }
 
 export async function waitMpDeviceSessionId(
-  timeoutMs = 4500
+  timeoutMs = 6000
 ): Promise<string | undefined> {
+  ensureMpSecurityScript('checkout');
   const started = Date.now();
   let id = readMpDeviceSessionId();
   while (!id && Date.now() - started < timeoutMs) {
     await new Promise((r) => window.setTimeout(r, 120));
     id = readMpDeviceSessionId();
+  }
+  return id;
+}
+
+/**
+ * Device ID obrigatório para Checkout Pro (recomendação oficial antifraude).
+ * Força view=checkout e espera mais tempo.
+ */
+export async function requireMpDeviceSessionId(
+  timeoutMs = 8000
+): Promise<string> {
+  const id = await waitMpDeviceSessionId(timeoutMs);
+  if (!id) {
+    throw new Error(
+      'Não foi possível preparar a segurança do pagamento. Recarregue a página e tente de novo, ou pague com PIX.'
+    );
   }
   return id;
 }

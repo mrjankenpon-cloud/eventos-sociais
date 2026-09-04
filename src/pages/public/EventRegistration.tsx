@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   User,
@@ -34,7 +34,12 @@ import {
   PaymentMethodPicker,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
-
+import { ensureMpSecurityScript } from '../../lib/mpDeviceId';
+import {
+  cardCooldownRemainingSec,
+  formatCooldownHint,
+  shouldPreferPixAfterCardRisk,
+} from '../../lib/checkoutAttemptGuard';
 function maxQtyForType(
   type: TicketType,
   eventLimit: number,
@@ -51,15 +56,19 @@ function maxQtyForType(
 export default function EventRegistration() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nomeError, setNomeError] = useState<string | undefined>();
-  const [metodo, setMetodo] = useState<CheckoutMetodo>('pix');
+  const metodoFromUrl = searchParams.get('metodo');
+  const [metodo, setMetodo] = useState<CheckoutMetodo>(
+    metodoFromUrl === 'checkout_pro' ? 'checkout_pro' : 'pix'
+  );
   /** Quantidade por tipo de ingresso (começa em 0). */
   const [qtyByType, setQtyByType] = useState<Record<string, number>>({});
-
+  const submitLock = useRef(false);
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
@@ -107,6 +116,16 @@ export default function EventRegistration() {
     setLoading(true);
     void loadEvent();
   }, [loadEvent]);
+
+  useEffect(() => {
+    ensureMpSecurityScript('checkout');
+  }, []);
+
+  useEffect(() => {
+    if (metodoFromUrl === 'pix' || metodoFromUrl === 'checkout_pro') {
+      setMetodo(metodoFromUrl);
+    }
+  }, [metodoFromUrl]);
 
   useEffect(() => {
     void prefetchOrderSuccess();
@@ -197,6 +216,7 @@ export default function EventRegistration() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !isFormValid || cartLines.length === 0) return;
+    if (isSubmitting || submitLock.current) return;
     if (getEventDisplayStatus(event).kind !== 'disponivel') {
       setSubmitError(
         isEventPastEnd(event)
@@ -206,6 +226,26 @@ export default function EventRegistration() {
       return;
     }
 
+    const cpfDigits = formData.cpf.replace(/\D/g, '');
+    if (total > 0 && metodo === 'checkout_pro') {
+      const remain = cardCooldownRemainingSec(event.id, cpfDigits);
+      if (remain > 0) {
+        setSubmitError(
+          `Não foi possível iniciar outro pagamento com cartão agora. ${formatCooldownHint(remain)} Prefira PIX.`
+        );
+        setMetodo('pix');
+        return;
+      }
+      if (shouldPreferPixAfterCardRisk(event.id, cpfDigits)) {
+        setSubmitError(
+          'Houve recusas recentes com cartão. Use PIX para concluir com mais segurança, ou aguarde alguns minutos.'
+        );
+        setMetodo('pix');
+        return;
+      }
+    }
+
+    submitLock.current = true;
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -247,6 +287,7 @@ export default function EventRegistration() {
           ? err.message
           : 'Não foi possível concluir a inscrição. Tente novamente.'
       );
+      submitLock.current = false;
     } finally {
       setIsSubmitting(false);
     }
@@ -569,7 +610,7 @@ export default function EventRegistration() {
               type="submit"
               size="lg"
               isLoading={isSubmitting}
-              disabled={!isFormValid}
+              disabled={!isFormValid || isSubmitting || cartLines.length === 0}
               className="w-full h-14 sm:h-16 rounded-2xl text-lg"
             >
               {isSubmitting

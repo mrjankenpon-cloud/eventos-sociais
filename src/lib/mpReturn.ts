@@ -64,7 +64,10 @@ export function explainMpRejection(statusDetail?: string): string | null {
     return 'Algum dado do cartão estava incorreto (número, validade, CVV ou nome). Confira e tente de novo, ou use PIX.';
   }
   if (d.includes('high_risk') || d.includes('blacklist') || d.includes('fraud')) {
-    return 'O Mercado Pago recusou por segurança. Cartão virtual, recém-gerado ou primeira compra neste vendedor costuma cair aqui. PIX costuma passar na hora.';
+    return (
+      'O Mercado Pago bloqueou o cartão por antifraude (alto risco) na conta vendedora. ' +
+      'Não é falha do site. Use PIX (já funciona neste evento) ou peça liberação de cartão no suporte do Mercado Pago.'
+    );
   }
   if (d.includes('call_for_authorize') || d.includes('card_disabled')) {
     return 'O banco pediu autorização. Ligue para o banco no verso do cartão ou pague com PIX.';

@@ -547,13 +547,22 @@ async function processPayment(paymentId: string): Promise<void> {
   }
 
   if (mpStatus === 'rejected') {
-    await db()
-      .collection('pedidos')
-      .doc(pedidoId)
-      .update({
+    functions.logger.warn('[mpWebhook] pagamento recusado', {
+      pedidoId,
+      paymentId,
+      status_detail: payment.status_detail || null,
+      payment_type_id: payment.payment_type_id || null,
+      transaction_amount: fees.transactionAmount,
+    });
+    await transitionPedidoReleaseStock({
+      pedidoId,
+      fromStatuses: ['pendente'],
+      toStatus: 'cancelado',
+      extra: {
         ...mpFields,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+        motivoCancelamento: 'pagamento_recusado_mp',
+      },
+    });
     return;
   }
 

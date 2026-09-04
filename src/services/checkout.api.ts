@@ -1,6 +1,9 @@
 import { firebaseConfig } from '../firebase/config';
 import { auth } from '../firebase/auth';
-import { waitMpDeviceSessionId } from '../lib/mpDeviceId';
+import {
+  requireMpDeviceSessionId,
+  waitMpDeviceSessionId,
+} from '../lib/mpDeviceId';
 
 const PROJECT_ID = firebaseConfig.projectId || 'eventosociais-c057d';
 const REGION =
@@ -13,8 +16,13 @@ function functionsBaseUrl(): string {
 }
 
 async function withDeviceId<T extends object>(
-  body: T
+  body: T,
+  opts?: { requireDevice?: boolean }
 ): Promise<T & { deviceId?: string }> {
+  if (opts?.requireDevice) {
+    const deviceId = await requireMpDeviceSessionId();
+    return { ...body, deviceId };
+  }
   const deviceId = await waitMpDeviceSessionId();
   return deviceId ? { ...body, deviceId } : body;
 }
@@ -175,9 +183,11 @@ export const checkoutApi = {
       email: string;
     };
   }): Promise<CheckoutSessionResult> {
+    // Cartão: Device ID obrigatório (X-meli-session-id) — recomendação MP antifraude.
+    const requireDevice = input.metodo === 'checkout_pro';
     return postJson<CheckoutSessionResult>(
       'createCheckoutSession',
-      await withDeviceId(input)
+      await withDeviceId(input, { requireDevice })
     );
   },
 
@@ -278,7 +288,12 @@ export const checkoutApi = {
     initPoint?: string;
     receiptUrl: string;
   }> {
-    return postJson('createDonationSession', await withDeviceId(input));
+    return postJson(
+      'createDonationSession',
+      await withDeviceId(input, {
+        requireDevice: input.metodo === 'checkout_pro',
+      })
+    );
   },
 
   sendEventNotification(eventoId: string): Promise<{

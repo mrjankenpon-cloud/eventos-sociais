@@ -20,6 +20,12 @@ import { PixCheckoutPanel } from '../../components/public/PixCheckoutPanel';
 import { PaymentThankYou } from '../../components/public/PaymentThankYou';
 import { formatCurrency } from '../../lib/utils';
 import { explainMpRejection, readMpReturn } from '../../lib/mpReturn';
+import {
+  cardCooldownRemainingSec,
+  formatCooldownHint,
+  recordCardRejection,
+  shouldPreferPixAfterCardRisk,
+} from '../../lib/checkoutAttemptGuard';
 import { THEME } from '../../theme';
 import { ROUTES } from '../../config';
 
@@ -89,6 +95,33 @@ export default function OrderSuccess() {
     setLoading(true);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!receipt) return;
+    const pedido = receipt.pedido;
+    const status = pedido.status;
+    const isPending = status === 'pendente';
+    const isCancelled = status === 'cancelado';
+    const rejected =
+      (mpReturn.failed || String(pedido.mpStatus || '') === 'rejected') &&
+      (isPending || isCancelled);
+    if (!rejected || !pedido.eventoId || !pedido.cpf) return;
+    const detail = String(
+      mpReturn.statusDetail || pedido.mpStatusDetail || ''
+    ).toLowerCase();
+    if (
+      !detail.includes('high_risk') &&
+      !detail.includes('blacklist') &&
+      !detail.includes('cc_rejected')
+    ) {
+      return;
+    }
+    recordCardRejection(
+      String(pedido.eventoId),
+      String(pedido.cpf),
+      detail
+    );
+  }, [receipt, mpReturn.failed, mpReturn.statusDetail]);
 
   useEffect(() => {
     if (!receipt) return;
@@ -195,10 +228,29 @@ export default function OrderSuccess() {
   const showPaidThanks = isConfirmed;
   const cardRejected =
     (mpReturn.failed || String(pedido.mpStatus || '') === 'rejected') &&
-    isPending;
-  const rejectionHint = explainMpRejection(
-    mpReturn.statusDetail || pedido.mpStatusDetail || undefined
+    (isPending || status === 'cancelado');
+  const rejectionDetail =
+    mpReturn.statusDetail || pedido.mpStatusDetail || undefined;
+  const rejectionHint = explainMpRejection(rejectionDetail);
+  const isHighRisk =
+    String(rejectionDetail || '')
+      .toLowerCase()
+      .includes('high_risk') ||
+    String(rejectionDetail || '')
+      .toLowerCase()
+      .includes('blacklist');
+
+  const preferPix =
+    Boolean(pedido.eventoId && pedido.cpf) &&
+    shouldPreferPixAfterCardRisk(
+      String(pedido.eventoId || ''),
+      String(pedido.cpf || '')
+    );
+  const cooldownSec = cardCooldownRemainingSec(
+    String(pedido.eventoId || ''),
+    String(pedido.cpf || '')
   );
+  const cooldownHint = formatCooldownHint(cooldownSec);
 
   return (
     <div className="py-12 sm:py-20 min-h-[60vh] bg-surface-muted">
@@ -279,11 +331,44 @@ export default function OrderSuccess() {
             </Badge>
           </div>
 
-          {cardRejected && isPending && (
-            <Alert variant="error">
-              {rejectionHint ||
-                'O cartão foi recusado. Você pode pagar este pedido com PIX abaixo, se ainda estiver disponível, ou fazer uma nova inscrição.'}
-            </Alert>
+          {cardRejected && (
+            <div className="space-y-3">
+              <Alert variant="error">
+                {rejectionHint ||
+                  'Não foi possível aprovar este pagamento. Tente PIX, outro cartão ou aguarde alguns minutos.'}
+                {preferPix
+                  ? ' Recomendamos concluir com PIX após as tentativas recentes.'
+                  : ` ${cooldownHint}`}
+              </Alert>
+              <div className="flex flex-col sm:flex-row gap-2 print:hidden">
+                {pedido.eventoId ? (
+                  <Link
+                    to={`/evento/${pedido.eventoId}/inscricao?metodo=pix`}
+                    className="flex-1"
+                  >
+                    <Button className="w-full rounded-2xl">Pagar com Pix</Button>
+                  </Link>
+                ) : null}
+                {!preferPix && pedido.eventoId ? (
+                  <Link
+                    to={`/evento/${pedido.eventoId}/inscricao?metodo=checkout_pro`}
+                    className="flex-1"
+                  >
+                    <Button
+                      variant="secondary"
+                      className="w-full rounded-2xl"
+                    >
+                      Tentar com outro cartão
+                    </Button>
+                  </Link>
+                ) : null}
+                <Link to="/" className="flex-1">
+                  <Button variant="secondary" className="w-full rounded-2xl">
+                    Tentar novamente mais tarde
+                  </Button>
+                </Link>
+              </div>
+            </div>
           )}
 
           {isPending && !showPaidThanks && !cardRejected && (
@@ -305,7 +390,13 @@ export default function OrderSuccess() {
             />
           ) : null}
 
-          {isPending && !showPaidThanks && !pedido.pixQrCode && pedido.linkPagamento ? (
+          {/* Após high_risk, não reabrir o mesmo checkout — evita tentativas idênticas em sequência. */}
+          {isPending &&
+          !showPaidThanks &&
+          !cardRejected &&
+          !isHighRisk &&
+          !pedido.pixQrCode &&
+          pedido.linkPagamento ? (
             <a href={pedido.linkPagamento} className="block print:hidden">
               <Button className="w-full rounded-2xl">
                 Continuar pagamento no Mercado Pago

@@ -197,6 +197,18 @@ export const createCheckoutSession = functions.https.onRequest(
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
+      const metodoHint = parseCheckoutMetodo(body.metodo);
+
+      if (
+        metodoHint === 'checkout_pro' &&
+        !allowAttempt(`card:${cpf || 'x'}:${eventoId || 'x'}`, 2, 15 * 60 * 1000)
+      ) {
+        res.status(429).json({
+          error:
+            'Houve tentativas recentes com cartão. Aguarde alguns minutos ou pague com PIX.',
+        });
+        return;
+      }
 
       if (!eventoId) {
         res.status(400).json({ error: 'eventoId obrigatório' });
@@ -311,6 +323,53 @@ export const createCheckoutSession = functions.https.onRequest(
       const agora = new Date();
       const metodo =
         valorTotal === 0 ? 'checkout_pro' : parseCheckoutMetodo(body.metodo);
+      if (metodo === 'checkout_pro' && valorTotal > 0 && !deviceSessionId) {
+        res.status(400).json({
+          error:
+            'Não foi possível preparar a segurança do pagamento (Device ID). Recarregue a página ou pague com PIX.',
+        });
+        return;
+      }
+
+      functions.logger.info('[createCheckoutSession] tentativa', {
+        eventoId,
+        metodo,
+        valorTotal,
+        quantidade,
+        hasDeviceId: Boolean(deviceSessionId),
+        tipos: resolved.length,
+        cpfSuffix: cpf.slice(-4),
+      });
+
+      // Bloqueio: recusas high_risk recentes do mesmo CPF neste evento
+      if (metodo === 'checkout_pro' && valorTotal > 0 && cpf.length >= 11) {
+        const recent = await db()
+          .collection('pedidos')
+          .where('eventoId', '==', eventoId)
+          .where('cpf', '==', cpf)
+          .where('mpStatusDetail', '==', 'cc_rejected_high_risk')
+          .limit(5)
+          .get()
+          .catch(() => null);
+        if (recent && !recent.empty) {
+          const cutoff = Date.now() - 20 * 60 * 1000;
+          const hot = recent.docs.some((d) => {
+            const row = d.data() || {};
+            const when = Date.parse(
+              String(row.dataCompra || row.updatedAt || '') || '0'
+            );
+            return Number.isFinite(when) && when >= cutoff;
+          });
+          if (hot) {
+            res.status(429).json({
+              error:
+                'O cartão foi recusado por segurança há pouco. Use PIX ou aguarde cerca de 20 minutos antes de tentar outro cartão.',
+            });
+            return;
+          }
+        }
+      }
+
       const holdMinutes = metodo === 'pix' ? PIX_MINUTES : RESERVE_MINUTES;
       const reservaExpiraEm = new Date(
         agora.getTime() + holdMinutes * 60 * 1000
