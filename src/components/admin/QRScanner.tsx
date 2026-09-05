@@ -36,6 +36,51 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
     }
   }, []);
 
+  const cameraErrorMessage = (err: unknown): string => {
+    const name =
+      err && typeof err === 'object' && 'name' in err
+        ? String((err as { name?: string }).name)
+        : '';
+    const raw = err instanceof Error ? err.message : 'Erro desconhecido';
+    const lower = `${name} ${raw}`.toLowerCase();
+
+    if (
+      name === 'NotAllowedError' ||
+      lower.includes('permission') ||
+      lower.includes('notallowed')
+    ) {
+      return 'Permissão da câmera negada. Libere o acesso à câmera no navegador e tente de novo.';
+    }
+    if (
+      name === 'NotFoundError' ||
+      lower.includes('requested device not found') ||
+      lower.includes('notfound')
+    ) {
+      return 'Nenhuma câmera disponível neste dispositivo.';
+    }
+    if (
+      name === 'NotReadableError' ||
+      lower.includes('could not start video source') ||
+      lower.includes('notreadable')
+    ) {
+      return 'A câmera está em uso por outro aplicativo. Feche-o e tente de novo.';
+    }
+    if (
+      name === 'OverconstrainedError' ||
+      lower.includes('overconstrained')
+    ) {
+      return 'Esta webcam não aceitou as configurações do scanner. Tente novamente ou use outro navegador.';
+    }
+    if (
+      lower.includes('secure') ||
+      lower.includes('https') ||
+      lower.includes('getusermedia')
+    ) {
+      return 'A câmera só funciona em conexão segura (HTTPS) ou em localhost.';
+    }
+    return `Não foi possível abrir a câmera: ${raw}`;
+  };
+
   const fitCameraFeed = useCallback(() => {
     const root = document.getElementById('qr-reader');
     if (!root) return;
@@ -68,7 +113,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         await stopScanner();
       }
 
-      const html5QrCode = new Html5Qrcode('qr-reader');
+      const html5QrCode = new Html5Qrcode('qr-reader', {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      });
       qrCodeRef.current = html5QrCode;
 
       const config = {
@@ -80,33 +128,37 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           return { width: size, height: size };
         },
         aspectRatio: 1,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      };
+
+      const onDecoded = (decodedText: string) => {
+        const now = Date.now();
+        if (
+          decodedText === lastScanRef.current &&
+          now - lastScanAtRef.current < 2500
+        ) {
+          return;
+        }
+        lastScanRef.current = decodedText;
+        lastScanAtRef.current = now;
+        onScanRef.current(decodedText);
       };
 
       try {
-        await html5QrCode.start(
-          {
-            deviceId: { exact: cameraId },
-            width: { ideal: 1280 },
-            height: { ideal: 1280 },
-          },
-          config,
-          (decodedText) => {
-            const now = Date.now();
-            if (
-              decodedText === lastScanRef.current &&
-              now - lastScanAtRef.current < 2500
-            ) {
-              return;
-            }
-            lastScanRef.current = decodedText;
-            lastScanAtRef.current = now;
-            onScanRef.current(decodedText);
-          },
-          () => {
-            /* ignore frame errors */
-          }
-        );
+        // Prefer device id string — most compatible with laptop webcams.
+        try {
+          await html5QrCode.start(cameraId, config, onDecoded, () => {});
+        } catch (firstErr) {
+          // Some browsers reject the first attempt; retry with soft constraints.
+          await html5QrCode.start(
+            { deviceId: { exact: cameraId } },
+            {
+              fps: 10,
+              qrbox: config.qrbox,
+            },
+            onDecoded,
+            () => {}
+          );
+        }
 
         fitCameraFeed();
         // Library reapplies inline sizes after metadata / first frames on mobile.
@@ -124,8 +176,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         const state = html5QrCode.getRunningTrackCapabilities();
         setHasFlash(Boolean(state && (state as { torch?: boolean }).torch));
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-        setError(`Erro ao iniciar scanner: ${msg}`);
+        setError(cameraErrorMessage(err));
       }
     },
     [fitCameraFeed, stopScanner]
@@ -152,8 +203,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           setError('Nenhuma câmera encontrada.');
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-        setError(`Erro ao acessar câmera: ${msg}`);
+        setError(cameraErrorMessage(err));
       } finally {
         setIsInitializing(false);
       }
