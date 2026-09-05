@@ -81,7 +81,7 @@ export function PaymentMethodPicker({
                 Cartão
               </span>
               <span className="mt-1 block text-[11px] font-medium text-gray-400">
-                Temporariamente indisponível — use PIX
+                Em atualização — use PIX
               </span>
             </div>
             <div
