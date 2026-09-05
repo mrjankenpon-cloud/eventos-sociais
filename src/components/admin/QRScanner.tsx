@@ -36,6 +36,32 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
     }
   }, []);
 
+  const fitCameraFeed = useCallback(() => {
+    const root = document.getElementById('qr-reader');
+    if (!root) return;
+    const video = root.querySelector('video');
+    if (!(video instanceof HTMLVideoElement)) return;
+
+    video.style.setProperty('position', 'absolute', 'important');
+    video.style.setProperty('inset', '0', 'important');
+    video.style.setProperty('width', '100%', 'important');
+    video.style.setProperty('height', '100%', 'important');
+    video.style.setProperty('max-width', 'none', 'important');
+    video.style.setProperty('max-height', 'none', 'important');
+    video.style.setProperty('object-fit', 'cover', 'important');
+    video.style.setProperty('object-position', 'center center', 'important');
+    video.style.setProperty('transform', 'none', 'important');
+
+    const region = root.querySelector('#qr-reader__scan_region');
+    if (region instanceof HTMLElement) {
+      region.style.setProperty('position', 'absolute', 'important');
+      region.style.setProperty('inset', '0', 'important');
+      region.style.setProperty('width', '100%', 'important');
+      region.style.setProperty('height', '100%', 'important');
+      region.style.setProperty('overflow', 'hidden', 'important');
+    }
+  }, []);
+
   const startScanner = useCallback(
     async (cameraId: string) => {
       if (qrCodeRef.current) {
@@ -47,13 +73,23 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
       const config = {
         fps: 12,
-        qrbox: { width: 240, height: 240 },
+        // Keep the scan window proportional to the square viewfinder.
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const edge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.max(200, Math.floor(edge * 0.72));
+          return { width: size, height: size };
+        },
+        aspectRatio: 1,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
       };
 
       try {
         await html5QrCode.start(
-          cameraId,
+          {
+            deviceId: { exact: cameraId },
+            width: { ideal: 1280 },
+            height: { ideal: 1280 },
+          },
           config,
           (decodedText) => {
             const now = Date.now();
@@ -72,6 +108,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           }
         );
 
+        fitCameraFeed();
+        // Library reapplies inline sizes after metadata / first frames on mobile.
+        requestAnimationFrame(fitCameraFeed);
+        window.setTimeout(fitCameraFeed, 120);
+        window.setTimeout(fitCameraFeed, 400);
+        const video = document.querySelector('#qr-reader video');
+        if (video instanceof HTMLVideoElement) {
+          video.addEventListener('loadedmetadata', fitCameraFeed, {
+            once: true,
+          });
+          video.addEventListener('playing', fitCameraFeed, { once: true });
+        }
+
         const state = html5QrCode.getRunningTrackCapabilities();
         setHasFlash(Boolean(state && (state as { torch?: boolean }).torch));
       } catch (err: unknown) {
@@ -79,7 +128,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         setError(`Erro ao iniciar scanner: ${msg}`);
       }
     },
-    [stopScanner]
+    [fitCameraFeed, stopScanner]
   );
 
   useEffect(() => {
@@ -174,11 +223,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           </p>
         </div>
 
-        <div className="relative aspect-square max-h-[min(70vw,420px)] mx-auto w-full bg-black/40 rounded-[40px] sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl">
-          <div id="qr-reader" className="w-full h-full" />
+        <div className="relative mx-auto w-[min(100%,72vw,420px)] aspect-square bg-black rounded-[40px] sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl">
+          <div id="qr-reader" className="absolute inset-0" />
 
-          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-            <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-brand/50 rounded-[32px] relative">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-[72%] aspect-square border-2 border-brand/50 rounded-[32px] relative">
               <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-brand rounded-tl-2xl" />
               <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-brand rounded-tr-2xl" />
               <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-brand rounded-bl-2xl" />
