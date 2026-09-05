@@ -84,18 +84,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   const fitCameraFeed = useCallback(() => {
     const root = document.getElementById('qr-reader');
     if (!root) return;
-    const video = root.querySelector('video');
-    if (!(video instanceof HTMLVideoElement)) return;
 
-    video.style.setProperty('position', 'absolute', 'important');
-    video.style.setProperty('inset', '0', 'important');
-    video.style.setProperty('width', '100%', 'important');
-    video.style.setProperty('height', '100%', 'important');
-    video.style.setProperty('max-width', 'none', 'important');
-    video.style.setProperty('max-height', 'none', 'important');
-    video.style.setProperty('object-fit', 'cover', 'important');
-    video.style.setProperty('object-position', 'center center', 'important');
-    video.style.setProperty('transform', 'none', 'important');
+    root.style.setProperty('position', 'absolute', 'important');
+    root.style.setProperty('inset', '0', 'important');
+    root.style.setProperty('width', '100%', 'important');
+    root.style.setProperty('height', '100%', 'important');
+    root.style.setProperty('min-width', '100%', 'important');
+    root.style.setProperty('min-height', '100%', 'important');
+    root.style.setProperty('padding', '0', 'important');
+    root.style.setProperty('margin', '0', 'important');
+    root.style.setProperty('border', 'none', 'important');
+    root.style.setProperty('overflow', 'hidden', 'important');
 
     const region = root.querySelector('#qr-reader__scan_region');
     if (region instanceof HTMLElement) {
@@ -103,8 +102,36 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       region.style.setProperty('inset', '0', 'important');
       region.style.setProperty('width', '100%', 'important');
       region.style.setProperty('height', '100%', 'important');
+      region.style.setProperty('min-width', '100%', 'important');
+      region.style.setProperty('min-height', '100%', 'important');
+      region.style.setProperty('display', 'block', 'important');
       region.style.setProperty('overflow', 'hidden', 'important');
+      region.style.setProperty('padding', '0', 'important');
+      region.style.setProperty('margin', '0', 'important');
     }
+
+    const fillMedia = (el: HTMLElement) => {
+      el.style.setProperty('position', 'absolute', 'important');
+      el.style.setProperty('inset', '0', 'important');
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('max-width', 'none', 'important');
+      el.style.setProperty('max-height', 'none', 'important');
+      el.style.setProperty('min-width', '100%', 'important');
+      el.style.setProperty('min-height', '100%', 'important');
+      el.style.setProperty('object-fit', 'cover', 'important');
+      el.style.setProperty('object-position', 'center center', 'important');
+      el.style.setProperty('transform', 'none', 'important');
+      el.style.setProperty('border', 'none', 'important');
+      el.style.setProperty('border-radius', '0', 'important');
+    };
+
+    const video = root.querySelector('video');
+    if (video instanceof HTMLVideoElement) fillMedia(video);
+
+    root.querySelectorAll('canvas').forEach((canvas) => {
+      if (canvas instanceof HTMLCanvasElement) fillMedia(canvas);
+    });
   }, []);
 
   const startScanner = useCallback(
@@ -121,10 +148,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
       const config = {
         fps: 12,
-        // Keep the scan window proportional to the square viewfinder.
+        // Large scan window so tickets are easier to capture without getting too close.
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const edge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(200, Math.floor(edge * 0.78));
+          const size = Math.max(240, Math.floor(edge * 0.9));
           return { width: size, height: size };
         },
         aspectRatio: 1,
@@ -243,41 +270,44 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-brand-deeper flex flex-col items-center justify-center px-2 py-3 sm:p-4 overflow-hidden"
+      className="fixed inset-0 z-[100] bg-brand-deeper flex flex-col items-center overflow-hidden px-1 pt-2 pb-2 sm:p-4 sm:justify-center"
       style={{
-        paddingTop: 'max(1rem, env(safe-area-inset-top))',
-        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
       }}
       role="dialog"
       aria-modal="true"
       aria-label="Scanner de QR Code"
     >
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50">
         <button
           type="button"
           onClick={onClose}
           aria-label="Fechar scanner"
-          className="p-3 sm:p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-xl border border-white/10"
+          className="p-2.5 sm:p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-xl border border-white/10"
         >
           <X size={22} aria-hidden="true" />
         </button>
       </div>
 
-      <div className="w-full max-w-lg sm:max-w-md space-y-4 sm:space-y-8">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+      <div className="w-full max-w-none sm:max-w-md flex flex-col items-center gap-2.5 sm:gap-8 flex-1 sm:flex-none min-h-0 justify-center">
+        <div className="text-center shrink-0 px-8 sm:px-0">
+          <h2 className="text-lg sm:text-3xl font-black text-white tracking-tight">
             Check-in Digital
           </h2>
-          <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">
+          <p className="text-white/40 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] mt-0.5 sm:mt-2">
             Cada QR = 1 ingresso · escaneie individualmente
           </p>
         </div>
 
-        <div className="relative mx-auto w-[min(100%,94vw,520px)] sm:w-[min(100%,72vw,420px)] aspect-square bg-black rounded-[28px] sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl">
-          <div id="qr-reader" className="absolute inset-0" />
+        {/* Near full-bleed on mobile: use almost all width and remaining viewport height. */}
+        <div
+          className="relative mx-auto aspect-square bg-black rounded-2xl sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl shrink-0 w-[min(98vw,calc(100dvh-9.5rem),560px)] sm:w-[min(100%,72vw,420px)]"
+        >
+          <div id="qr-reader" className="absolute inset-0 w-full h-full" />
 
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-[78%] sm:w-[72%] aspect-square border-2 border-brand/50 rounded-[28px] sm:rounded-[32px] relative">
+            <div className="w-[90%] sm:w-[72%] aspect-square border-2 border-brand/50 rounded-2xl sm:rounded-[32px] relative">
               <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-brand rounded-tl-2xl" />
               <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-brand rounded-tr-2xl" />
               <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-brand rounded-bl-2xl" />
@@ -295,12 +325,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           )}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 shrink-0 min-h-[2.75rem]">
           {hasFlash && (
             <button
               type="button"
               onClick={toggleFlash}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
                 isFlashOn
                   ? 'bg-yellow-400 text-black border-yellow-400'
                   : 'bg-white/5 text-white border-white/10'
@@ -315,7 +345,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             <button
               type="button"
               onClick={switchCamera}
-              className="flex items-center gap-2 px-5 py-3 bg-white/5 text-white border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10"
+              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/5 text-white border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10"
             >
               <RefreshCcw size={16} aria-hidden="true" />
               Alternar
@@ -324,7 +354,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         </div>
 
         {error && (
-          <div className="bg-red-500/20 text-red-100 p-5 rounded-2xl text-center flex flex-col items-center gap-3 border border-red-500/30">
+          <div className="bg-red-500/20 text-red-100 p-4 sm:p-5 rounded-2xl text-center flex flex-col items-center gap-3 border border-red-500/30 w-full max-w-sm">
             <AlertCircle size={22} className="text-red-300" aria-hidden="true" />
             <p className="text-[11px] font-bold leading-relaxed">{error}</p>
             <Button
