@@ -11,7 +11,7 @@ export type CheckoutMetodo = 'pix' | 'checkout_pro';
 export const CARD_CHECKOUT_ENABLED = false;
 
 const CARD_DISABLED_HINT =
-  'Cartão pausado: o Mercado Pago está recusando cartões por antifraude nesta conta. O PIX continua aprovando normalmente — use PIX para concluir a compra.';
+  'Estamos atualizando o sistema para aceitar cartões. Enquanto isso, o PIX funciona normalmente.';
 
 export function PaymentMethodPicker({
   value,
@@ -81,7 +81,7 @@ export function PaymentMethodPicker({
                 Cartão
               </span>
               <span className="mt-1 block text-[11px] font-medium text-gray-400">
-                Temporariamente indisponível — use PIX
+                Em atualização — use PIX
               </span>
             </div>
             <div
