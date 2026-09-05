@@ -293,12 +293,13 @@
 }
 
 
-/* QR Scanner — fill the square viewport and keep the feed centered on mobile */
+/* QR Scanner — full-bleed phone camera (html5-qrcode otherwise locks ~300px) */
 #qr-reader {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  min-width: 100% !important;
   min-height: 100% !important;
   border: none !important;
   overflow: hidden !important;
@@ -310,6 +311,7 @@
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  min-width: 100% !important;
   min-height: 100% !important;
   display: block !important;
   overflow: hidden !important;
@@ -322,18 +324,23 @@
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
   max-width: none !important;
   max-height: none !important;
   object-fit: cover !important;
   object-position: center center !important;
   transform: none !important;
+  border: none !important;
+  border-radius: 0 !important;
 }
 
 #qr-reader__dashboard,
 #qr-reader__header_message,
 #qr-reader__camera_permission_button,
 #qr-reader__filescan_input,
-#qr-reader__scan_region > img {
+#qr-reader__scan_region > img,
+#qr-reader img {
   display: none !important;
 }
 
