@@ -124,7 +124,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         // Keep the scan window proportional to the square viewfinder.
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const edge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(200, Math.floor(edge * 0.72));
+          const size = Math.max(200, Math.floor(edge * 0.78));
           return { width: size, height: size };
         },
         aspectRatio: 1,
@@ -243,7 +243,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-brand-deeper flex flex-col items-center justify-center p-4 overflow-hidden"
+      className="fixed inset-0 z-[100] bg-brand-deeper flex flex-col items-center justify-center px-2 py-3 sm:p-4 overflow-hidden"
       style={{
         paddingTop: 'max(1rem, env(safe-area-inset-top))',
         paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
@@ -263,7 +263,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         </button>
       </div>
 
-      <div className="w-full max-w-md space-y-6 sm:space-y-8">
+      <div className="w-full max-w-lg sm:max-w-md space-y-4 sm:space-y-8">
         <div className="text-center space-y-2">
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Check-in Digital
@@ -273,11 +273,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
           </p>
         </div>
 
-        <div className="relative mx-auto w-[min(100%,72vw,420px)] aspect-square bg-black rounded-[40px] sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl">
+        <div className="relative mx-auto w-[min(100%,94vw,520px)] sm:w-[min(100%,72vw,420px)] aspect-square bg-black rounded-[28px] sm:rounded-[48px] overflow-hidden border border-white/5 shadow-2xl">
           <div id="qr-reader" className="absolute inset-0" />
 
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-[72%] aspect-square border-2 border-brand/50 rounded-[32px] relative">
+            <div className="w-[78%] sm:w-[72%] aspect-square border-2 border-brand/50 rounded-[28px] sm:rounded-[32px] relative">
               <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-brand rounded-tl-2xl" />
               <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-brand rounded-tr-2xl" />
               <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-brand rounded-bl-2xl" />
