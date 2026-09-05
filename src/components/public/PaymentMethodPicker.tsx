@@ -29,13 +29,6 @@ export function PaymentMethodPicker({
   return (
     <div className="space-y-2">
       <p className="label-micro">Forma de pagamento</p>
-      {!CARD_CHECKOUT_ENABLED ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium leading-snug text-amber-900">
-          Cartão temporariamente indisponível por segurança do Mercado Pago.
-          Continue com <span className="font-black">PIX</span> — as vendas
-          por PIX estão sendo aprovadas normalmente.
-        </p>
-      ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button
           type="button"
