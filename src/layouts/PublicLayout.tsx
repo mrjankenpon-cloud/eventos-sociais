@@ -48,6 +48,8 @@ export default function PublicLayout() {
         <PushEnablePrompt />
         <PwaInstallPrompt />
         <input type="hidden" id="deviceId" name="deviceId" readOnly />
+        {/* Alias documentado pelo MP (id="deviceID") — ambos são preenchidos pelo security.js / helper. */}
+        <input type="hidden" id="deviceID" name="deviceID" readOnly />
       </div>
     </PublicSeo>
   );

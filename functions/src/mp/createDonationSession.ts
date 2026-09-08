@@ -25,7 +25,9 @@ import { allowAttempt, requestIp } from '../http/rateLimit';
 import {
   authTypeFromRequest,
   loadBuyerPurchaseProfile,
+  mpDigitalShipments,
   mpIndustryPayer,
+  mpPreferenceAdditionalInfo,
 } from './industry';
 
 const MIN_DONATION = 10;
@@ -248,6 +250,15 @@ export const createDonationSession = functions.https.onRequest(
             expiresAt: isoWithOffset(expira),
             idempotencyKey: `donation-pix-${pedidoRef.id}`,
             deviceSessionId,
+            clientIp,
+            additionalInfoPayer: mpIndustryPayer({
+              nome,
+              telefone,
+              documento,
+              documentoTipo,
+              authenticationType: authTypeFromRequest(req),
+              profile: await loadBuyerPurchaseProfile(email),
+            }),
             items: [
               {
                 title: 'Doacao Instituto Delphos',
@@ -297,6 +308,7 @@ export const createDonationSession = functions.https.onRequest(
           {
             id: 'doacao',
             title: 'Doação — Instituto Delphos',
+            description: mensagem || 'Doação voluntária',
             quantity: 1,
             unit_price: valor,
             currency_id: 'BRL',
@@ -310,8 +322,8 @@ export const createDonationSession = functions.https.onRequest(
           documentoTipo,
           telefone,
         }),
-        additional_info: {
-          ...(clientIp ? { ip_address: clientIp } : {}),
+        additional_info: mpPreferenceAdditionalInfo({
+          clientIp,
           items: [
             {
               id: 'doacao',
@@ -325,15 +337,23 @@ export const createDonationSession = functions.https.onRequest(
           payer: mpIndustryPayer({
             nome,
             telefone,
+            documento,
+            documentoTipo,
             authenticationType: authTypeFromRequest(req),
             profile: await loadBuyerPurchaseProfile(email),
           }),
-        },
+        }),
+        shipments: mpDigitalShipments(),
+        expires: true,
+        expiration_date_from: isoWithOffset(agora),
+        expiration_date_to: isoWithOffset(expira),
         external_reference: pedidoRef.id,
         metadata: {
           pedidoId: pedidoRef.id,
           tipo: 'doacao',
           eventoId: '',
+          channel: 'web',
+          hasDeviceId: Boolean(deviceSessionId),
         },
         back_urls: {
           success: successUrl,

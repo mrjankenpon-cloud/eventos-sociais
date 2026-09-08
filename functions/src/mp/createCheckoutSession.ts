@@ -28,8 +28,9 @@ import {
   eventDateForMp,
   loadBuyerPurchaseProfile,
   mpCheckoutProItems,
+  mpDigitalShipments,
   mpIndustryPayer,
-  mpPreferenceIndustryItems,
+  mpPreferenceAdditionalInfo,
 } from './industry';
 
 type CheckoutItemInput = {
@@ -498,6 +499,15 @@ export const createCheckoutSession = functions.https.onRequest(
             expiresAt: isoWithOffset(reservaExpiraEm),
             idempotencyKey: `ticket-pix-${pedidoRef.id}`,
             deviceSessionId,
+            clientIp,
+            additionalInfoPayer: mpIndustryPayer({
+              nome,
+              telefone,
+              documento: cpf,
+              documentoTipo: 'cpf',
+              authenticationType: authTypeFromRequest(req),
+              profile: buyerProfile,
+            }),
             items: industryItems,
           });
           await pedidoRef.update({
@@ -545,8 +555,8 @@ export const createCheckoutSession = functions.https.onRequest(
       };
       try {
         // Checkout Pro: crédito/débito (PIX é gerado no site).
-        // Preferência só com campos do checkout hospedado — event_date / industry
-        // extra no item da preferência deixa o botão Pagar cinza.
+        // Top-level items: só campos do checkout hospedado.
+        // Sinais antifraude (event_date, perfil, IP) vão em additional_info.
         const preferenceBody: Record<string, unknown> = {
           items: mpCheckoutProItems(industryItems),
           payer: mpCheckoutPayer({
@@ -555,17 +565,22 @@ export const createCheckoutSession = functions.https.onRequest(
             documento: cpf,
             telefone,
           }),
-          additional_info: {
-            ...(clientIp ? { ip_address: clientIp } : {}),
-            items: mpPreferenceIndustryItems(industryItems),
-            // Perfil completo reduz recusas cc_rejected_high_risk no Checkout Pro.
+          additional_info: mpPreferenceAdditionalInfo({
+            clientIp,
+            items: industryItems,
             payer: mpIndustryPayer({
               nome,
               telefone,
+              documento: cpf,
+              documentoTipo: 'cpf',
               authenticationType: authTypeFromRequest(req),
               profile: buyerProfile,
             }),
-          },
+          }),
+          shipments: mpDigitalShipments(),
+          expires: true,
+          expiration_date_from: isoWithOffset(agora),
+          expiration_date_to: isoWithOffset(reservaExpiraEm),
           external_reference: pedidoRef.id,
           metadata: {
             pedidoId: pedidoRef.id,
@@ -573,6 +588,8 @@ export const createCheckoutSession = functions.https.onRequest(
             ingressoId: primary.ingressoId,
             natureza: primary.natureza,
             tipos: resolved.length,
+            channel: 'web',
+            hasDeviceId: Boolean(deviceSessionId),
           },
           back_urls: {
             success: successUrl,

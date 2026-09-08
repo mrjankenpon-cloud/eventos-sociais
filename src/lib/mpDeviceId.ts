@@ -9,11 +9,26 @@ declare global {
 }
 
 export function mpViewFromPath(pathname: string): 'home' | 'item' | 'checkout' {
-  if (pathname.includes('/inscricao') || pathname.startsWith('/doacoes')) {
+  if (
+    pathname.includes('/inscricao') ||
+    pathname.startsWith('/doacoes') ||
+    pathname.includes('/sucesso')
+  ) {
     return 'checkout';
   }
   if (/^\/evento\/[^/]+\/?$/.test(pathname)) return 'item';
   return 'home';
+}
+
+function readDeviceIdInputs(): string {
+  if (typeof document === 'undefined') return '';
+  const ids = ['deviceId', 'deviceID'];
+  for (const id of ids) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    const v = String(el?.value || '').trim();
+    if (v) return v;
+  }
+  return '';
 }
 
 /** Carrega o security.js do MP e atualiza o `view` conforme a página (home / item / checkout). */
@@ -23,6 +38,7 @@ export function ensureMpSecurityScript(view: 'home' | 'item' | 'checkout'): void
   let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
   if (script && script.getAttribute('view') === view) return;
 
+  // Troca de view: remove o script antigo para o MP regenerar o Device ID no contexto certo.
   if (script) script.remove();
 
   script = document.createElement('script');
@@ -30,6 +46,7 @@ export function ensureMpSecurityScript(view: 'home' | 'item' | 'checkout'): void
   script.src = SCRIPT_SRC;
   script.async = true;
   script.setAttribute('view', view);
+  // Nome da variável global = deviceId (também preenche #deviceId quando existir).
   script.setAttribute('output', 'deviceId');
   document.body.appendChild(script);
 }
@@ -39,25 +56,27 @@ export function readMpDeviceSessionId(): string | undefined {
   const fromGlobal = String(
     window.MP_DEVICE_SESSION_ID || window.deviceId || ''
   ).trim();
-  const fromInput = String(
-    (document.getElementById('deviceId') as HTMLInputElement | null)?.value ||
-      ''
-  ).trim();
+  const fromInput = readDeviceIdInputs();
   const raw = fromGlobal || fromInput;
   if (!raw || raw.length > 512 || !/^[A-Za-z0-9._-]+$/.test(raw)) {
     return undefined;
+  }
+  // Espelha nos inputs ocultos para o formulário / retries.
+  for (const id of ['deviceId', 'deviceID']) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el && el.value !== raw) el.value = raw;
   }
   return raw;
 }
 
 export async function waitMpDeviceSessionId(
-  timeoutMs = 6000
+  timeoutMs = 8000
 ): Promise<string | undefined> {
   ensureMpSecurityScript('checkout');
   const started = Date.now();
   let id = readMpDeviceSessionId();
   while (!id && Date.now() - started < timeoutMs) {
-    await new Promise((r) => window.setTimeout(r, 120));
+    await new Promise((r) => window.setTimeout(r, 100));
     id = readMpDeviceSessionId();
   }
   return id;
@@ -68,8 +87,10 @@ export async function waitMpDeviceSessionId(
  * Força view=checkout e espera mais tempo.
  */
 export async function requireMpDeviceSessionId(
-  timeoutMs = 8000
+  timeoutMs = 12000
 ): Promise<string> {
+  ensureMpSecurityScript('checkout');
+  // Warm-up: dá tempo do security.js gerar o ID antes do submit.
   const id = await waitMpDeviceSessionId(timeoutMs);
   if (!id) {
     throw new Error(

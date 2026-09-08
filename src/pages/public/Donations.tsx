@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HeartHandshake, Mail, Phone, User, Hash } from 'lucide-react';
 import { LegalPage } from '../../components/public/LegalPage';
@@ -11,6 +11,7 @@ import {
 import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
 import { checkoutApi } from '../../services/checkout.api';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
+import { ensureMpSecurityScript } from '../../lib/mpDeviceId';
 import { formatCurrency } from '../../lib/utils';
 import {
   maskCNPJ,
@@ -38,6 +39,10 @@ export default function Donations() {
   const [documento, setDocumento] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
+
+  useEffect(() => {
+    ensureMpSecurityScript('checkout');
+  }, []);
   const [mensagem, setMensagem] = useState('');
   const [aceite, setAceite] = useState(false);
   const [phoneOk, setPhoneOk] = useState(false);

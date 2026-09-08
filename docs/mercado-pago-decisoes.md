@@ -24,3 +24,13 @@ Extras de arquitetura:
 - Tipos genéricos por evento (não hardcode inteira/meia/retirada no gateway)
 - Uma única integração MP dinâmica
 - `natureza` extensível: entrada | retirada | consumo | cortesia | outro
+
+Sinais antifraude (Checkout Pro / Orders) — manter:
+- Device ID (`X-meli-session-id`) obrigatório no cartão; best-effort no PIX
+- `additional_info`: IP, itens com `event_date` + `category_descriptor`, payer industry
+  (`authentication_type: Native web`, `date_created` + `registration_date`, CPF, telefone,
+  histórico `is_first_purchase_online` / `last_purchase`)
+- `shipments.mode=not_specified` + `local_pickup` (ingressos digitais / retirada)
+- Preferência com `expires` + `expiration_date_to` alinhado à reserva
+- Não colocar `event_date` no array top-level `items` do Checkout Pro hospedado
+  (quebra o botão Pagar); só em `additional_info.items`

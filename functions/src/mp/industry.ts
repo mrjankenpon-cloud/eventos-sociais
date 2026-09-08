@@ -16,6 +16,9 @@ export type MpIndustryItem = {
   event_date?: string;
 };
 
+/** Checkout Pro industry data: Native web | Other (guest checkout no site). */
+export type MpAuthType = 'Native web' | 'Other';
+
 function toIso(raw: unknown): string | undefined {
   if (!raw) return undefined;
   if (typeof raw === 'string') {
@@ -33,12 +36,19 @@ function toIso(raw: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Tipo de autenticação do comprador no site (guest checkout web).
+ * Valores alinhados à doc Checkout Pro / industry data do MP.
+ */
 export function authTypeFromRequest(req: {
   headers?: Record<string, unknown>;
-}): 'WEB' | 'MOBILE' {
-  const ua = String(req.headers?.['user-agent'] || req.headers?.['User-Agent'] || '');
-  if (/Mobile|Android|iPhone|iPad|iPod|webOS|Opera Mini/i.test(ua)) return 'MOBILE';
-  return 'WEB';
+}): MpAuthType {
+  const ua = String(
+    req.headers?.['user-agent'] || req.headers?.['User-Agent'] || ''
+  );
+  // Site responsivo = Native web; bots/headless → Other.
+  if (!ua || /bot|crawler|spider|headless|curl|wget/i.test(ua)) return 'Other';
+  return 'Native web';
 }
 
 /** Data/hora do evento no fuso de Brasília, para `event_date` do MP. */
@@ -98,29 +108,55 @@ export async function loadBuyerPurchaseProfile(
 export function mpIndustryPayer(input: {
   nome: string;
   telefone?: string;
-  authenticationType: 'WEB' | 'MOBILE';
+  documento?: string;
+  documentoTipo?: 'cpf' | 'cnpj';
+  authenticationType: MpAuthType;
   profile: BuyerPurchaseProfile;
 }): Record<string, unknown> {
   const names = splitPersonName(input.nome);
   const phone = splitBrPhone(input.telefone || '');
-  return {
+  const digits = String(input.documento || '').replace(/\D/g, '');
+  const reg = input.profile.registration_date;
+
+  const payer: Record<string, unknown> = {
     first_name: names.first_name,
     last_name: names.last_name,
+    // Checkout Pro industry data usa date_created; API BR tickets usa registration_date.
     authentication_type: input.authenticationType,
+    date_created: reg,
+    registration_date: reg,
     is_prime_user: false,
     is_first_purchase_online: input.profile.is_first_purchase_online,
-    registration_date: input.profile.registration_date,
-    ...(input.profile.last_purchase
-      ? { last_purchase: input.profile.last_purchase }
-      : {}),
-    ...(phone
-      ? {
-          phone: {
-            area_code: phone.area_code,
-            number: phone.number,
-          },
-        }
-      : {}),
+  };
+
+  if (input.profile.last_purchase) {
+    payer.last_purchase = input.profile.last_purchase;
+  }
+
+  if (phone) {
+    payer.phone = {
+      area_code: phone.area_code,
+      number: phone.number,
+    };
+  }
+
+  if (input.documentoTipo === 'cnpj' && digits.length === 14) {
+    payer.identification = { type: 'CNPJ', number: digits };
+  } else if (digits.length === 11) {
+    payer.identification = { type: 'CPF', number: digits };
+  }
+
+  return payer;
+}
+
+/**
+ * Ingressos digitais / retirada no local — sem endereço do comprador.
+ * Sinal recomendado pelo MP mesmo quando não há frete.
+ */
+export function mpDigitalShipments(): Record<string, unknown> {
+  return {
+    mode: 'not_specified',
+    local_pickup: true,
   };
 }
 
@@ -139,17 +175,29 @@ export function mpOrderIndustryItems(
   }));
 }
 
+/**
+ * Itens em additional_info da preferência — inclui event_date + category_descriptor
+ * (sinais de tickets/entertainment). Não usar no array top-level `items` do
+ * Checkout Pro hospedado (event_date ali pode deixar o botão Pagar cinza).
+ */
 export function mpPreferenceIndustryItems(
   items: MpIndustryItem[]
 ): Record<string, unknown>[] {
-  return items.map((item) => ({
-    id: item.id.slice(0, 64),
-    title: item.title.slice(0, 256),
-    description: item.description.slice(0, 256),
-    category_id: item.category_id,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-  }));
+  return items.map((item) => {
+    const row: Record<string, unknown> = {
+      id: item.id.slice(0, 64),
+      title: item.title.slice(0, 256),
+      description: item.description.slice(0, 256),
+      category_id: item.category_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    };
+    if (item.event_date) {
+      row.event_date = item.event_date;
+      row.category_descriptor = { event_date: item.event_date };
+    }
+    return row;
+  });
 }
 
 /** Itens da preferência Checkout Pro — só campos que o checkout hospedado aceita. */
@@ -165,4 +213,17 @@ export function mpCheckoutProItems(
     currency_id: 'BRL',
     category_id: item.category_id,
   }));
+}
+
+/** Monta additional_info completo para preferências Checkout Pro. */
+export function mpPreferenceAdditionalInfo(input: {
+  clientIp?: string;
+  items: MpIndustryItem[];
+  payer: ReturnType<typeof mpIndustryPayer>;
+}): Record<string, unknown> {
+  return {
+    ...(input.clientIp ? { ip_address: input.clientIp } : {}),
+    items: mpPreferenceIndustryItems(input.items),
+    payer: input.payer,
+  };
 }

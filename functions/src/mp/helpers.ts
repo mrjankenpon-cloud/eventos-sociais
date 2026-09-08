@@ -482,6 +482,8 @@ export async function createPixCharge(input: {
   expiresAt: string;
   idempotencyKey: string;
   deviceSessionId?: string;
+  clientIp?: string;
+  additionalInfoPayer?: Record<string, unknown>;
   items?: Array<{
     title: string;
     description?: string;
@@ -536,6 +538,18 @@ export async function createPixCharge(input: {
       ...(item.event_date ? { event_date: item.event_date } : {}),
     }));
 
+  const additionalInfo: Record<string, unknown> = {};
+  if (input.clientIp) additionalInfo.ip_address = input.clientIp;
+  if (input.additionalInfoPayer) {
+    additionalInfo.payer = input.additionalInfoPayer;
+  }
+  if (orderItems.length) {
+    additionalInfo.items = orderItems.map((item) => ({
+      ...item,
+      unit_price: Number(item.unit_price),
+    }));
+  }
+
   try {
     const order = await mpFetch<MpOrderPix>('/v1/orders', {
       method: 'POST',
@@ -552,6 +566,9 @@ export async function createPixCharge(input: {
         expiration_time: `PT${holdMinutes}M`,
         payer,
         ...(orderItems.length ? { items: orderItems } : {}),
+        ...(Object.keys(additionalInfo).length
+          ? { additional_info: additionalInfo }
+          : {}),
         transactions: {
           payments: [
             {
