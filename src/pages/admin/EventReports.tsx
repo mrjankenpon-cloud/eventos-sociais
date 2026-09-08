@@ -30,6 +30,7 @@ import {
 import { exportEventReportCsv } from '../../lib/exportEventReportCsv';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { useAuth } from '../../contexts/AuthContext';
+import { paymentMethodLabel } from '../../lib/paymentMethod';
 
 type InscritoRow = {
   id: string;
@@ -39,6 +40,7 @@ type InscritoRow = {
   nome: string;
   email: string;
   telefone: string;
+  pagamento: string;
   pago: boolean;
   statusLabel: 'Pago' | 'Pendente';
   cancelado: boolean;
@@ -89,6 +91,7 @@ function buildInscritos(
       .slice()
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     const pago = p.statusPagamento === 'confirmado';
+    const pagamento = paymentMethodLabel(p.formaPagamento);
 
     if (pts.length > 0) {
       for (const t of pts) {
@@ -105,6 +108,7 @@ function buildInscritos(
           nome: p.compradorNome,
           email: p.compradorEmail,
           telefone: p.compradorTelefone,
+          pagamento,
           pago,
           statusLabel: pago ? 'Pago' : 'Pendente',
           cancelado,
@@ -135,6 +139,7 @@ function buildInscritos(
         nome: p.compradorNome,
         email: p.compradorEmail,
         telefone: p.compradorTelefone,
+        pagamento,
         pago,
         statusLabel: pago ? 'Pago' : 'Pendente',
         cancelado: false,
@@ -194,16 +199,25 @@ export default function EventReports() {
   );
 
   const stats = useMemo(() => {
-    const active = purchases.filter(
-      (p) =>
-        p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente'
-    );
+    const ticketsByPurchaseCount = new Map<string, number>();
+    for (const t of tickets) {
+      if (
+        t.status === 'Cancelado' ||
+        t.status === 'Reembolsado' ||
+        t.status === 'Bloqueado'
+      ) {
+        continue;
+      }
+      const key = t.compraId || t.pedidoId || '';
+      if (!key) continue;
+      ticketsByPurchaseCount.set(key, (ticketsByPurchaseCount.get(key) || 0) + 1);
+    }
     const pagos = purchases.filter((p) => p.statusPagamento === 'confirmado');
     const pendentes = purchases.filter((p) => p.statusPagamento === 'pendente');
-    const ingressosPagos = pagos.reduce(
-      (acc, p) => acc + (p.quantidadeIngressos || 0),
-      0
-    );
+    const ingressosPagos = pagos.reduce((acc, p) => {
+      const emitted = ticketsByPurchaseCount.get(p.id) || 0;
+      return acc + (emitted > 0 ? emitted : p.quantidadeIngressos || 0);
+    }, 0);
     const ingressosPendentes = pendentes.reduce(
       (acc, p) => acc + (p.quantidadeIngressos || 0),
       0
@@ -215,12 +229,12 @@ export default function EventReports() {
       vagasRestantes: event ? getEventSalonRemaining(event) : 0,
       outrasVagas: event ? getEventIsolatedOffered(event) : 0,
       outrasVagasRestantes: event ? getEventIsolatedRemaining(event) : 0,
-      inscritos: active.length,
+      inscritos: pagos.length,
       ingressosPagos,
       ingressosPendentes,
       arrecadado,
     };
-  }, [purchases, event]);
+  }, [purchases, event, tickets]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
@@ -320,7 +334,14 @@ export default function EventReports() {
     {
       key: 'nome',
       header: 'Nome',
-      render: (p) => <span className="font-bold text-gray-900">{p.nome}</span>,
+      render: (p) => (
+        <div className="min-w-0">
+          <span className="font-bold text-gray-900">{p.nome}</span>
+          <p className="text-xs font-bold text-gray-500 mt-0.5 sm:hidden">
+            {p.pagamento}
+          </p>
+        </div>
+      ),
     },
     {
       key: 'email',
@@ -337,6 +358,16 @@ export default function EventReports() {
       render: (p) => (
         <span className="text-sm text-gray-700 tabular-nums">
           {p.telefone || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'pagamento',
+      header: 'Pagamento',
+      hideOnMobile: true,
+      render: (p) => (
+        <span className="text-xs font-black uppercase tracking-widest text-gray-700">
+          {p.pagamento}
         </span>
       ),
     },
@@ -473,9 +504,13 @@ export default function EventReports() {
               : 'Sem cotas isoladas'
           }
         />
-        <StatCard title="Inscritos" value={stats.inscritos} icon={Users} />
         <StatCard
-          title="Ingressos Pagos"
+          title="Compras confirmadas"
+          value={stats.inscritos}
+          icon={Users}
+        />
+        <StatCard
+          title="Ingressos gerados"
           value={stats.ingressosPagos}
           icon={Ticket}
         />

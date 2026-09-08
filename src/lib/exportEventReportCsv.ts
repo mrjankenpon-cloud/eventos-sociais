@@ -1,6 +1,7 @@
 import type { Event } from '../types/models/event';
 import type { Purchase } from '../types/models/purchase';
 import type { Ticket } from '../types/models/ticket';
+import { paymentMethodLabel } from './paymentMethod';
 
 function csvEscape(value: string | number | boolean | null | undefined): string {
   const s = String(value ?? '');
@@ -68,6 +69,7 @@ function ticketRows(
           t.codigo,
           t.ingressoNome || p.ticketTypeNome || '',
           pago,
+          paymentMethodLabel(p.formaPagamento),
           done ? 'Sim' : 'Nao',
           p.compradorCPF,
           p.createdAt || p.dataCompra || '',
@@ -84,6 +86,7 @@ function ticketRows(
         '',
         p.ticketTypeNome || '',
         pago,
+        paymentMethodLabel(p.formaPagamento),
         'Nao',
         p.compradorCPF,
         p.createdAt || p.dataCompra || '',
@@ -104,6 +107,7 @@ function ticketRows(
       '',
       t.codigo,
       t.ingressoNome || '',
+      '',
       '',
       done ? 'Sim' : 'Nao',
       '',
@@ -142,10 +146,6 @@ export function exportEventReportCsv(input: {
   }
 
   const pending = purchases.filter((p) => p.statusPagamento === 'pendente');
-  const active = purchases.filter(
-    (p) =>
-      p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente'
-  );
 
   const rows: Array<Array<string | number>> = [
     ['SECAO', 'RESUMO'],
@@ -155,9 +155,9 @@ export function exportEventReportCsv(input: {
     ['Data', event.data],
     ['Local', event.local],
     ['Vagas do evento (salao)', event.vagas ?? 0],
-    ['Inscritos', active.length],
+    ['Inscritos (compras confirmadas)', confirmed.length],
     [
-      'Ingressos Pagos',
+      'Ingressos gerados',
       confirmed.reduce((a, p) => a + p.quantidadeIngressos, 0),
     ],
     [
@@ -186,7 +186,8 @@ export function exportEventReportCsv(input: {
       'Telefone',
       'Codigo',
       'Tipo',
-      'Pagamento',
+      'Status',
+      'Forma pagamento',
       'Check-in',
       'CPF',
       'Data inscricao',
@@ -203,6 +204,7 @@ export function exportEventReportCsv(input: {
       'Qtd',
       'Valor total',
       'Status',
+      'Forma pagamento',
       'MP Payment ID',
       'Bruto MP',
       'Taxa MP',
@@ -218,6 +220,7 @@ export function exportEventReportCsv(input: {
       p.quantidadeIngressos,
       p.valorTotal.toFixed(2),
       p.statusPagamento,
+      paymentMethodLabel(p.formaPagamento),
       p.mpPaymentId || '',
       p.mpTransactionAmount ?? '',
       p.mpFeeAmount ?? '',

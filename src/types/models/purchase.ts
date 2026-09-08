@@ -1,3 +1,5 @@
+import type { FormaPagamento } from '../pedido';
+
 export interface Purchase {
   id: string;
   eventId: string;
@@ -29,6 +31,8 @@ export interface Purchase {
     | 'cancelado'
     | 'expirado'
     | 'reembolsado';
+  /** PIX, cartão (mercadopago), gratuito, etc. */
+  formaPagamento?: FormaPagamento;
   linkPagamento?: string;
   accessToken?: string;
   mpPreferenceId?: string;
