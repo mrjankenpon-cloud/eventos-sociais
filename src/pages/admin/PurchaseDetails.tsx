@@ -23,6 +23,7 @@ import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { UpgradePixModal, type UpgradePixPayload } from '../../components/admin/UpgradePixModal';
 import { useFlashMessage } from '../../hooks/useFlashMessage';
 import { formatCurrency, formatEventDate } from '../../lib/utils';
+import { paymentMethodLabel } from '../../lib/paymentMethod';
 import {
   donationDate,
   donationStatusBadgeVariant,
@@ -304,6 +305,10 @@ export default function PurchaseDetails() {
               highlight
             />
             <Detail
+              label="Forma de pagamento"
+              value={paymentMethodLabel(purchase.formaPagamento)}
+            />
+            <Detail
               label="Data"
               value={donationDate(purchase).toLocaleString('pt-BR')}
             />
@@ -443,6 +448,9 @@ export default function PurchaseDetails() {
               >
                 {purchase.statusPagamento}
               </Badge>
+              <p className="text-xs font-black uppercase tracking-widest text-gray-600 mt-2">
+                {paymentMethodLabel(purchase.formaPagamento)}
+              </p>
               {purchase.mpPaymentId ? (
                 <p className="text-[10px] font-mono text-gray-400 mt-2 break-all">
                   MP: {purchase.mpPaymentId}

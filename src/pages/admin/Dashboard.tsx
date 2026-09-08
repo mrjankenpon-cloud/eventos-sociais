@@ -43,6 +43,7 @@ import {
 } from '../../lib/eventData';
 import { getEventDisplayStatus } from '../../lib/eventDisplayStatus';
 import { isTicketPurchase, purchasePayerKey } from '../../lib/donations';
+import { paymentMethodLabel } from '../../lib/paymentMethod';
 
 type ViewMode = 'general' | 'event' | 'report';
 type ReportType = 'vendidos' | 'pagantes' | 'checkin' | 'arrecadacao' | 'apps';
@@ -152,6 +153,15 @@ export default function Dashboard() {
     [tickets]
   );
 
+  const ticketsByPurchaseId = useMemo(() => {
+    const map = new Map<string, number>();
+    tickets.forEach((t) => {
+      if (t.status === 'Cancelado' || t.status === 'Reembolsado') return;
+      map.set(t.compraId, (map.get(t.compraId) || 0) + 1);
+    });
+    return map;
+  }, [tickets]);
+
   const eventAggregates = useMemo(() => {
     const map = new Map<
       string,
@@ -160,20 +170,18 @@ export default function Dashboard() {
     events.forEach((e) =>
       map.set(e.id, { purchases: 0, tickets: 0, arrecadado: 0 })
     );
-    ticketPurchases.forEach((p) => {
+    // Lista do evento: só compras confirmadas + ingressos já emitidos.
+    confirmedPurchases.forEach((p) => {
       const agg = map.get(p.eventId);
       if (!agg) return;
       agg.purchases += 1;
-      if (p.statusPagamento === 'confirmado') {
-        agg.arrecadado += p.valorTotal || 0;
-      }
-    });
-    tickets.forEach((t) => {
-      const agg = map.get(t.eventoId);
-      if (agg) agg.tickets += 1;
+      agg.arrecadado += p.valorTotal || 0;
+      const emitted = ticketsByPurchaseId.get(p.id);
+      agg.tickets +=
+        emitted ?? Math.max(0, Number(p.quantidadeIngressos) || 0);
     });
     return map;
-  }, [events, ticketPurchases, tickets]);
+  }, [events, confirmedPurchases, ticketsByPurchaseId]);
 
   const generalStats = useMemo(() => {
     const now = new Date();
@@ -209,16 +217,14 @@ export default function Dashboard() {
     const eventPurchases = ticketPurchases.filter(
       (p) => p.eventId === selectedEvent.id
     );
-    const ativos = eventPurchases.filter(
-      (p) =>
-        p.statusPagamento === 'confirmado' || p.statusPagamento === 'pendente'
-    );
     const pagos = eventPurchases.filter((p) => p.statusPagamento === 'confirmado');
     const pendentes = eventPurchases.filter((p) => p.statusPagamento === 'pendente');
-    const ingressosPagos = pagos.reduce(
-      (acc, p) => acc + (p.quantidadeIngressos || 0),
-      0
-    );
+    const ingressosPagos = pagos.reduce((acc, p) => {
+      const emitted = ticketsByPurchaseId.get(p.id);
+      return (
+        acc + (emitted ?? Math.max(0, Number(p.quantidadeIngressos) || 0))
+      );
+    }, 0);
     const ingressosPendentes = pendentes.reduce(
       (acc, p) => acc + (p.quantidadeIngressos || 0),
       0
@@ -230,12 +236,12 @@ export default function Dashboard() {
       vagasRestantes: getEventSalonRemaining(selectedEvent),
       outrasVagas: getEventIsolatedOffered(selectedEvent),
       outrasVagasRestantes: getEventIsolatedRemaining(selectedEvent),
-      inscritos: ativos.length,
+      inscritos: pagos.length,
       ingressosPagos,
       ingressosPendentes,
       arrecadado,
     };
-  }, [selectedEvent, ticketPurchases]);
+  }, [selectedEvent, ticketPurchases, ticketsByPurchaseId]);
 
   const filteredTickets = useMemo(() => {
     let list =
@@ -359,7 +365,10 @@ export default function Dashboard() {
       className: 'text-center',
       hideOnMobile: true,
       render: (event) => (
-        <span className="font-black text-gray-900">
+        <span
+          className="font-black text-gray-900"
+          title="Compras confirmadas"
+        >
           {eventAggregates.get(event.id)?.purchases ?? 0}
         </span>
       ),
@@ -369,7 +378,10 @@ export default function Dashboard() {
       header: 'Ingressos',
       className: 'text-center',
       render: (event) => (
-        <span className="font-black text-brand">
+        <span
+          className="font-black text-brand"
+          title="Ingressos gerados nas compras confirmadas"
+        >
           {eventAggregates.get(event.id)?.tickets ?? 0}
         </span>
       ),
@@ -594,6 +606,9 @@ export default function Dashboard() {
           <div className="min-w-0">
             <p className="font-black text-gray-900 truncate">{p.compradorNome}</p>
             <p className="text-xs text-gray-400 truncate">{p.compradorEmail}</p>
+            <p className="text-xs font-bold text-gray-500 mt-0.5 sm:hidden">
+              {paymentMethodLabel(p.formaPagamento)}
+            </p>
           </div>
         ),
       },
@@ -618,14 +633,32 @@ export default function Dashboard() {
         ),
       },
       {
+        key: 'pagamento',
+        header: 'Pagamento',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="text-xs font-black uppercase tracking-widest text-gray-700">
+            {paymentMethodLabel(p.formaPagamento)}
+          </span>
+        ),
+      },
+      {
         key: 'ingressos',
         header: 'Ingressos',
         className: 'text-center',
-        render: (p) => (
-          <span className="font-black tabular-nums">
-            {p.quantidadeIngressos}
-          </span>
-        ),
+        render: (p) => {
+          const generated =
+            ticketsByPurchaseId.get(p.id) ??
+            Math.max(0, Number(p.quantidadeIngressos) || 0);
+          return (
+            <span
+              className="font-black tabular-nums"
+              title="Ingressos gerados nesta compra"
+            >
+              {generated}
+            </span>
+          );
+        },
       },
       {
         key: 'valor',
@@ -653,7 +686,7 @@ export default function Dashboard() {
         ),
       },
     ],
-    [eventsById]
+    [eventsById, ticketsByPurchaseId]
   );
 
   if (loading) return <PageLoader label="Carregando dashboard..." />;
@@ -756,7 +789,7 @@ export default function Dashboard() {
               navigate(ROUTES.ADMIN.EVENT_EDIT.replace(':id', selectedEvent.id)),
           },
           {
-            title: 'Inscritos',
+            title: 'Compras confirmadas',
             value: eventStats.inscritos,
             icon: Users,
             accent: THEME.colors.primary,
@@ -767,7 +800,7 @@ export default function Dashboard() {
               ),
           },
           {
-            title: 'Ingressos pagos',
+            title: 'Ingressos gerados',
             value: eventStats.ingressosPagos,
             icon: CheckCircle,
             accent: THEME.colors.status.active,
