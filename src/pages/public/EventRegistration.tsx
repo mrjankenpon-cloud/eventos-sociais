@@ -123,8 +123,9 @@ export default function EventRegistration() {
   useEffect(() => {
     if (metodoFromUrl === 'pix') {
       setMetodo('pix');
+    } else if (CARD_CHECKOUT_ENABLED && metodoFromUrl === 'checkout_pro') {
+      setMetodo('checkout_pro');
     }
-    // Cartão temporariamente desativado — ignora ?metodo=checkout_pro
   }, [metodoFromUrl]);
 
   useEffect(() => {

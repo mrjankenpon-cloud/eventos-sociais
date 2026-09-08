@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "ensure-admin": "tsx scripts/ensure-admin.ts",
-    "sync-functions-env": "node scripts/sync-functions-env.mjs"
+    "sync-functions-env": "node scripts/sync-functions-env.mjs",
+    "validate:card-checkout": "node scripts/validate-card-checkout.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
