@@ -304,7 +304,8 @@ export default function EventRegistration() {
       <div className="min-h-[50vh] relative">
         <ProcessingOverlay
           open
-          label="Processando"
+          label="Quase lá"
+          gratitude
           detail="Preparando a inscrição..."
         />
       </div>
@@ -633,8 +634,9 @@ export default function EventRegistration() {
 
       <ProcessingOverlay
         open={isSubmitting}
-        label="Processando"
-        detail="Reservando ingressos e preparando o pagamento..."
+        gratitude
+        label="Quase lá"
+        detail="Reservando seus ingressos e preparando o pagamento..."
       />
     </div>
   );

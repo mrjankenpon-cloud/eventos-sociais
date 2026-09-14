@@ -122,7 +122,8 @@ export default function DonationSuccess() {
       <div className="min-h-[50vh] relative">
         <ProcessingOverlay
           open
-          label="Processando"
+          gratitude
+          label="Quase lá"
           detail="Carregando sua doação..."
         />
       </div>
@@ -315,7 +316,7 @@ export default function DonationSuccess() {
                 qrCode={pedido.pixQrCode}
                 qrCodeBase64={pedido.pixQrCodeBase64}
                 ticketUrl={pedido.pixTicketUrl}
-                expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
+                expiresAt={pedido.reservaExpiraEm || pedido.pixExpiresAt}
               />
             ) : pedido.linkPagamento && !showPaidThanks ? (
               <a href={pedido.linkPagamento} className="block mb-6 print:hidden">

@@ -44,8 +44,9 @@ function RouteFallback({ detail }: { detail?: string }) {
     <div className="min-h-[50vh]">
       <ProcessingOverlay
         open
-        label="Processando"
-        detail={detail || 'Carregando a próxima etapa...'}
+        gratitude
+        label="Quase lá"
+        detail={detail || 'Preparando a próxima etapa...'}
       />
     </div>
   );

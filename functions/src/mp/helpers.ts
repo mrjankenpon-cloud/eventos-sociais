@@ -261,8 +261,9 @@ export function clientSafeMessage(error: unknown, fallback: string): string {
   return msg;
 }
 
-/** PIX no MP exige no mínimo ~30 min. */
-export const PIX_MINUTES = 30;
+/** PIX no MP exige no mínimo ~30 min na API; a reserva/UI do site usa 15 min. */
+export const PIX_MINUTES = 15;
+export const PIX_MP_MIN_MINUTES = 30;
 
 export function isoWithOffset(date: Date): string {
   const pad = (n: number) => String(Math.trunc(n)).padStart(2, '0');
@@ -523,10 +524,13 @@ export async function createPixCharge(input: {
 
   const amount = moneyString(input.valor);
   const holdMs = Math.max(
-    30 * 60 * 1000,
+    PIX_MP_MIN_MINUTES * 60 * 1000,
     new Date(input.expiresAt).getTime() - Date.now()
   );
-  const holdMinutes = Math.max(30, Math.round(holdMs / 60000));
+  const holdMinutes = Math.max(
+    PIX_MP_MIN_MINUTES,
+    Math.round(holdMs / 60000)
+  );
 
   // Orders / PIX: só campos documentados em POST /v1/orders.
   // NÃO enviar additional_info aqui — quebra a criação do QR (campo da API Payments).

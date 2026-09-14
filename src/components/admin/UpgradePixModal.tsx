@@ -6,6 +6,7 @@ import { Modal, Button } from '../ui';
 import { db } from '../../firebase/firestore';
 import { COLLECTIONS } from '../../services/firebase/helpers';
 import { formatCurrency } from '../../lib/utils';
+import { formatPixCountdown } from '../../lib/pixCountdown';
 
 export type UpgradePixPayload = {
   pedidoId?: string;
@@ -22,14 +23,7 @@ export type UpgradePixPayload = {
 };
 
 function remainingLabel(expiresAt?: string): string {
-  if (!expiresAt) return '';
-  const end = new Date(expiresAt).getTime();
-  if (Number.isNaN(end)) return '';
-  const ms = end - Date.now();
-  if (ms <= 0) return 'Expirado';
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000);
-  return `${min}:${String(sec).padStart(2, '0')}`;
+  return formatPixCountdown(expiresAt);
 }
 
 export function UpgradePixModal({

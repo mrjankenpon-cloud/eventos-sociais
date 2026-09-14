@@ -8,7 +8,7 @@ import {
   CARD_CHECKOUT_ENABLED,
   type CheckoutMetodo,
 } from '../../components/public/PaymentMethodPicker';
-import { Alert, Button, Input, PhoneInput, Textarea } from '../../components/ui';
+import { Alert, Button, Input, PhoneInput, Textarea, ProcessingOverlay } from '../../components/ui';
 import { checkoutApi } from '../../services/checkout.api';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
 import { ensureMpSecurityScript } from '../../lib/mpDeviceId';
@@ -117,6 +117,7 @@ export default function Donations() {
   };
 
   return (
+    <>
     <LegalPage
       title="Doações para eventos beneficentes"
       subtitle="Apoie as ações solidárias do Instituto Delphos em Barueri e região."
@@ -275,5 +276,13 @@ export default function Donations() {
         </Button>
       </form>
     </LegalPage>
+
+    <ProcessingOverlay
+      open={submitting}
+      gratitude
+      label="Quase lá"
+      detail="Preparando sua doação com carinho..."
+    />
+    </>
   );
 }
