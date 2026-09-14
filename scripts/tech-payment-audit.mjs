@@ -57,6 +57,16 @@ async function post(name, body) {
   };
 }
 
+async function postWithRetry(name, body, attempts = 3) {
+  let last;
+  for (let i = 0; i < attempts; i += 1) {
+    last = await post(name, body);
+    if (last.status !== 429) return last;
+    await new Promise((r) => setTimeout(r, 20_000 * (i + 1)));
+  }
+  return last;
+}
+
 function buyer(label, seed) {
   const stamp = Date.now().toString().slice(-6);
   return {
@@ -213,7 +223,8 @@ if (cardPass) {
 }
 
 // 4) Isolation: PIX path must not require deviceId
-const pixNoDevice = await post('createCheckoutSession', {
+await new Promise((r) => setTimeout(r, 2000));
+const pixNoDevice = await postWithRetry('createCheckoutSession', {
   eventoId: EVENTO_ID,
   metodo: 'pix',
   itens: [{ ingressoId: INGRESSO_ID, quantidade: 1 }],
@@ -232,7 +243,8 @@ record(
 );
 
 // 5) Card without deviceId must fail explicitly
-const cardNoDevice = await post('createCheckoutSession', {
+await new Promise((r) => setTimeout(r, 2000));
+const cardNoDevice = await postWithRetry('createCheckoutSession', {
   eventoId: EVENTO_ID,
   metodo: 'checkout_pro',
   itens: [{ ingressoId: INGRESSO_ID, quantidade: 1 }],

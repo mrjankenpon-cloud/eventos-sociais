@@ -17,3 +17,6 @@ coverage/
 .secrets/
 *-firebase-adminsdk-*.json
 
+# Local test outputs
+artifacts/
+
