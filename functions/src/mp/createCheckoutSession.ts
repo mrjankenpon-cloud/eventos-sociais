@@ -487,6 +487,7 @@ export const createCheckoutSession = functions.https.onRequest(
       if (metodo === 'pix') {
         await pedidoRef.set(basePedido);
         try {
+          // PIX (Orders API): payload mínimo estável — sem additional_info do Checkout Pro.
           const pix = await createPixCharge({
             pedidoId: pedidoRef.id,
             valor: valorTotal,
@@ -499,15 +500,6 @@ export const createCheckoutSession = functions.https.onRequest(
             expiresAt: isoWithOffset(reservaExpiraEm),
             idempotencyKey: `ticket-pix-${pedidoRef.id}`,
             deviceSessionId,
-            clientIp,
-            additionalInfoPayer: mpIndustryPayer({
-              nome,
-              telefone,
-              documento: cpf,
-              documentoTipo: 'cpf',
-              authenticationType: authTypeFromRequest(req),
-              profile: buyerProfile,
-            }),
             items: industryItems,
           });
           await pedidoRef.update({

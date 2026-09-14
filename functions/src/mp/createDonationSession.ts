@@ -238,6 +238,7 @@ export const createDonationSession = functions.https.onRequest(
 
       if (metodo === 'pix') {
         try {
+          // PIX (Orders API): sem additional_info do Checkout Pro (quebra o QR).
           const pix = await createPixCharge({
             pedidoId: pedidoRef.id,
             valor,
@@ -250,15 +251,6 @@ export const createDonationSession = functions.https.onRequest(
             expiresAt: isoWithOffset(expira),
             idempotencyKey: `donation-pix-${pedidoRef.id}`,
             deviceSessionId,
-            clientIp,
-            additionalInfoPayer: mpIndustryPayer({
-              nome,
-              telefone,
-              documento,
-              documentoTipo,
-              authenticationType: authTypeFromRequest(req),
-              profile: await loadBuyerPurchaseProfile(email),
-            }),
             items: [
               {
                 title: 'Doacao Instituto Delphos',

@@ -482,9 +482,12 @@ export async function createPixCharge(input: {
   expiresAt: string;
   idempotencyKey: string;
   deviceSessionId?: string;
+  /** @deprecated Orders API não usa additional_info (isso é da API Payments / Checkout Pro). Ignorado. */
   clientIp?: string;
+  /** @deprecated Ignorado no PIX — ver clientIp. */
   additionalInfoPayer?: Record<string, unknown>;
   items?: Array<{
+    id?: string;
     title: string;
     description?: string;
     external_code?: string;
@@ -524,64 +527,85 @@ export async function createPixCharge(input: {
     new Date(input.expiresAt).getTime() - Date.now()
   );
   const holdMinutes = Math.max(30, Math.round(holdMs / 60000));
+
+  // Orders / PIX: só campos documentados em POST /v1/orders.
+  // NÃO enviar additional_info aqui — quebra a criação do QR (campo da API Payments).
   const orderItems = (input.items || [])
     .filter((item) => item.quantity > 0)
-    .map((item) => ({
-      title: String(item.title || input.description).slice(0, 256),
-      description: String(item.description || item.title || '').slice(0, 256),
-      quantity: item.quantity,
-      unit_price: moneyString(item.unit_price),
-      ...(item.external_code
-        ? { external_code: String(item.external_code).slice(0, 64) }
-        : {}),
-      ...(item.category_id ? { category_id: item.category_id } : {}),
-      ...(item.event_date ? { event_date: item.event_date } : {}),
-    }));
+    .map((item) => {
+      const external =
+        String(item.external_code || item.id || '')
+          .replace(/[^a-zA-Z0-9_-]/g, '')
+          .slice(0, 64) || undefined;
+      const row: Record<string, unknown> = {
+        title: String(item.title || input.description).slice(0, 256),
+        description: String(item.description || item.title || '').slice(0, 256),
+        quantity: item.quantity,
+        unit_price: moneyString(item.unit_price),
+      };
+      if (external) row.external_code = external;
+      if (item.category_id) row.category_id = String(item.category_id).slice(0, 64);
+      if (item.event_date) row.event_date = item.event_date;
+      return row;
+    });
 
-  const additionalInfo: Record<string, unknown> = {};
-  if (input.clientIp) additionalInfo.ip_address = input.clientIp;
-  if (input.additionalInfoPayer) {
-    additionalInfo.payer = input.additionalInfoPayer;
-  }
-  if (orderItems.length) {
-    additionalInfo.items = orderItems.map((item) => ({
-      ...item,
-      unit_price: Number(item.unit_price),
-    }));
-  }
+  const buildBody = (items: Record<string, unknown>[]) => ({
+    type: 'online',
+    processing_mode: 'automatic',
+    total_amount: amount,
+    external_reference: input.pedidoId,
+    description: input.description.slice(0, 255),
+    expiration_time: `PT${holdMinutes}M`,
+    payer,
+    ...(items.length ? { items } : {}),
+    transactions: {
+      payments: [
+        {
+          amount,
+          payment_method: {
+            id: 'pix',
+            type: 'bank_transfer',
+          },
+        },
+      ],
+    },
+  });
 
   try {
-    const order = await mpFetch<MpOrderPix>('/v1/orders', {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': input.idempotencyKey,
-        ...mpDeviceHeaders(input.deviceSessionId),
-      },
-      body: JSON.stringify({
-        type: 'online',
-        processing_mode: 'automatic',
-        total_amount: amount,
-        external_reference: input.pedidoId,
-        description: input.description.slice(0, 255),
-        expiration_time: `PT${holdMinutes}M`,
-        payer,
-        ...(orderItems.length ? { items: orderItems } : {}),
-        ...(Object.keys(additionalInfo).length
-          ? { additional_info: additionalInfo }
-          : {}),
-        transactions: {
-          payments: [
-            {
-              amount,
-              payment_method: {
-                id: 'pix',
-                type: 'bank_transfer',
-              },
-            },
-          ],
+    let order: MpOrderPix;
+    try {
+      order = await mpFetch<MpOrderPix>('/v1/orders', {
+        method: 'POST',
+        headers: {
+          'X-Idempotency-Key': input.idempotencyKey,
+          ...mpDeviceHeaders(input.deviceSessionId),
         },
-      }),
-    });
+        body: JSON.stringify(buildBody(orderItems)),
+      });
+    } catch (firstError) {
+      // Fallback: itens sem event_date (alguns tenants rejeitam o campo).
+      const stripped = orderItems.map((item) => {
+        const { event_date: _drop, ...rest } = item as Record<string, unknown> & {
+          event_date?: string;
+        };
+        void _drop;
+        return rest;
+      });
+      const changed =
+        stripped.length > 0 &&
+        orderItems.some((item) => Boolean((item as { event_date?: string }).event_date));
+      if (!changed) throw firstError;
+
+      order = await mpFetch<MpOrderPix>('/v1/orders', {
+        method: 'POST',
+        headers: {
+          // Nova chave: a anterior pode ter cacheado o 400.
+          'X-Idempotency-Key': `${input.idempotencyKey}-no-event-date`,
+          ...mpDeviceHeaders(input.deviceSessionId),
+        },
+        body: JSON.stringify(buildBody(stripped)),
+      });
+    }
     const pix = pixFromOrder(order);
     if (!pix.qrCode) {
       throw new Error('Mercado Pago não devolveu o código PIX');
