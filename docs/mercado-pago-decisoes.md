@@ -27,10 +27,12 @@ Extras de arquitetura:
 
 Sinais antifraude (Checkout Pro / Orders) — manter:
 - Device ID (`X-meli-session-id`) obrigatório no cartão; best-effort no PIX
-- `additional_info`: IP, itens com `event_date` + `category_descriptor`, payer industry
+- Checkout Pro `additional_info`: IP, itens com `event_date` + `category_descriptor`, payer industry
   (`authentication_type: Native web`, `date_created` + `registration_date`, CPF, telefone,
   histórico `is_first_purchase_online` / `last_purchase`)
 - `shipments.mode=not_specified` + `local_pickup` (ingressos digitais / retirada)
 - Preferência com `expires` + `expiration_date_to` alinhado à reserva
 - Não colocar `event_date` no array top-level `items` do Checkout Pro hospedado
   (quebra o botão Pagar); só em `additional_info.items`
+- PIX (API Orders `/v1/orders`): **não** enviar `additional_info` — campo da API Payments;
+  payload mínimo (payer + transactions.payments pix + items opcionais)
