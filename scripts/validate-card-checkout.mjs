@@ -66,8 +66,15 @@ assert(
   'createCheckoutSession sets preference expiration'
 );
 assert(
-  /additionalInfoPayer/.test(createSession),
-  'PIX ticket charge includes industry payer additional_info'
+  /metodo === 'pix'/.test(createSession) &&
+    /createPixCharge\(/.test(createSession) &&
+    !/additionalInfoPayer: mpIndustryPayer/.test(createSession),
+  'PIX ticket charge does not send Checkout Pro additionalInfoPayer'
+);
+assert(
+  /mpPreferenceAdditionalInfo/.test(createSession) &&
+    /payment_methods: checkoutProPaymentMethods/.test(createSession),
+  'Checkout Pro path keeps preference additional_info + payment methods'
 );
 
 const donationSession = read('functions/src/mp/createDonationSession.ts');
@@ -76,15 +83,22 @@ assert(
     /expiration_date_to/.test(donationSession),
   'createDonationSession sends shipments + preference expiration'
 );
+assert(
+  /metodo === 'pix'/.test(donationSession) &&
+    !/additionalInfoPayer: mpIndustryPayer/.test(donationSession),
+  'Donation PIX does not send Checkout Pro additionalInfoPayer'
+);
 
 const helpers = read('functions/src/mp/helpers.ts');
 assert(
-  /additionalInfoPayer\?:/.test(helpers) && /clientIp\?:/.test(helpers),
-  'createPixCharge accepts clientIp + additionalInfoPayer'
+  /Orders API não usa additional_info|NÃO enviar additional_info/.test(helpers),
+  'createPixCharge documents that Orders must not use additional_info'
 );
 assert(
-  /additional_info: additionalInfo/.test(helpers),
-  'createPixCharge sends additional_info to Orders API'
+  !/additional_info: additionalInfo/.test(helpers) &&
+    /type: 'online'/.test(helpers) &&
+    /id: 'pix'/.test(helpers),
+  'createPixCharge builds Orders PIX body without additional_info'
 );
 
 const base =
