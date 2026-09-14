@@ -3,17 +3,7 @@ import QRCode from 'react-qr-code';
 import { Copy, Check } from 'lucide-react';
 import { Button } from '../ui';
 import { formatCurrency } from '../../lib/utils';
-
-function remainingLabel(expiresAt?: string | null): string {
-  if (!expiresAt) return '';
-  const end = new Date(expiresAt).getTime();
-  if (Number.isNaN(end)) return '';
-  const ms = end - Date.now();
-  if (ms <= 0) return 'Expirado';
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000);
-  return `${min}:${String(sec).padStart(2, '0')}`;
-}
+import { formatPixCountdown } from '../../lib/pixCountdown';
 
 export function PixCheckoutPanel({
   amount,
@@ -42,7 +32,12 @@ export function PixCheckoutPanel({
     return () => window.clearInterval(id);
   }, []);
 
-  const clock = useMemo(() => remainingLabel(expiresAt), [expiresAt, tick]);
+  const clock = useMemo(
+    () => formatPixCountdown(expiresAt),
+    // tick força atualização a cada segundo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expiresAt, tick]
+  );
   const expired = clock === 'Expirado';
 
   const copyCode = async () => {
@@ -85,13 +80,13 @@ export function PixCheckoutPanel({
         </div>
       </div>
 
-      <p className="text-center text-xs font-bold uppercase tracking-wider text-amber-600">
+      <p className="text-center text-xs font-bold uppercase tracking-wider text-amber-600 tabular-nums">
         {expired
           ? isDonation
             ? 'PIX expirado — inicie uma nova doação'
             : 'PIX expirado — inicie uma nova compra'
           : clock
-            ? `Válido por ${clock}`
+            ? `Tempo restante ${clock}`
             : 'Aguardando pagamento PIX'}
       </p>
 
@@ -131,7 +126,9 @@ export function PixCheckoutPanel({
 
       <p className="text-[11px] text-gray-400 leading-relaxed">
         {hint ||
-          'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'}
+          (isDonation
+            ? 'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'
+            : 'Abra o app do banco, escaneie o QR ou cole o código. Os ingressos aparecem aqui após a confirmação.')}
       </p>
     </div>
   );

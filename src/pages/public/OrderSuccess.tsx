@@ -172,7 +172,8 @@ export default function OrderSuccess() {
       <div className="min-h-[50vh] relative">
         <ProcessingOverlay
           open
-          label="Processando"
+          gratitude
+          label="Quase lá"
           detail="Carregando seu pedido..."
         />
       </div>
@@ -386,7 +387,7 @@ export default function OrderSuccess() {
               qrCode={pedido.pixQrCode}
               qrCodeBase64={pedido.pixQrCodeBase64}
               ticketUrl={pedido.pixTicketUrl}
-              expiresAt={pedido.pixExpiresAt || pedido.reservaExpiraEm}
+              expiresAt={pedido.reservaExpiraEm || pedido.pixExpiresAt}
               hint="Abra o app do banco, escaneie o QR ou cole o código. Os ingressos são emitidos automaticamente após a confirmação."
             />
           ) : null}

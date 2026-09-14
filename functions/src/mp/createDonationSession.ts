@@ -267,7 +267,8 @@ export const createDonationSession = functions.https.onRequest(
             pixQrCode: pix.qrCode,
             pixQrCodeBase64: pix.qrCodeBase64,
             pixTicketUrl: pix.ticketUrl || null,
-            pixExpiresAt: pix.expiresAt || expira.toISOString(),
+            // Contagem do site = reserva (15 min), não a expiração longa do MP.
+            pixExpiresAt: expira.toISOString(),
             mpPaymentId: pix.paymentId,
             mpOrderId: pix.orderId || null,
             mpOrderPaymentId: pix.orderPaymentId || null,
@@ -282,7 +283,7 @@ export const createDonationSession = functions.https.onRequest(
             qrCode: pix.qrCode,
             qrCodeBase64: pix.qrCodeBase64,
             ticketUrl: pix.ticketUrl || undefined,
-            expiresAt: pix.expiresAt || expira.toISOString(),
+            expiresAt: expira.toISOString(),
             receiptUrl: `${successUrl}?token=${accessToken}`,
           });
           return;
