@@ -43,6 +43,13 @@ export default defineConfig(() => {
           skipWaiting: false,
           cleanupOutdatedCaches: true,
           importScripts: ['/push-sw.js'],
+          globPatterns: [
+            '**/*.{js,css,html,svg,png,jpg,jpeg,ico,woff2,webmanifest}',
+          ],
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /\/[^/?]+\.[a-zA-Z0-9]+(?:\?.*)?$/,
+          ],
         },
         includeAssets: [
           'favicon.png',
@@ -50,6 +57,8 @@ export default defineConfig(() => {
           'mask-icon.svg',
           'pwa-192x192.png',
           'pwa-512x512.png',
+          'delphos-logo.png',
+          'frafem-logo.png',
           'push-sw.js',
         ],
         manifest: {

@@ -16,7 +16,7 @@
     { "source": "/termos", "destination": "/termos/index.html" },
     { "source": "/privacidade", "destination": "/privacidade/index.html" },
     {
-      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html|doacoes|sobre|termos|privacidade).*)",
+      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html|doacoes|sobre|termos|privacidade|.*\\.[A-Za-z0-9]+$).*)",
       "destination": "/index.html"
     }
   ]

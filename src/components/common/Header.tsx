@@ -4,6 +4,7 @@ import { APP_CONFIG, ROUTES } from '../../config';
 import { THEME } from '../../theme';
 import { cn } from '../../lib/utils';
 import { getScrollTop, onPageScroll } from '../../lib/pageScroll';
+import { BRAND_LOGOS } from '../../assets/brand';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -68,11 +69,12 @@ export default function Header() {
             aria-label={`${APP_CONFIG.name} — logotipo`}
           >
             <img
-              src="/delphos-logo.png"
+              src={BRAND_LOGOS.delphos}
               alt=""
               width={503}
               height={496}
               decoding="async"
+              fetchPriority="high"
               className={`w-auto object-contain drop-shadow-md transition-[height] duration-300 ${
                 isScrolled
                   ? 'h-9 sm:h-12 md:h-14'
@@ -80,11 +82,12 @@ export default function Header() {
               }`}
             />
             <img
-              src="/frafem-logo.png"
+              src={BRAND_LOGOS.frafem}
               alt="FRAFEM Delphos"
-              width={1024}
-              height={1024}
+              width={512}
+              height={512}
               decoding="async"
+              fetchPriority="high"
               className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-[height] duration-300 ${
                 isScrolled
                   ? 'h-8 sm:h-10 md:h-12'

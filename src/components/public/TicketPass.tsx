@@ -5,6 +5,7 @@ import { Copy, Printer, Ticket } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn, formatEventDate } from '../../lib/utils';
 import { APP_CONFIG } from '../../config';
+import { BRAND_LOGOS } from '../../assets/brand';
 
 export type TicketPassData = {
   id: string;
@@ -62,7 +63,7 @@ function DelphosTicketHeader() {
         </p>
       </div>
       <img
-        src="/delphos-logo.png"
+        src={BRAND_LOGOS.delphos}
         alt=""
         className="h-12 sm:h-14 w-auto object-contain drop-shadow-md shrink-0"
       />

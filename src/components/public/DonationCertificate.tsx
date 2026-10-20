@@ -1,5 +1,6 @@
 import { ORG, amountInWordsPt, formatCpfCnpj, orgAddressLine } from '../../lib/orgInfo';
 import { formatCurrency } from '../../lib/utils';
+import { BRAND_LOGOS } from '../../assets/brand';
 
 export type DonationCertificateData = {
   numero: string;
@@ -37,7 +38,7 @@ export function DonationCertificate({ data }: { data: DonationCertificateData })
           </p>
         </div>
         <img
-          src="/delphos-logo.png"
+          src={BRAND_LOGOS.delphos}
           alt=""
           className="h-12 sm:h-14 w-auto object-contain drop-shadow-md"
         />
