@@ -11,12 +11,20 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://eventosociais-c057d.firebaseapp.com/__/auth/:path*"
+    },
+    {
+      "source": "/__/firebase/:path*",
+      "destination": "https://eventosociais-c057d.firebaseapp.com/__/firebase/:path*"
+    },
     { "source": "/doacoes", "destination": "/doacoes/index.html" },
     { "source": "/sobre", "destination": "/sobre/index.html" },
     { "source": "/termos", "destination": "/termos/index.html" },
     { "source": "/privacidade", "destination": "/privacidade/index.html" },
     {
-      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html|doacoes|sobre|termos|privacidade|.*\\.[A-Za-z0-9]+$).*)",
+      "source": "/((?!robots.txt|sitemap.xml|google-site-verification.txt|google-site-verification.html|doacoes|sobre|termos|privacidade|__|.*\\.[A-Za-z0-9]+$).*)",
       "destination": "/index.html"
     }
   ]

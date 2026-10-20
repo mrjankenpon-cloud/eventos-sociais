@@ -28,10 +28,7 @@ export default function Login() {
     setIsGoogleLoading(true);
     setError('');
     try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
-      }
+      await clearStaleClientCaches();
       await loginWithGoogle();
       navigate(from, { replace: true });
     } catch (err: unknown) {
@@ -99,6 +96,21 @@ export default function Login() {
       </motion.div>
     </div>
   );
+}
+
+async function clearStaleClientCaches(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => undefined)));
+    }
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key).catch(() => false)));
+    }
+  } catch {
+    /* login não depende do PWA */
+  }
 }
 
 function GoogleIcon() {

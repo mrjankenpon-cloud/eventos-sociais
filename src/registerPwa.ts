@@ -13,6 +13,7 @@ function shouldRegisterServiceWorker(): boolean {
  */
 export function registerPwa(): void {
   if (!shouldRegisterServiceWorker()) return;
+  if (window.location.pathname.startsWith('/controle')) return;
 
   window.addEventListener('load', () => {
     navigator.serviceWorker

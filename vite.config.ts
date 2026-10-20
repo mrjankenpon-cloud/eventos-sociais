@@ -48,6 +48,7 @@ export default defineConfig(() => {
           ],
           navigateFallbackDenylist: [
             /^\/api\//,
+            /^\/__\//,
             /\/[^/?]+\.[a-zA-Z0-9]+(?:\?.*)?$/,
           ],
         },

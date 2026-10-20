@@ -83,8 +83,10 @@ function mapGoogleAuthError(error: unknown): Error {
     );
   }
   if (code.includes('unauthorized-domain') || msg.includes('unauthorized-domain')) {
+    const host =
+      typeof window !== 'undefined' ? window.location.hostname : 'este endereço';
     return new Error(
-      'O domínio institutodelphos.com.br ainda não está autorizado no Firebase. Em Authentication → Settings → Authorized domains, adicione institutodelphos.com.br (e www se usar).'
+      `O Firebase recusou o login neste endereço (${host}). Atualize com Ctrl+F5 para limpar o PWA e entre de novo em https://institutodelphos.com.br/controle/login (sem www).`
     );
   }
   if (code.includes('popup-blocked') || msg.includes('popup-blocked')) {

@@ -19,10 +19,21 @@ const DEFAULT_FIREBASE_CONFIG = {
   appId: '1:878802346786:web:1089188a3b4cd893b8bb7b',
 } as const;
 
+const CUSTOM_AUTH_HOSTS = new Set([
+  'institutodelphos.com.br',
+  'www.institutodelphos.com.br',
+]);
+
+function resolveAuthDomain(): string {
+  if (typeof window !== 'undefined' && CUSTOM_AUTH_HOSTS.has(window.location.hostname)) {
+    return window.location.hostname;
+  }
+  return readEnv('VITE_FIREBASE_AUTH_DOMAIN') || DEFAULT_FIREBASE_CONFIG.authDomain;
+}
+
 const firebaseConfig = {
   apiKey: readEnv('VITE_FIREBASE_API_KEY') || DEFAULT_FIREBASE_CONFIG.apiKey,
-  authDomain:
-    readEnv('VITE_FIREBASE_AUTH_DOMAIN') || DEFAULT_FIREBASE_CONFIG.authDomain,
+  authDomain: resolveAuthDomain(),
   projectId:
     readEnv('VITE_FIREBASE_PROJECT_ID') || DEFAULT_FIREBASE_CONFIG.projectId,
   storageBucket:
