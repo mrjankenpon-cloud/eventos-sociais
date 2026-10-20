@@ -71,28 +71,30 @@ export default function Header() {
             <img
               src={BRAND_LOGOS.delphos}
               alt=""
-              width={503}
-              height={496}
+              width={160}
+              height={160}
               decoding="async"
               fetchPriority="high"
-              className={`w-auto object-contain drop-shadow-md transition-[height] duration-300 ${
+              className={cn(
+                'w-auto max-h-full shrink-0 object-contain drop-shadow-md',
                 isScrolled
                   ? 'h-9 sm:h-12 md:h-14'
                   : 'h-10 sm:h-12 md:h-14 lg:h-[4.25rem]'
-              }`}
+              )}
             />
             <img
               src={BRAND_LOGOS.frafem}
               alt="FRAFEM Delphos"
-              width={512}
-              height={512}
+              width={160}
+              height={160}
               decoding="async"
               fetchPriority="high"
-              className={`aspect-square w-auto rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md transition-[height] duration-300 ${
+              className={cn(
+                'aspect-square w-auto max-h-full shrink-0 rounded-full bg-white object-contain p-0.5 ring-1 ring-white/25 drop-shadow-md',
                 isScrolled
                   ? 'h-8 sm:h-10 md:h-12'
                   : 'h-9 sm:h-10 md:h-12 lg:h-[3.75rem]'
-              }`}
+              )}
             />
           </Link>
         </div>
