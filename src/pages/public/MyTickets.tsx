@@ -106,7 +106,7 @@ export default function MyTickets() {
         ) : (
           <DeliveryKeepCopyCard
             kind="ingresso"
-            onSavePdf={() => window.print()}
+            individualPrint
             canShare={
               typeof navigator !== 'undefined' && Boolean(navigator.share)
             }

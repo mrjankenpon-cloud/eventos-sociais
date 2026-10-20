@@ -5,7 +5,9 @@ type DeliveryKeepCopyCardProps = {
   kind: 'ingresso' | 'certificado';
   /** E-mail pode demorar por volume/cota — tom informativo, não de erro. */
   emailMayDelay?: boolean;
-  onSavePdf: () => void;
+  /** Quando cada item já tem o próprio botão de PDF/impressão. */
+  individualPrint?: boolean;
+  onSavePdf?: () => void;
   onShare?: () => void;
   canShare?: boolean;
 };
@@ -17,6 +19,7 @@ type DeliveryKeepCopyCardProps = {
 export function DeliveryKeepCopyCard({
   kind,
   emailMayDelay = false,
+  individualPrint = false,
   onSavePdf,
   onShare,
   canShare = false,
@@ -24,6 +27,7 @@ export function DeliveryKeepCopyCard({
   const noun = kind === 'certificado' ? 'certificado' : 'ingresso';
   const nounPlural =
     kind === 'certificado' ? 'o certificado' : 'seus ingressos';
+  const showPrintActions = Boolean(onSavePdf) && !individualPrint;
 
   return (
     <aside
@@ -39,51 +43,57 @@ export function DeliveryKeepCopyCard({
             Guarde {nounPlural} no seu aparelho
           </p>
           <p className="text-sm text-gray-600 leading-relaxed">
-            Além do e-mail, salve o PDF neste celular ou computador — assim você
-            imprime, compartilha ou mostra na porta sem depender da caixa de
-            entrada.
+            {individualPrint
+              ? 'Além do e-mail, use o botão Salvar PDF / Imprimir em cada ingresso para guardar só aquele QR no aparelho.'
+              : 'Além do e-mail, salve o PDF neste celular ou computador — assim você imprime, compartilha ou mostra na porta sem depender da caixa de entrada.'}
           </p>
           {emailMayDelay ? (
             <p className="text-sm text-brand-dark/90 leading-relaxed">
               Neste momento há muitos acessos: o e-mail com o {noun} pode
-              demorar um pouco para chegar. Enquanto isso, use o botão abaixo
-              para salvar já no dispositivo.
+              demorar um pouco para chegar. Enquanto isso,{' '}
+              {individualPrint
+                ? 'use o botão Salvar PDF / Imprimir em cada ingresso para salvar já no dispositivo.'
+                : 'use o botão abaixo para salvar já no dispositivo.'}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 pt-1">
-        <Button
-          type="button"
-          className="flex-1 rounded-2xl"
-          onClick={onSavePdf}
-        >
-          <Download size={16} aria-hidden="true" />
-          Salvar PDF / Imprimir
-        </Button>
-        {canShare && onShare ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1 rounded-2xl"
-            onClick={onShare}
-          >
-            <Share2 size={16} aria-hidden="true" />
-            Compartilhar
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1 rounded-2xl"
-            onClick={onSavePdf}
-          >
-            <Printer size={16} aria-hidden="true" />
-            Imprimir
-          </Button>
-        )}
-      </div>
+      {showPrintActions || (canShare && onShare) ? (
+        <div className="flex flex-col sm:flex-row gap-2 pt-1">
+          {showPrintActions && onSavePdf ? (
+            <Button
+              type="button"
+              className="flex-1 rounded-2xl"
+              onClick={onSavePdf}
+            >
+              <Download size={16} aria-hidden="true" />
+              Salvar PDF / Imprimir
+            </Button>
+          ) : null}
+          {canShare && onShare ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1 rounded-2xl"
+              onClick={onShare}
+            >
+              <Share2 size={16} aria-hidden="true" />
+              Compartilhar
+            </Button>
+          ) : showPrintActions && onSavePdf ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1 rounded-2xl"
+              onClick={onSavePdf}
+            >
+              <Printer size={16} aria-hidden="true" />
+              Imprimir
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </aside>
   );
 }

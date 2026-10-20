@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { flushSync } from 'react-dom';
 import QRCode from 'react-qr-code';
 import { Copy, Printer, Ticket } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -46,6 +47,7 @@ type TicketPassProps = {
   className?: string;
   onCopy?: (codigo: string) => void;
   copied?: boolean;
+  onPrint?: () => void;
 };
 
 function DelphosTicketHeader() {
@@ -100,6 +102,7 @@ export function TicketPass({
   className,
   onCopy,
   copied,
+  onPrint,
 }: TicketPassProps) {
   const qrValue = String(ticket.qrPayload || ticket.codigo || '').trim();
   const used =
@@ -220,16 +223,31 @@ export function TicketPass({
             — se a compra tiver mais de um, cada pessoa precisa do seu QR.
           </p>
 
-          {onCopy ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="rounded-xl print:hidden"
-              onClick={() => onCopy(ticket.codigo)}
-            >
-              <Copy size={14} aria-hidden="true" />
-              {copied ? 'Copiado' : 'Copiar código'}
-            </Button>
+          {onPrint || onCopy ? (
+            <div className="flex flex-col sm:flex-row gap-2 print:hidden">
+              {onPrint ? (
+                <Button
+                  size="sm"
+                  className="rounded-xl w-full sm:w-auto"
+                  onClick={onPrint}
+                  aria-label={`Salvar PDF ou imprimir ingresso ${ticket.codigo}`}
+                >
+                  <Printer size={14} aria-hidden="true" />
+                  Salvar PDF / Imprimir
+                </Button>
+              ) : null}
+              {onCopy ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-xl w-full sm:w-auto"
+                  onClick={() => onCopy(ticket.codigo)}
+                >
+                  <Copy size={14} aria-hidden="true" />
+                  {copied ? 'Copiado' : 'Copiar código'}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
@@ -260,6 +278,7 @@ export function TicketPassList({
   title = 'Seus ingressos',
 }: TicketPassListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [printTicketId, setPrintTicketId] = useState<string | null>(null);
 
   const handleCopy = async (codigo: string, id: string) => {
     try {
@@ -269,6 +288,20 @@ export function TicketPassList({
     } catch {
       /* ignore */
     }
+  };
+
+  const handlePrintOne = (ticketId: string) => {
+    flushSync(() => {
+      setPrintTicketId(ticketId);
+    });
+    document.body.classList.add('printing-one-ticket');
+    const cleanup = () => {
+      document.body.classList.remove('printing-one-ticket');
+      setPrintTicketId(null);
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
   };
 
   if (tickets.length === 0) return null;
@@ -290,19 +323,22 @@ export function TicketPassList({
     cpf: comprador?.cpf,
   };
 
+  const ticketsForPrint = printTicketId
+    ? tickets.filter((t) => t.id === printTicketId)
+    : tickets;
+
   return (
-    <div className="ticket-pass-list">
-      <div className="flex items-center justify-between gap-3 print:hidden mb-4">
+    <div
+      className="ticket-pass-list"
+      data-print-active={printTicketId ? 'true' : undefined}
+    >
+      <div className="print:hidden mb-4">
         <p className="label-micro">{title}</p>
-        <Button
-          size="sm"
-          variant="secondary"
-          className="rounded-xl"
-          onClick={() => window.print()}
-        >
-          <Printer size={14} aria-hidden="true" />
-          Salvar PDF / Imprimir
-        </Button>
+        {tickets.length > 1 ? (
+          <p className="text-xs text-gray-400 mt-1">
+            Cada ingresso tem o próprio botão para salvar PDF ou imprimir.
+          </p>
+        ) : null}
       </div>
 
       {/* Tela: lista contínua */}
@@ -315,31 +351,34 @@ export function TicketPassList({
             comprador={buyerInfo}
             copied={copiedId === t.id}
             onCopy={(codigo) => void handleCopy(codigo, t.id)}
+            onPrint={() => handlePrintOne(t.id)}
           />
         ))}
       </div>
 
-      {/* Impressão: 1–2 ingressos por folha, alinhados com simetria */}
+      {/* Impressão: 1 ingresso por folha quando individual; senão 1–2 por folha */}
       <div className="hidden print:block ticket-print-pages" aria-hidden="true">
-        {chunkTickets(tickets, 2).map((pageTickets, pageIndex) => (
-          <section
-            key={`print-page-${pageIndex}`}
-            className={
-              pageTickets.length === 1
-                ? 'ticket-print-page ticket-print-page--single'
-                : 'ticket-print-page'
-            }
-          >
-            {pageTickets.map((t) => (
-              <TicketPass
-                key={`print-${t.id}`}
-                ticket={t}
-                evento={eventInfo}
-                comprador={buyerInfo}
-              />
-            ))}
-          </section>
-        ))}
+        {chunkTickets(ticketsForPrint, printTicketId ? 1 : 2).map(
+          (pageTickets, pageIndex) => (
+            <section
+              key={`print-page-${pageIndex}`}
+              className={
+                pageTickets.length === 1
+                  ? 'ticket-print-page ticket-print-page--single'
+                  : 'ticket-print-page'
+              }
+            >
+              {pageTickets.map((t) => (
+                <TicketPass
+                  key={`print-${t.id}`}
+                  ticket={t}
+                  evento={eventInfo}
+                  comprador={buyerInfo}
+                />
+              ))}
+            </section>
+          )
+        )}
       </div>
     </div>
   );

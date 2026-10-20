@@ -482,8 +482,8 @@ export default function OrderSuccess() {
             <>
               <DeliveryKeepCopyCard
                 kind="ingresso"
+                individualPrint
                 emailMayDelay={pedido.emailDelivery === 'delayed'}
-                onSavePdf={() => window.print()}
                 canShare={typeof navigator !== 'undefined' && Boolean(navigator.share)}
                 onShare={() => {
                   void navigator

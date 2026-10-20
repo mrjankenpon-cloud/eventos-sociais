@@ -400,6 +400,12 @@
     width: 100%;
   }
 
+  /* Um ingresso por vez: oculta as outras listas da mesma página */
+  body.printing-one-ticket .ticket-pass-list:not([data-print-active]) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   .ticket-print-page {
     box-sizing: border-box;
     width: 100%;
