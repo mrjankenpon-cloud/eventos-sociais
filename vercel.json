@@ -8,6 +8,15 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "identity-credentials-get=()"
+        }
+      ]
     }
   ],
   "rewrites": [

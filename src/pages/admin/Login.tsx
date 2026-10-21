@@ -6,6 +6,7 @@ import { Button, Alert } from '../../components/ui';
 import { ROUTES, APP_CONFIG } from '../../config';
 import { THEME } from '../../theme';
 import { ACCESS_APPROVER_EMAIL } from '../../config/access';
+import { consumeGoogleAuthError } from '../../services/firebase/usuarios';
 
 export default function Login() {
   const [error, setError] = useState('');
@@ -17,6 +18,12 @@ export default function Login() {
   const from =
     (location.state as { from?: { pathname?: string } })?.from?.pathname ||
     ROUTES.ADMIN.DASHBOARD;
+
+  useEffect(() => {
+    if (authLoading) return;
+    const saved = consumeGoogleAuthError();
+    if (saved) setError(saved);
+  }, [authLoading]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -80,10 +87,18 @@ export default function Login() {
               className="w-full rounded-2xl"
             >
               <GoogleIcon />
-              {isGoogleLoading ? 'Conectando...' : 'Entrar com Gmail'}
+              {isGoogleLoading
+                ? 'Conectando...'
+                : error
+                  ? 'Escolher outro Gmail'
+                  : 'Entrar com Gmail'}
             </Button>
 
             {error && <Alert variant="error">{error}</Alert>}
+            <p className="text-center text-xs text-gray-400 leading-relaxed">
+              Na janela do Google, escolha o Gmail autorizado. Se aparecer outra
+              conta, clique em “Usar outra conta”.
+            </p>
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-50 text-center">

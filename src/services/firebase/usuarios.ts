@@ -43,12 +43,41 @@ import { isGmailAddress } from '../../config/access';
 import { submitPanelAccessRequest } from '../accessRequest.api';
 import type { AccessRequest } from '../../types/models/accessRequest';
 
+const GOOGLE_AUTH_ERROR_KEY = 'delphos.googleAuthError';
+
 function createGoogleProvider(): GoogleAuthProvider {
   const provider = new GoogleAuthProvider();
+  // Sempre mostra o seletor: o Chrome costuma reusar a conta já logada e
+  // o painel então recusa esse e-mail sem deixar trocar.
   provider.setCustomParameters({ prompt: 'select_account' });
   provider.addScope('email');
   provider.addScope('profile');
   return provider;
+}
+
+function rememberGoogleAuthError(error: unknown): void {
+  if (typeof sessionStorage === 'undefined') return;
+  const msg =
+    error instanceof Error && error.message.trim()
+      ? error.message
+      : 'Não foi possível entrar com Google.';
+  try {
+    sessionStorage.setItem(GOOGLE_AUTH_ERROR_KEY, msg);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Erro de login Google após redirect; some ao ser lido. */
+export function consumeGoogleAuthError(): string {
+  if (typeof sessionStorage === 'undefined') return '';
+  try {
+    const msg = sessionStorage.getItem(GOOGLE_AUTH_ERROR_KEY) || '';
+    sessionStorage.removeItem(GOOGLE_AUTH_ERROR_KEY);
+    return msg;
+  } catch {
+    return '';
+  }
 }
 
 function authErrorCode(error: unknown): string {
@@ -109,7 +138,9 @@ function inviteDocId(email: string): string {
 
 function requireGmail(email: string): void {
   if (!isGmailAddress(email)) {
-    throw new Error('O painel aceita somente contas Gmail (@gmail.com).');
+    throw new Error(
+      'O painel aceita somente contas Gmail (@gmail.com). Clique em “Escolher outro Gmail” e selecione uma conta @gmail.com.'
+    );
   }
 }
 
@@ -128,7 +159,7 @@ async function requestAccessThenDeny(fbUser: FirebaseUser, reason: Error): Promi
   }
   await signOut(auth).catch(() => undefined);
   throw new Error(
-    'Seu Gmail ainda não tem permissão. Enviamos um pedido para o administrador validar.'
+    'Seu Gmail ainda não tem permissão. Enviamos um pedido para o administrador validar. Se era a conta errada, clique em “Escolher outro Gmail”.'
   );
 }
 
@@ -305,7 +336,7 @@ async function claimInviteForAuth(fbUser: FirebaseUser): Promise<User> {
   if (!inviteSnap.exists()) {
     requireGmail(email);
     throw new Error(
-      'Este e-mail não tem permissão de acesso. Peça a um administrador para cadastrá-lo em Permissões.'
+      'Este e-mail não tem permissão de acesso. Clique em “Escolher outro Gmail” e, na janela do Google, use “Usar outra conta”.'
     );
   }
 
@@ -573,52 +604,56 @@ export const usuariosService = {
         throw error;
       }
     } catch (error) {
-      if (error instanceof Error && isAccessDeniedError(error)) {
-        throw error;
+      const mapped =
+        error instanceof Error && isAccessDeniedError(error)
+          ? error
+          : mapGoogleAuthError(error);
+      rememberGoogleAuthError(mapped);
+      if (!(error instanceof Error && isAccessDeniedError(error))) {
+        console.error('[usuarios.completeGoogleRedirectIfAny]', error);
+        await signOut(auth).catch(() => undefined);
       }
-      console.error('[usuarios.completeGoogleRedirectIfAny]', error);
-      await signOut(auth).catch(() => undefined);
-      throw mapGoogleAuthError(error);
+      throw mapped;
     }
   },
 
   async loginWithGoogle(): Promise<User> {
     assertFirebaseWebConfig();
+    await signOut(auth).catch(() => undefined);
     const provider = createGoogleProvider();
     try {
-      let cred;
+      // Redirect abre a página do Google com a lista de contas.
+      // Popup no Chrome costuma reusar a sessão atual e não deixa trocar o e-mail.
       try {
-        cred = await signInWithPopup(auth, provider);
-      } catch (popupError) {
-        const code = authErrorCode(popupError);
-        const msg = authErrorMessage(popupError);
-        // Popup bloqueado / argument-error em alguns browsers → redirect
+        await signInWithRedirect(auth, provider);
+        return new Promise<User>(() => undefined);
+      } catch (redirectError) {
+        const code = authErrorCode(redirectError);
+        const msg = authErrorMessage(redirectError);
         if (
-          code.includes('argument-error') ||
-          msg.includes('auth/argument-error') ||
-          code.includes('popup-blocked') ||
-          msg.includes('popup-blocked')
+          !code.includes('argument-error') &&
+          !msg.includes('auth/argument-error') &&
+          !code.includes('operation-not-supported') &&
+          !msg.includes('operation-not-supported')
         ) {
-          await signInWithRedirect(auth, provider);
-          // A página vai navegar; o retorno é tratado em completeGoogleRedirectIfAny
-          return new Promise<User>(() => undefined);
+          throw redirectError;
         }
-        throw popupError;
+        const cred = await signInWithPopup(auth, provider);
+        const profile = await claimInviteForAuth(cred.user);
+        try {
+          await logsService.record({
+            acao: 'login',
+            colecao: COLLECTIONS.usuarios,
+            documentoId: profile.id,
+            descricao: `Login Google: ${profile.email}`,
+            usuarioId: profile.id,
+            usuarioNome: profile.name,
+          });
+        } catch (logError) {
+          console.error('[usuarios.loginWithGoogle] log', logError);
+        }
+        return profile;
       }
-      const profile = await claimInviteForAuth(cred.user);
-      try {
-        await logsService.record({
-          acao: 'login',
-          colecao: COLLECTIONS.usuarios,
-          documentoId: profile.id,
-          descricao: `Login Google: ${profile.email}`,
-          usuarioId: profile.id,
-          usuarioNome: profile.name,
-        });
-      } catch (logError) {
-        console.error('[usuarios.loginWithGoogle] log', logError);
-      }
-      return profile;
     } catch (error) {
       const fbUser = auth.currentUser;
       if (fbUser && error instanceof Error && isAccessDeniedError(error)) {
@@ -626,8 +661,13 @@ export const usuariosService = {
       }
       console.error('[usuarios.loginWithGoogle]', error);
       await signOut(auth).catch(() => undefined);
-      if (error instanceof Error && isAccessDeniedError(error)) throw error;
-      throw mapGoogleAuthError(error);
+      if (error instanceof Error && isAccessDeniedError(error)) {
+        rememberGoogleAuthError(error);
+        throw error;
+      }
+      const mapped = mapGoogleAuthError(error);
+      rememberGoogleAuthError(mapped);
+      throw mapped;
     }
   },
 
