@@ -19,16 +19,19 @@ const DEFAULT_FIREBASE_CONFIG = {
   appId: '1:878802346786:web:1089188a3b4cd893b8bb7b',
 } as const;
 
-const CUSTOM_AUTH_HOSTS = new Set([
-  'institutodelphos.com.br',
-  'www.institutodelphos.com.br',
-]);
-
 function resolveAuthDomain(): string {
-  if (typeof window !== 'undefined' && CUSTOM_AUTH_HOSTS.has(window.location.hostname)) {
-    return window.location.hostname;
+  const fromEnv = readEnv('VITE_FIREBASE_AUTH_DOMAIN');
+  // O Google OAuth só aceita o handler do Firebase (*.firebaseapp.com / *.web.app).
+  // Usar institutodelphos.com.br como authDomain gera
+  // redirect_uri=https://institutodelphos.com.br/__/auth/handler → Error 400
+  // redirect_uri_mismatch, e a tela do Google trava no e-mail atual.
+  if (
+    fromEnv.endsWith('.firebaseapp.com') ||
+    fromEnv.endsWith('.web.app')
+  ) {
+    return fromEnv;
   }
-  return readEnv('VITE_FIREBASE_AUTH_DOMAIN') || DEFAULT_FIREBASE_CONFIG.authDomain;
+  return DEFAULT_FIREBASE_CONFIG.authDomain;
 }
 
 const firebaseConfig = {

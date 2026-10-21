@@ -111,11 +111,15 @@ function mapGoogleAuthError(error: unknown): Error {
       'Falha no login Google (auth/argument-error). Atualize a página com Ctrl+F5 (cache do PWA) e confira no Firebase Console → Authentication → Google o Client ID do projeto eventosociais-c057d, com os domínios localhost, eventos-sociais.vercel.app e institutodelphos.com.br.'
     );
   }
-  if (code.includes('unauthorized-domain') || msg.includes('unauthorized-domain')) {
+  if (
+    code.includes('unauthorized-domain') ||
+    msg.includes('unauthorized-domain') ||
+    msg.includes('redirect_uri_mismatch')
+  ) {
     const host =
       typeof window !== 'undefined' ? window.location.hostname : 'este endereço';
     return new Error(
-      `O Firebase recusou o login neste endereço (${host}). Atualize com Ctrl+F5 para limpar o PWA e entre de novo em https://institutodelphos.com.br/controle/login (sem www).`
+      `O Google recusou o login neste endereço (${host}). Atualize com Ctrl+F5 e entre de novo em https://institutodelphos.com.br/controle/login (sem www).`
     );
   }
   if (code.includes('popup-blocked') || msg.includes('popup-blocked')) {
