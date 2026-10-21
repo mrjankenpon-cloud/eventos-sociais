@@ -13,9 +13,15 @@ import { eventService } from '../../services/event.service';
 import { purchaseService } from '../../services/purchase.service';
 import { persistGuestCheckoutSession } from '../../lib/guestCheckout';
 import type { Event, TicketType } from '../../types';
-import { Input, CPFInput, PhoneInput, Button, Alert, ProcessingOverlay } from '../../components/ui';
+import { Input, PhoneInput, Button, Alert, ProcessingOverlay } from '../../components/ui';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { validateEmail } from '../../lib/validation';
+import {
+  maskCNPJ,
+  maskCPF,
+  validateCNPJ,
+  validateCPF,
+  validateEmail,
+} from '../../lib/validation';
 import { formatCurrency, formatEventDate, cn } from '../../lib/utils';
 import {
   formatTicketValue,
@@ -70,15 +76,17 @@ export default function EventRegistration() {
   const submitLock = useRef(false);
   const [formData, setFormData] = useState({
     nome: '',
-    cpf: '',
+    documento: '',
+    documentoTipo: 'cpf' as 'cpf' | 'cnpj',
     telefone: '',
     email: '',
     termosAceitos: false,
   });
+  const [docError, setDocError] = useState<string | undefined>();
 
   const [fieldValidity, setFieldValidity] = useState({
     nome: false,
-    cpf: false,
+    documento: false,
     telefone: false,
     email: false,
     termosAceitos: false,
@@ -189,13 +197,15 @@ export default function EventRegistration() {
     if (hasTickets && !qtyWithinEventLimit) {
       hints.push(`máximo de ${eventLimit} ingressos por compra`);
     }
-    if (!fieldValidity.nome) hints.push('nome completo');
-    if (!fieldValidity.cpf) hints.push('CPF válido');
+    if (!fieldValidity.nome) hints.push(formData.documentoTipo === 'cnpj' ? 'razão social' : 'nome completo');
+    if (!fieldValidity.documento) {
+      hints.push(formData.documentoTipo === 'cnpj' ? 'CNPJ válido' : 'CPF válido');
+    }
     if (!fieldValidity.telefone) hints.push('telefone');
     if (!fieldValidity.email) hints.push('e-mail');
     if (!fieldValidity.termosAceitos) hints.push('aceite dos termos');
     return hints;
-  }, [fieldValidity, hasTickets, qtyWithinEventLimit, eventLimit]);
+  }, [fieldValidity, hasTickets, qtyWithinEventLimit, eventLimit, formData.documentoTipo]);
 
   const setTypeQty = (typeId: string, next: number) => {
     const type = activeTickets.find((t) => t.id === typeId);
@@ -232,9 +242,9 @@ export default function EventRegistration() {
         ? 'checkout_pro'
         : 'pix';
 
-    const cpfDigits = formData.cpf.replace(/\D/g, '');
+    const docDigits = formData.documento.replace(/\D/g, '');
     if (total > 0 && metodoEfetivo === 'checkout_pro') {
-      const remain = cardCooldownRemainingSec(event.id, cpfDigits);
+      const remain = cardCooldownRemainingSec(event.id, docDigits);
       if (remain > 0) {
         setSubmitError(
           `Não foi possível iniciar outro pagamento com cartão agora. ${formatCooldownHint(remain)} Prefira PIX.`
@@ -242,7 +252,7 @@ export default function EventRegistration() {
         setMetodo('pix');
         return;
       }
-      if (shouldPreferPixAfterCardRisk(event.id, cpfDigits)) {
+      if (shouldPreferPixAfterCardRisk(event.id, docDigits)) {
         setSubmitError(
           'Houve recusas recentes com cartão. Use PIX para concluir com mais segurança, ou aguarde alguns minutos.'
         );
@@ -268,7 +278,8 @@ export default function EventRegistration() {
           )
           .join(' · '),
         compradorNome: formData.nome.trim(),
-        compradorCPF: formData.cpf,
+        compradorCPF: docDigits,
+        documentoTipo: formData.documentoTipo,
         compradorTelefone: formData.telefone,
         compradorEmail: formData.email.trim(),
         quantidadeIngressos: totalQty,
@@ -395,9 +406,6 @@ export default function EventRegistration() {
                 <p className="label-micro">Ingressos</p>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                   Até {eventLimit} por compra
-                  {event.limitePorCpf && event.limitePorCpf > 0
-                    ? ` · até ${event.limitePorCpf} por CPF`
-                    : ''}
                 </p>
               </div>
               {activeTickets.length === 0 ? (
@@ -489,10 +497,41 @@ export default function EventRegistration() {
             </div>
 
             <div className="flex flex-col gap-5">
+              <div className="flex gap-2" role="group" aria-label="Tipo de documento">
+                {(['cpf', 'cnpj'] as const).map((tipo) => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        documentoTipo: tipo,
+                        documento: '',
+                      }));
+                      setFieldValidity((prev) => ({ ...prev, documento: false }));
+                      setDocError(undefined);
+                    }}
+                    aria-pressed={formData.documentoTipo === tipo}
+                    className={cn(
+                      'flex-1 rounded-2xl border px-3 py-2 text-xs font-black uppercase tracking-wider',
+                      formData.documentoTipo === tipo
+                        ? 'border-brand bg-brand-muted/40 text-brand'
+                        : 'border-gray-100 text-gray-500'
+                    )}
+                  >
+                    {tipo === 'cpf' ? 'Pessoa física' : 'Pessoa jurídica'}
+                  </button>
+                ))}
+              </div>
+
               <Input
-                label="Nome Completo"
+                label={formData.documentoTipo === 'cnpj' ? 'Razão social' : 'Nome completo'}
                 icon={<User size={18} />}
-                placeholder="Seu nome completo"
+                placeholder={
+                  formData.documentoTipo === 'cnpj'
+                    ? 'Razão social da empresa'
+                    : 'Seu nome completo'
+                }
                 value={formData.nome}
                 isValid={fieldValidity.nome}
                 error={nomeError}
@@ -503,21 +542,59 @@ export default function EventRegistration() {
                   setFieldValidity((prev) => ({ ...prev, nome: valid }));
                   setNomeError(
                     val.length > 0 && !valid
-                      ? 'Informe o nome completo (mín. 4 caracteres).'
+                      ? formData.documentoTipo === 'cnpj'
+                        ? 'Informe a razão social (mín. 4 caracteres).'
+                        : 'Informe o nome completo (mín. 4 caracteres).'
                       : undefined
                   );
                 }}
                 autoComplete="name"
               />
 
-              <CPFInput
-                label="CPF"
+              <Input
+                label={formData.documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF'}
                 icon={<Hash size={18} />}
-                value={formData.cpf}
-                onChange={(val, isValid) => {
-                  setFormData((prev) => ({ ...prev, cpf: val }));
-                  setFieldValidity((prev) => ({ ...prev, cpf: isValid }));
+                value={formData.documento}
+                isValid={fieldValidity.documento}
+                error={docError}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const masked =
+                    formData.documentoTipo === 'cnpj' ? maskCNPJ(raw) : maskCPF(raw);
+                  const digits = masked.replace(/\D/g, '');
+                  const expected = formData.documentoTipo === 'cnpj' ? 14 : 11;
+                  const valid =
+                    formData.documentoTipo === 'cnpj'
+                      ? validateCNPJ(digits)
+                      : validateCPF(digits);
+                  setFormData((prev) => ({ ...prev, documento: masked }));
+                  setFieldValidity((prev) => ({ ...prev, documento: valid }));
+                  if (digits.length === 0) {
+                    setDocError(undefined);
+                  } else if (digits.length < expected) {
+                    setDocError(
+                      formData.documentoTipo === 'cnpj'
+                        ? 'CNPJ incompleto.'
+                        : 'CPF incompleto.'
+                    );
+                  } else if (!valid) {
+                    setDocError(
+                      formData.documentoTipo === 'cnpj'
+                        ? 'CNPJ inválido. Verifique os números informados.'
+                        : 'CPF inválido. Verifique os números informados.'
+                    );
+                  } else {
+                    setDocError(undefined);
+                  }
                 }}
+                placeholder={
+                  formData.documentoTipo === 'cnpj'
+                    ? '00.000.000/0000-00'
+                    : '000.000.000-00'
+                }
+                maxLength={formData.documentoTipo === 'cnpj' ? 18 : 14}
+                inputMode="numeric"
+                autoComplete="off"
               />
 
               <PhoneInput

@@ -189,7 +189,7 @@ export function exportEventReportCsv(input: {
       'Status',
       'Forma pagamento',
       'Check-in',
-      'CPF',
+      'CPF/CNPJ',
       'Data inscricao',
     ],
     ...ticketRows(purchases, tickets),
@@ -198,7 +198,7 @@ export function exportEventReportCsv(input: {
     [
       'Pedido ID',
       'Comprador',
-      'CPF',
+      'CPF/CNPJ',
       'E-mail',
       'Telefone',
       'Qtd',

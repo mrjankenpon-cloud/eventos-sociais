@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { cn, formatEventDate } from '../../lib/utils';
 import { APP_CONFIG } from '../../config';
 import { BRAND_LOGOS } from '../../assets/brand';
+import { formatCpfCnpj } from '../../lib/orgInfo';
 
 export type TicketPassData = {
   id: string;
@@ -35,6 +36,7 @@ export type TicketBuyerInfo = {
   email?: string;
   telefone?: string;
   cpf?: string;
+  documentoTipo?: 'cpf' | 'cnpj';
 };
 
 type TicketPassProps = {
@@ -71,10 +73,10 @@ function DelphosTicketHeader() {
   );
 }
 
-function formatCpfDisplay(cpf?: string): string {
-  const d = String(cpf || '').replace(/\D/g, '');
-  if (d.length !== 11) return cpf || '';
-  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+function documentLabel(comprador?: TicketBuyerInfo): string {
+  const digits = String(comprador?.cpf || '').replace(/\D/g, '');
+  if (comprador?.documentoTipo === 'cnpj' || digits.length === 14) return 'CNPJ';
+  return 'CPF';
 }
 
 function formatEventWhen(evento?: TicketEventInfo): string {
@@ -185,9 +187,11 @@ export function TicketPass({
               ) : null}
               {comprador?.cpf ? (
                 <div className="flex gap-2 min-w-0">
-                  <dt className="text-gray-400 shrink-0">CPF</dt>
+                  <dt className="text-gray-400 shrink-0">
+                    {documentLabel(comprador)}
+                  </dt>
                   <dd className="font-medium tabular-nums">
-                    {formatCpfDisplay(comprador.cpf)}
+                    {formatCpfCnpj(comprador.cpf)}
                   </dd>
                 </div>
               ) : null}
@@ -322,6 +326,7 @@ export function TicketPassList({
     email: comprador?.email,
     telefone: comprador?.telefone,
     cpf: comprador?.cpf,
+    documentoTipo: comprador?.documentoTipo,
   };
 
   const ticketsForPrint = printTicketId

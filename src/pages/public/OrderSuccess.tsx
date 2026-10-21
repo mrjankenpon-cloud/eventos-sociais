@@ -513,6 +513,7 @@ export default function OrderSuccess() {
                   email: pedido.email,
                   telefone: pedido.telefone,
                   cpf: pedido.cpf,
+                  documentoTipo: pedido.documentoTipo,
                 }}
               />
             </>

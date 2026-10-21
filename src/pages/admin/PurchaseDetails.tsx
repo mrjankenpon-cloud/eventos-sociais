@@ -406,7 +406,11 @@ export default function PurchaseDetails() {
                 {purchase.compradorNome}
               </h3>
               <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 font-medium">
-                {purchase.compradorCPF ? <span>{purchase.compradorCPF}</span> : null}
+                {purchase.compradorCPF ? (
+                  <span>
+                    {donorDocumentLabel(purchase)} {formatDonorDocument(purchase)}
+                  </span>
+                ) : null}
                 {purchase.compradorTelefone ? (
                   <>
                     <span className="text-gray-300 hidden sm:inline">•</span>

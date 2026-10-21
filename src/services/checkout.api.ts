@@ -156,6 +156,7 @@ export type GuestTicketsResult = {
     email?: string;
     telefone?: string;
     cpf?: string;
+    documentoTipo?: 'cpf' | 'cnpj';
     eventoTitulo: string;
     eventoData?: string;
     eventoHoraInicio?: string;
@@ -179,6 +180,7 @@ export const checkoutApi = {
     comprador: {
       nome: string;
       cpf: string;
+      documentoTipo?: 'cpf' | 'cnpj';
       telefone: string;
       email: string;
     };

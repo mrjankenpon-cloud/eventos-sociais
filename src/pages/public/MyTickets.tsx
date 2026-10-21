@@ -183,6 +183,7 @@ export default function MyTickets() {
                   email: order.email || data.email,
                   telefone: order.telefone,
                   cpf: order.cpf,
+                  documentoTipo: order.documentoTipo,
                 }}
                 title="Ingressos com QR"
               />

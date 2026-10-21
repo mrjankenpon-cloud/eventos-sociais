@@ -426,8 +426,9 @@ export function ManualDoc() {
         ]}
       />
       <DocP>
-        <strong>Ingressos por compra</strong> limita quantos um CPF pode levar
-        na mesma transação (padrão 10). Altere se a regra da casa for outra.
+        <strong>Ingressos por compra</strong> limita quantos ingressos cabem
+        na mesma transação (padrão 10). Compras posteriores do mesmo CPF ou
+        CNPJ são permitidas, cada uma com este teto.
       </DocP>
       <DocP>
         Depois de salvar um evento <strong>publicado</strong> com compra

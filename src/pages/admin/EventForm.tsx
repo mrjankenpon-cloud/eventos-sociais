@@ -162,7 +162,10 @@ export default function EventForm() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const payload = syncDerivedEventFields(formData);
+      const payload = syncDerivedEventFields({
+        ...formData,
+        limitePorCpf: 0,
+      });
       const saved = id
         ? await eventService.update(id, payload)
         : await eventService.create(payload);
@@ -573,7 +576,7 @@ export default function EventForm() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="pt-2">
               <Input
                 label="Ingressos por compra"
                 type="number"
@@ -586,21 +589,7 @@ export default function EventForm() {
                     Math.max(1, Math.floor(Number(e.target.value) || 1))
                   )
                 }
-                hint="Máximo de ingressos no mesmo carrinho (uma inscrição)."
-              />
-              <Input
-                label="Ingressos por CPF"
-                type="number"
-                min={0}
-                step={1}
-                value={formData.limitePorCpf ?? 0}
-                onChange={(e) =>
-                  update(
-                    'limitePorCpf',
-                    Math.max(0, Math.floor(Number(e.target.value) || 0))
-                  )
-                }
-                hint="0 = sem teto por documento. Se preencher, soma todas as compras (pagas e pendentes) deste CPF neste evento."
+                hint="Máximo de ingressos na mesma inscrição. O mesmo documento pode comprar de novo depois, cada vez com este teto."
               />
             </div>
           </SectionCard>

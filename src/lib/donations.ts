@@ -29,7 +29,9 @@ export function formatDonorDocument(p: Purchase): string {
 }
 
 export function donorDocumentLabel(p: Purchase): string {
-  return p.documentoTipo === 'cnpj' ? 'CNPJ' : 'CPF';
+  const digits = (p.compradorCPF || '').replace(/\D/g, '');
+  if (p.documentoTipo === 'cnpj' || digits.length === 14) return 'CNPJ';
+  return 'CPF';
 }
 
 export type DonationStats = {

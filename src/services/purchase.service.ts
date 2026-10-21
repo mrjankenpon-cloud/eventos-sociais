@@ -40,6 +40,7 @@ export const purchaseService = {
       comprador: {
         nome: data.compradorNome,
         cpf: data.compradorCPF,
+        documentoTipo: data.documentoTipo,
         telefone: data.compradorTelefone,
         email: data.compradorEmail,
       },

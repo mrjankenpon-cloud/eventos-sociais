@@ -106,7 +106,7 @@ export interface Event {
   linkPagamento: string;
   /** Limite padrão de itens por compra (carrinho) */
   limitePorCompra?: number;
-  /** Teto de ingressos por CPF neste evento (0 = sem teto por documento) */
+  /** @deprecated Não é mais aplicado. O teto vale por compra (`limitePorCompra`). */
   limitePorCpf?: number;
   /** Encerramento de vendas (ISO). Vendas param no primeiro entre isto e estoque zero. */
   vendasEncerramEm?: string;

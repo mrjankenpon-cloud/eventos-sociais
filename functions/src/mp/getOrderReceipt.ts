@@ -127,7 +127,11 @@ export const getOrderReceipt = functions.https.onRequest(async (req, res) => {
         email: pedido.email,
         telefone: pedido.telefone || '',
         cpf: pedido.cpf || '',
-        documentoTipo: pedido.documentoTipo === 'cnpj' ? 'cnpj' : 'cpf',
+        documentoTipo:
+          pedido.documentoTipo === 'cnpj' ||
+          String(pedido.cpf || '').replace(/\D/g, '').length === 14
+            ? 'cnpj'
+            : 'cpf',
         certificadoNumero: pedido.certificadoNumero || '',
         mensagemDoador: pedido.mensagemDoador || '',
         tipo: pedido.tipo || 'ingresso',

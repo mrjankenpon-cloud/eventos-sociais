@@ -277,8 +277,8 @@ function DocOlVisitante() {
       <li>Abre o evento (dados no Firestore, fotos no armazenamento).</li>
       <li>Escolhe tipos e quantidade (limites e preços do cadastro).</li>
       <li>
-        Informa nome, CPF, e-mail, telefone — gravados no pedido para o
-        ingresso e o e-mail.
+        Informa nome (ou razão social), CPF ou CNPJ, e-mail e telefone —
+        gravados no pedido para o ingresso e o e-mail.
       </li>
       <li>
         PIX: a Function pede o QR ao Mercado Pago. Cartão: a Function cria a

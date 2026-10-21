@@ -59,7 +59,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 
 <h2>2. Ingressos e eventos</h2>
 <ul>
-  <li>A inscrição exige dados verdadeiros (nome, CPF, e-mail e telefone) para emissão do ingresso e check-in.</li>
+  <li>A inscrição exige dados verdadeiros (nome ou razão social, CPF ou CNPJ, e-mail e telefone) para emissão do ingresso e check-in.</li>
   <li>O QR Code é pessoal e intransferível, salvo indicação em contrário no evento. Cada código libera uma entrada.</li>
   <li>Datas, horários, tipos de ingresso e vagas seguem o cadastro do evento. Encerrada a venda ou esgotadas as vagas, novas compras não são aceitas.</li>
   <li>Cancelamentos, reembolsos e alterações observam a política do evento, o Código de Defesa do Consumidor quando aplicável e as regras do meio de pagamento (Mercado Pago).</li>
@@ -95,7 +95,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 
 <h2>1. Quais dados coletamos</h2>
 <ul>
-  <li><strong>Inscrição em evento:</strong> nome, CPF, e-mail, telefone, tipos e quantidades de ingresso.</li>
+  <li><strong>Inscrição em evento:</strong> nome ou razão social, CPF ou CNPJ, e-mail, telefone, tipos e quantidades de ingresso.</li>
   <li><strong>Doação:</strong> nome ou razão social, CPF ou CNPJ, e-mail, telefone, valor e, se houver, mensagem de apoio.</li>
   <li><strong>Pagamento:</strong> status e identificadores da transação no Mercado Pago — não guardamos o número completo do cartão.</li>
   <li><strong>Acesso ao site:</strong> dados técnicos usuais de hospedagem (IP, navegador, páginas) para segurança e funcionamento.</li>

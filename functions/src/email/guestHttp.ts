@@ -173,6 +173,11 @@ export const getGuestTickets = functions.https.onRequest(async (req, res) => {
         email: p.email || session.email,
         telefone: p.telefone || '',
         cpf: p.cpf || '',
+        documentoTipo:
+          p.documentoTipo === 'cnpj' ||
+          String(p.cpf || '').replace(/\D/g, '').length === 14
+            ? 'cnpj'
+            : 'cpf',
         eventoTitulo,
         eventoData,
         eventoHoraInicio,

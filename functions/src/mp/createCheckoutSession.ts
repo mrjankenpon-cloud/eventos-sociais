@@ -51,6 +51,7 @@ type CheckoutBody = {
   comprador?: {
     nome?: string;
     cpf?: string;
+    documentoTipo?: 'cpf' | 'cnpj';
     telefone?: string;
     email?: string;
   };
@@ -106,26 +107,37 @@ function vendasAbertas(evento: Record<string, unknown>): boolean {
   return true;
 }
 
-async function countCpfTicketsForEvent(
-  eventoId: string,
-  cpf: string
-): Promise<number> {
-  const snap = await db()
-    .collection('pedidos')
-    .where('eventoId', '==', eventoId)
-    .where('cpf', '==', cpf)
-    .get();
+function validateCpf(cpf: string): boolean {
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const digit = (base: string, factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) {
+      sum += Number(base[i]) * (factor - i);
+    }
+    const rest = (sum * 10) % 11;
+    return rest === 10 || rest === 11 ? 0 : rest;
+  };
+  return (
+    digit(cpf.slice(0, 9), 10) === Number(cpf[9]) &&
+    digit(cpf.slice(0, 10), 11) === Number(cpf[10])
+  );
+}
 
-  let total = 0;
-  for (const doc of snap.docs) {
-    const row = doc.data() || {};
-    const tipo = String(row.tipo || '');
-    if (tipo === 'doacao' || tipo === 'upgrade') continue;
-    const status = String(row.status || '');
-    if (status !== 'pendente' && status !== 'confirmado') continue;
-    total += Math.max(0, Math.floor(Number(row.quantidade) || 0));
-  }
-  return total;
+function validateCnpj(cnpj: string): boolean {
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const calc = (len: number) => {
+    const weights =
+      len === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < weights.length; i++) {
+      sum += Number(cnpj[i]) * weights[i];
+    }
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  return calc(12) === Number(cnpj[12]) && calc(13) === Number(cnpj[13]);
 }
 
 function parseRequestedItems(body: CheckoutBody): ReservedLine[] {
@@ -195,6 +207,10 @@ export const createCheckoutSession = functions.https.onRequest(
 
       const nome = String(comprador.nome || '').trim();
       const cpf = String(comprador.cpf || '').replace(/\D/g, '');
+      const documentoTipo: 'cpf' | 'cnpj' =
+        comprador.documentoTipo === 'cnpj' || cpf.length === 14
+          ? 'cnpj'
+          : 'cpf';
       const telefone = String(comprador.telefone || '').trim();
       const email = String(comprador.email || '').trim().toLowerCase();
       const deviceSessionId = parseDeviceSessionId(body.deviceId);
@@ -221,8 +237,19 @@ export const createCheckoutSession = functions.https.onRequest(
         });
         return;
       }
-      if (nome.length < 4 || cpf.length < 11 || !email.includes('@')) {
+      const documentoOk =
+        documentoTipo === 'cnpj' ? validateCnpj(cpf) : validateCpf(cpf);
+      if (nome.length < 4 || !email.includes('@')) {
         res.status(400).json({ error: 'Dados do comprador inválidos' });
+        return;
+      }
+      if (!documentoOk) {
+        res.status(400).json({
+          error:
+            documentoTipo === 'cnpj'
+              ? 'Informe um CNPJ válido'
+              : 'Informe um CPF válido',
+        });
         return;
       }
 
@@ -245,21 +272,6 @@ export const createCheckoutSession = functions.https.onRequest(
           error: `Limite de ${eventLimit} ingresso(s) por compra`,
         });
         return;
-      }
-
-      const cpfLimit = Math.max(0, Number(evento.limitePorCpf) || 0);
-      if (cpfLimit > 0) {
-        const already = await countCpfTicketsForEvent(eventoId, cpf);
-        if (already + totalQtyRequested > cpfLimit) {
-          const remaining = Math.max(0, cpfLimit - already);
-          res.status(400).json({
-            error:
-              remaining <= 0
-                ? `Este CPF já atingiu o limite de ${cpfLimit} ingresso(s) neste evento`
-                : `Este CPF pode adquirir mais ${remaining} ingresso(s) neste evento (limite ${cpfLimit} por CPF)`,
-          });
-          return;
-        }
       }
 
       const resolved: ResolvedLine[] = [];
@@ -393,6 +405,7 @@ export const createCheckoutSession = functions.https.onRequest(
       const basePedido: Record<string, unknown> = {
         nomeComprador: nome,
         cpf,
+        documentoTipo,
         telefone,
         email,
         eventoId,
@@ -495,7 +508,7 @@ export const createCheckoutSession = functions.https.onRequest(
             email,
             nome,
             documento: cpf,
-            documentoTipo: 'cpf',
+            documentoTipo,
             telefone,
             expiresAt: isoWithOffset(reservaExpiraEm),
             idempotencyKey: `ticket-pix-${pedidoRef.id}`,
@@ -556,6 +569,7 @@ export const createCheckoutSession = functions.https.onRequest(
             email,
             nome,
             documento: cpf,
+            documentoTipo,
             telefone,
           }),
           additional_info: mpPreferenceAdditionalInfo({
@@ -565,7 +579,7 @@ export const createCheckoutSession = functions.https.onRequest(
               nome,
               telefone,
               documento: cpf,
-              documentoTipo: 'cpf',
+              documentoTipo,
               authenticationType: authTypeFromRequest(req),
               profile: buyerProfile,
             }),

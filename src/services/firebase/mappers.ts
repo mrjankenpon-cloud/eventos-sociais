@@ -338,6 +338,7 @@ export function purchaseInputToPedidoPayload(
   return {
     nomeComprador: data.compradorNome,
     cpf: data.compradorCPF,
+    documentoTipo: data.documentoTipo,
     telefone: data.compradorTelefone,
     email: data.compradorEmail,
     eventoId: data.eventId,
