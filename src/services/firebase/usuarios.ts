@@ -13,9 +13,9 @@ import {
 } from 'firebase/firestore';
 import {
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
   getRedirectResult,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth';
@@ -626,38 +626,27 @@ export const usuariosService = {
     await signOut(auth).catch(() => undefined);
     const provider = createGoogleProvider();
     try {
-      // Redirect abre a página do Google com a lista de contas.
-      // Popup no Chrome costuma reusar a sessão atual e não deixa trocar o e-mail.
+      // Popup devolve a sessão nesta origem. Redirect pelo firebaseapp.com
+      // autentica no Google e, no Chrome, volta ao login sem currentUser.
+      const cred = await signInWithPopup(
+        auth,
+        provider,
+        browserPopupRedirectResolver
+      );
+      const profile = await claimInviteForAuth(cred.user);
       try {
-        await signInWithRedirect(auth, provider);
-        return new Promise<User>(() => undefined);
-      } catch (redirectError) {
-        const code = authErrorCode(redirectError);
-        const msg = authErrorMessage(redirectError);
-        if (
-          !code.includes('argument-error') &&
-          !msg.includes('auth/argument-error') &&
-          !code.includes('operation-not-supported') &&
-          !msg.includes('operation-not-supported')
-        ) {
-          throw redirectError;
-        }
-        const cred = await signInWithPopup(auth, provider);
-        const profile = await claimInviteForAuth(cred.user);
-        try {
-          await logsService.record({
-            acao: 'login',
-            colecao: COLLECTIONS.usuarios,
-            documentoId: profile.id,
-            descricao: `Login Google: ${profile.email}`,
-            usuarioId: profile.id,
-            usuarioNome: profile.name,
-          });
-        } catch (logError) {
-          console.error('[usuarios.loginWithGoogle] log', logError);
-        }
-        return profile;
+        await logsService.record({
+          acao: 'login',
+          colecao: COLLECTIONS.usuarios,
+          documentoId: profile.id,
+          descricao: `Login Google: ${profile.email}`,
+          usuarioId: profile.id,
+          usuarioNome: profile.name,
+        });
+      } catch (logError) {
+        console.error('[usuarios.loginWithGoogle] log', logError);
       }
+      return profile;
     } catch (error) {
       const fbUser = auth.currentUser;
       if (fbUser && error instanceof Error && isAccessDeniedError(error)) {

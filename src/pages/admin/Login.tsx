@@ -96,8 +96,9 @@ export default function Login() {
 
             {error && <Alert variant="error">{error}</Alert>}
             <p className="text-center text-xs text-gray-400 leading-relaxed">
-              Na janela do Google, escolha o Gmail autorizado. Se aparecer outra
-              conta, clique em “Usar outra conta”.
+              Abre uma janela do Google. Escolha o Gmail autorizado; se aparecer
+              outra conta, clique em “Usar outra conta”. Permita popups se o
+              navegador bloquear.
             </p>
           </div>
 
