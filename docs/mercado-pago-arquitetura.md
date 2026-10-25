@@ -4,7 +4,7 @@
 **Projeto Firebase:** `eventosociais-c057d` (confirmado em `.firebaserc`)  
 **Functions:** pasta `functions/` com checkout, webhook, expire, receipt e refund.
 
-**Decisões fechadas:** Checkout Pro · secrets só em Functions · preço congelado no pedido · reserva 15 min · soft-delete · cashout A (acompanhamento) · reembolso via API no admin · gratuito (R$ 0) sem MP · meia sem validação online · tipos genéricos por evento (não só inteira/meia/retirada).
+**Decisões fechadas:** Checkout Pro · secrets só em Functions · preço congelado no pedido · reserva PIX ingresso 10 dias (cartão 15 min) · soft-delete · cashout A (acompanhamento) · reembolso via API no admin · gratuito (R$ 0) sem MP · meia sem validação online · tipos genéricos por evento (não só inteira/meia/retirada).
 
 ---
 
@@ -58,7 +58,7 @@ Não apagar o documento ao “excluir”.
 | `valorTotal` | number | `valorUnitario * quantidade` (backend) |
 | `status` | `pendente` \| `confirmado` \| `expirado` \| `cancelado` \| `reembolsado` | |
 | `estoqueReservado` | bool | |
-| `reservaExpiraEm` | timestamp | createdAt + 15 min |
+| `reservaExpiraEm` | timestamp | PIX ingresso: +10 dias; cartão: +15 min |
 | `formaPagamento` | `mercadopago` \| `gratuito` \| legado | |
 | `mpPreferenceId` | string? | |
 | `mpPaymentId` | string? | |
@@ -161,7 +161,7 @@ SPA **não** envia preço; se enviar, é ignorado.
    - `metadata`: `eventoId`, `ingressoId`, `pedidoId`, `natureza`
    - `back_urls`: success / pending / failure → SPA
    - `notification_url` → Function webhook
-   - `expires` alinhado à reserva (~15 min)
+   - `expires` alinhado à reserva (cartão ~15 min; PIX ingresso até 10 dias)
 2. Uma Preference por pedido (qualquer tipo: Inteira, VIP, Retirada, etc.).
 3. Return URL **não** confirma pagamento — só UX; confirmação = webhook.
 
@@ -196,9 +196,9 @@ Status MP relevantes: `pending`, `approved`, `rejected`, `cancelled`, `refunded`
 
 ---
 
-## 6. Fluxo de expiração (15 minutos)
+## 6. Fluxo de expiração (reservaExpiraEm)
 
-- Na criação: `reservaExpiraEm = now + 15min`.
+- Na criação: `reservaExpiraEm = now + 10 dias` (PIX ingresso) ou `now + 15min` (cartão).
 - **Scheduled Function** (a cada 1–5 min) ou chamada HTTP autenticada:
   - query `status == pendente` && `reservaExpiraEm < now` && `estoqueReservado == true`
   - transaction: `status = expirado`, `estoqueReservado = false`, decrementa `quantidadeVendida` do ingresso
@@ -262,7 +262,7 @@ Detalhe da página de sucesso: Function gera `accessToken` opaco no pedido; SPA 
 |------|------|--------|
 | `createCheckoutSession` | Callable / HTTP | Valida, congela preço, reserva, Preference ou confirma grátis |
 | `mpWebhook` | HTTP | Notificações MP |
-| `expirePendingOrders` | Scheduled | Libera estoque 15 min |
+| `expirePendingOrders` | Scheduled | Libera estoque após `reservaExpiraEm` |
 | `getOrderReceipt` | Callable / HTTP | Página sucesso + QR |
 | `refundPayment` | Callable | Reembolso admin |
 | `sendOrderEmail` | (interna) | E-mail pós-confirmação |

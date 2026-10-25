@@ -3,7 +3,10 @@ import QRCode from 'react-qr-code';
 import { Copy, Check } from 'lucide-react';
 import { Button } from '../ui';
 import { formatCurrency } from '../../lib/utils';
-import { formatPixCountdown } from '../../lib/pixCountdown';
+import {
+  PIX_COUNTDOWN_MINUTES,
+  formatPixCountdown,
+} from '../../lib/pixCountdown';
 
 export function PixCheckoutPanel({
   amount,
@@ -33,10 +36,15 @@ export function PixCheckoutPanel({
   }, []);
 
   const clock = useMemo(
-    () => formatPixCountdown(expiresAt),
+    () =>
+      formatPixCountdown(
+        expiresAt,
+        // Doação mantém janela curta; ingresso usa a data real (até 10 dias).
+        kind === 'doacao' ? { maxMinutes: PIX_COUNTDOWN_MINUTES } : undefined
+      ),
     // tick força atualização a cada segundo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expiresAt, tick]
+    [expiresAt, tick, kind]
   );
   const expired = clock === 'Expirado';
 
@@ -128,7 +136,7 @@ export function PixCheckoutPanel({
         {hint ||
           (isDonation
             ? 'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'
-            : 'Abra o app do banco, escaneie o QR ou cole o código. Os ingressos aparecem aqui após a confirmação.')}
+            : 'Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até 10 dias para pagamento. Os ingressos aparecem aqui após a confirmação.')}
       </p>
     </div>
   );

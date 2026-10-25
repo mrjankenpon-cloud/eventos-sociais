@@ -115,7 +115,7 @@ async function expireBatch(): Promise<{ expired: number; skipped: number }> {
   return { expired, skipped };
 }
 
-/** Agenda a cada 5 minutos — libera estoque de pedidos pendentes > 15 min. */
+/** Agenda a cada 5 minutos — libera estoque de pedidos com reservaExpiraEm vencida. */
 export const expirePendingOrders = functions.pubsub
   .schedule('every 5 minutes')
   .timeZone('America/Sao_Paulo')
