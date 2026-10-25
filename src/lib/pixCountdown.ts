@@ -1,6 +1,10 @@
-/** Contagem regressiva do QR PIX (janela do site, não a expiração longa do MP). */
+/** Contagem regressiva do QR PIX (usa a data de reserva gravada no pedido). */
 
+/** Janela padrão de doação / legado (minutos). */
 export const PIX_COUNTDOWN_MINUTES = 15;
+
+/** Janela de compra de ingresso via PIX (dias). */
+export const PIX_TICKET_HOLD_DAYS = 10;
 
 export function pixRemainingMs(
   expiresAt?: string | null,
@@ -13,22 +17,44 @@ export function pixRemainingMs(
 }
 
 /**
- * Formata restante como MM:SS.
- * Se a data vier absurda (ex.: expiração ~24h do MP), limita ao teto de 15 min.
+ * Formata o restante a partir de `expiresAt`.
+ * - ≥ 1 dia: `9d 14h 32m`
+ * - ≥ 1 hora: `14:32:05`
+ * - < 1 hora: `MM:SS`
+ *
+ * `maxMinutes` só aplica teto quando a data remanescente for absurda
+ * em relação ao teto (ex.: MP ~24h com janela curta de doação).
  */
 export function formatPixCountdown(
   expiresAt?: string | null,
   opts?: { maxMinutes?: number; nowMs?: number }
 ): string {
-  const maxMinutes = opts?.maxMinutes ?? PIX_COUNTDOWN_MINUTES;
-  const msLeft = pixRemainingMs(expiresAt, opts?.nowMs);
-  if (msLeft == null) return '';
-  if (msLeft <= 0) return 'Expirado';
+  const msLeftRaw = pixRemainingMs(expiresAt, opts?.nowMs);
+  if (msLeftRaw == null) return '';
+  if (msLeftRaw <= 0) return 'Expirado';
 
-  const maxMs = Math.max(1, maxMinutes) * 60 * 1000;
-  // Datas do MP costumam vir com ~24h; o site promete janela curta de reserva.
-  const displayMs = msLeft > maxMs * 2 ? maxMs : Math.min(msLeft, maxMs);
-  const min = Math.floor(displayMs / 60000);
-  const sec = Math.floor((displayMs % 60000) / 1000);
+  let displayMs = msLeftRaw;
+  if (opts?.maxMinutes != null && opts.maxMinutes > 0) {
+    const maxMs = opts.maxMinutes * 60 * 1000;
+    // Só corta se a data estiver muito além do teto (legado / data do MP).
+    if (msLeftRaw > maxMs * 2) {
+      displayMs = maxMs;
+    } else {
+      displayMs = Math.min(msLeftRaw, maxMs);
+    }
+  }
+
+  const totalSec = Math.floor(displayMs / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const min = Math.floor((totalSec % 3600) / 60);
+  const sec = totalSec % 60;
+
+  if (days > 0) {
+    return `${days}d ${String(hours).padStart(2, '0')}h ${String(min).padStart(2, '0')}m`;
+  }
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
   return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }

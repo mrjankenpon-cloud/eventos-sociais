@@ -261,9 +261,41 @@ export function clientSafeMessage(error: unknown, fallback: string): string {
   return msg;
 }
 
-/** PIX no MP exige no mínimo ~30 min na API; a reserva/UI do site usa 15 min. */
+/**
+ * Janela curta (doações / legado): UI e reserva local.
+ * PIX no MP exige no mínimo ~30 min na API (PIX_MP_MIN_MINUTES).
+ */
 export const PIX_MINUTES = 15;
 export const PIX_MP_MIN_MINUTES = 30;
+/** Máximo documentado para expiration_time do pagamento PIX na Orders API. */
+export const PIX_MP_MAX_MINUTES = 30 * 24 * 60;
+/**
+ * Compra de ingresso via PIX: 10 dias para pagar, mantendo a vaga reservada
+ * (caso de compra para terceiros / envio do QR para pagamento).
+ */
+export const PIX_TICKET_HOLD_DAYS = 10;
+export const PIX_TICKET_MINUTES = PIX_TICKET_HOLD_DAYS * 24 * 60;
+
+/** ISO 8601 duration a partir de minutos (ex.: P10D, PT30M, P1DT2H). */
+export function iso8601DurationFromMinutes(minutes: number): string {
+  const total = Math.max(1, Math.round(minutes));
+  const days = Math.floor(total / (24 * 60));
+  const hours = Math.floor((total % (24 * 60)) / 60);
+  const mins = total % 60;
+  if (days > 0) {
+    let out = `P${days}D`;
+    if (hours > 0 || mins > 0) {
+      out += 'T';
+      if (hours > 0) out += `${hours}H`;
+      if (mins > 0) out += `${mins}M`;
+    }
+    return out;
+  }
+  if (hours > 0) {
+    return mins > 0 ? `PT${hours}H${mins}M` : `PT${hours}H`;
+  }
+  return `PT${mins}M`;
+}
 
 export function isoWithOffset(date: Date): string {
   const pad = (n: number) => String(Math.trunc(n)).padStart(2, '0');
@@ -527,13 +559,15 @@ export async function createPixCharge(input: {
     PIX_MP_MIN_MINUTES * 60 * 1000,
     new Date(input.expiresAt).getTime() - Date.now()
   );
-  const holdMinutes = Math.max(
-    PIX_MP_MIN_MINUTES,
-    Math.round(holdMs / 60000)
+  const holdMinutes = Math.min(
+    PIX_MP_MAX_MINUTES,
+    Math.max(PIX_MP_MIN_MINUTES, Math.round(holdMs / 60000))
   );
+  const expirationTime = iso8601DurationFromMinutes(holdMinutes);
 
   // Orders / PIX: só campos documentados em POST /v1/orders.
   // NÃO enviar additional_info aqui — quebra a criação do QR (campo da API Payments).
+  // Em processing_mode=automatic, expiration_time vai no pagamento PIX (máx. 30 dias).
   const orderItems = (input.items || [])
     .filter((item) => item.quantity > 0)
     .map((item) => {
@@ -559,13 +593,13 @@ export async function createPixCharge(input: {
     total_amount: amount,
     external_reference: input.pedidoId,
     description: input.description.slice(0, 255),
-    expiration_time: `PT${holdMinutes}M`,
     payer,
     ...(items.length ? { items } : {}),
     transactions: {
       payments: [
         {
           amount,
+          expiration_time: expirationTime,
           payment_method: {
             id: 'pix',
             type: 'bank_transfer',

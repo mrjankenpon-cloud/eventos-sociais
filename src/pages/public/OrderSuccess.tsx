@@ -388,7 +388,7 @@ export default function OrderSuccess() {
               qrCodeBase64={pedido.pixQrCodeBase64}
               ticketUrl={pedido.pixTicketUrl}
               expiresAt={pedido.reservaExpiraEm || pedido.pixExpiresAt}
-              hint="Abra o app do banco, escaneie o QR ou cole o código. Os ingressos são emitidos automaticamente após a confirmação."
+              hint="Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até 10 dias — você pode enviar este PIX para outra pessoa pagar. Os ingressos são emitidos automaticamente após a confirmação."
             />
           ) : null}
 

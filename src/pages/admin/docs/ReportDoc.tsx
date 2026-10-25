@@ -169,8 +169,9 @@ export function ReportDoc() {
         ]}
       />
       <DocP>
-        Reserva de estoque: enquanto o PIX ou o cartão não concluem, as vagas
-        ficam reservadas por um tempo e podem expirar (rotina no servidor).
+        Reserva de estoque: no PIX de ingresso a vaga fica reservada por até 10
+        dias (para pagamento por terceiros); no cartão a janela é curta. Pedidos
+        vencidos expiram na rotina do servidor.
         Assim duas pessoas não compram a última vaga ao mesmo tempo.
       </DocP>
       <DocP>

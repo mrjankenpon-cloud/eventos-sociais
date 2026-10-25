@@ -3,7 +3,7 @@
 ## 2026-03-11 — Implementação inicial (arquitetura aprovada)
 
 ### Cloud Functions (`functions/src/mp/`)
-- `createCheckoutSession` — valida evento/ingresso, congela preço, reserva estoque 15 min, Preference Checkout Pro ou confirma R$ 0 sem MP
+- `createCheckoutSession` — valida evento/ingresso, congela preço, reserva estoque (PIX 10 dias / cartão 15 min), Preference Checkout Pro ou confirma R$ 0 sem MP
 - `mpWebhook` — confirma pagamento via GET payment; grava bruto/taxas/líquido efetivos; emite tickets só após `approved`
 - `expirePendingOrders` — schedule 5 min + HTTP; libera estoque de pendentes expirados
 - `getOrderReceipt` — recibo público por `pedidoId` + `accessToken`

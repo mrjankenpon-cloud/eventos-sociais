@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
-  PIX_MINUTES,
+  PIX_TICKET_MINUTES,
   RESERVE_MINUTES,
   checkoutProPaymentMethods,
   clientSafeMessage,
@@ -383,7 +383,9 @@ export const createCheckoutSession = functions.https.onRequest(
         }
       }
 
-      const holdMinutes = metodo === 'pix' ? PIX_MINUTES : RESERVE_MINUTES;
+      // PIX ingresso: 10 dias (compra para terceiros). Cartão: reserva curta.
+      const holdMinutes =
+        metodo === 'pix' ? PIX_TICKET_MINUTES : RESERVE_MINUTES;
       const reservaExpiraEm = new Date(
         agora.getTime() + holdMinutes * 60 * 1000
       );
@@ -520,7 +522,7 @@ export const createCheckoutSession = functions.https.onRequest(
             pixQrCode: pix.qrCode,
             pixQrCodeBase64: pix.qrCodeBase64,
             pixTicketUrl: pix.ticketUrl || null,
-            // Contagem do site = reserva (15 min). Não usar date_of_expiration do MP (~24h).
+            // Contagem do site = reserva (10 dias no PIX). Não usar date_of_expiration do MP.
             pixExpiresAt: reservaExpiraEm.toISOString(),
             mpPaymentId: pix.paymentId,
             mpOrderId: pix.orderId || null,

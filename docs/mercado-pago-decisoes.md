@@ -10,7 +10,7 @@ Registrado em 2026-08-11 a partir das respostas do produto.
 6. Meia: sem comprovação online; validação na porta no check-in  
 7. Limite por evento (e por tipo se definido); controle de estoque  
 8. Encerrar vendas: `vendasEncerramEm` OU estoque zero (o que ocorrer primeiro)  
-9. Reserva pendente: 15 minutos → expira e devolve estoque  
+9. Reserva pendente: PIX ingresso 10 dias · cartão/doação ~15 min → expira e devolve estoque  
 10. Formulário atual — manter  
 11. Sucesso na página + e-mail com QR  
 12. Total R$ 0 → confirma no backend sem MP  
