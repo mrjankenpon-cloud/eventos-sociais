@@ -330,7 +330,7 @@ Documentar em `.env.example` **nomes sem valores**.
 |------|--------|
 | Projeto default | `eventosociais-c057d` |
 | Código Functions | Presente (`functions/`), Node 20 |
-| Deploy MP | **Pendente** — necessário `firebase deploy --only functions` neste projeto |
+| Deploy MP | Functions: `FIREBASE_TOKEN=… ./scripts/deploy-functions.sh` (PIX ingresso = 10 dias / `P10D`) |
 | Webhook URL futura | `https://<region>-eventosociais-c057d.cloudfunctions.net/mpWebhook` |
 
 ---

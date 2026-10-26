@@ -16,6 +16,65 @@ export function pixRemainingMs(
   return end - nowMs;
 }
 
+/** Dias civis restantes (ceil), para textos de prazo do ingresso. */
+export function pixRemainingWholeDays(
+  expiresAt?: string | null,
+  nowMs: number = Date.now()
+): number | null {
+  const ms = pixRemainingMs(expiresAt, nowMs);
+  if (ms == null) return null;
+  if (ms <= 0) return 0;
+  return Math.max(1, Math.ceil(ms / 86_400_000));
+}
+
+/** Data limite do PIX de ingresso em pt-BR (dd/mm/aaaa). */
+export function formatPixDeadlineDate(
+  expiresAt?: string | null
+): string {
+  if (!expiresAt) return '';
+  const d = new Date(expiresAt);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Textos alinhados do PIX de ingresso (status + dica).
+ * Sempre usam a mesma `expiresAt` — nunca prometem 10 dias se a reserva for curta.
+ */
+export function ticketPixCopy(
+  expiresAt?: string | null,
+  nowMs: number = Date.now()
+): { statusLabel: string; hint: string; expired: boolean } {
+  const msLeft = pixRemainingMs(expiresAt, nowMs);
+  const expired = msLeft != null && msLeft <= 0;
+  if (expired) {
+    return {
+      expired: true,
+      statusLabel: 'PIX expirado — inicie uma nova compra',
+      hint: 'O prazo desta reserva acabou. Faça uma nova compra se ainda houver vagas.',
+    };
+  }
+
+  const deadline = formatPixDeadlineDate(expiresAt);
+  const days = pixRemainingWholeDays(expiresAt, nowMs);
+  const holdDays =
+    days != null && days > 0 ? days : PIX_TICKET_HOLD_DAYS;
+
+  const statusLabel = deadline
+    ? `Aguardando pagamento · pague até ${deadline}`
+    : `Aguardando pagamento · prazo de ${holdDays} dias`;
+
+  const hint = deadline
+    ? `Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada até ${deadline} (cerca de ${holdDays} dia${holdDays === 1 ? '' : 's'}) — você pode enviar este PIX para outra pessoa pagar. Os ingressos são emitidos automaticamente após a confirmação.`
+    : `Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até ${PIX_TICKET_HOLD_DAYS} dias para pagamento. Os ingressos aparecem aqui após a confirmação.`;
+
+  return { expired: false, statusLabel, hint };
+}
+
 /**
  * Formata o restante a partir de `expiresAt`.
  * - ≥ 1 dia: `9d 14h 32m`

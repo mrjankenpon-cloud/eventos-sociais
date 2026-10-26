@@ -5,21 +5,9 @@ import { Button } from '../ui';
 import { formatCurrency } from '../../lib/utils';
 import {
   PIX_COUNTDOWN_MINUTES,
-  PIX_TICKET_HOLD_DAYS,
   formatPixCountdown,
-  pixRemainingMs,
+  ticketPixCopy,
 } from '../../lib/pixCountdown';
-
-function formatPixDeadlineDate(expiresAt?: string | null): string {
-  if (!expiresAt) return '';
-  const d = new Date(expiresAt);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
 
 export function PixCheckoutPanel({
   amount,
@@ -45,7 +33,7 @@ export function PixCheckoutPanel({
   const isDonation = kind === 'doacao';
 
   // Doação: contagem por segundo. Ingresso: só revalida expiração a cada minuto
-  // (prazo de 10 dias — sem cronômetro MM:SS).
+  // (prazo longo — sem cronômetro MM:SS).
   useEffect(() => {
     const ms = isDonation ? 1000 : 60_000;
     const id = window.setInterval(() => setTick((n) => n + 1), ms);
@@ -64,17 +52,32 @@ export function PixCheckoutPanel({
     [expiresAt, tick, isDonation]
   );
 
-  const expired = useMemo(() => {
-    if (isDonation) return clock === 'Expirado';
-    const msLeft = pixRemainingMs(expiresAt);
-    return msLeft != null && msLeft <= 0;
+  const ticketCopy = useMemo(
+    () => (isDonation ? null : ticketPixCopy(expiresAt)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expiresAt, tick, isDonation, clock]);
-
-  const ticketDeadline = useMemo(
-    () => (isDonation ? '' : formatPixDeadlineDate(expiresAt)),
-    [expiresAt, isDonation]
+    [expiresAt, tick, isDonation]
   );
+
+  const expired = isDonation
+    ? clock === 'Expirado'
+    : Boolean(ticketCopy?.expired);
+
+  const statusLabel = expired
+    ? isDonation
+      ? 'PIX expirado — inicie uma nova doação'
+      : ticketCopy?.statusLabel || 'PIX expirado — inicie uma nova compra'
+    : isDonation
+      ? clock
+        ? `Tempo restante ${clock}`
+        : 'Aguardando pagamento PIX'
+      : ticketCopy?.statusLabel || 'Aguardando pagamento PIX';
+
+  const resolvedHint =
+    hint ||
+    (isDonation
+      ? 'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'
+      : ticketCopy?.hint ||
+        'Abra o app do banco, escaneie o QR ou cole o código. Os ingressos aparecem aqui após a confirmação.');
 
   const copyCode = async () => {
     if (!qrValue) return;
@@ -86,18 +89,6 @@ export function PixCheckoutPanel({
       /* ignore */
     }
   };
-
-  const statusLabel = expired
-    ? isDonation
-      ? 'PIX expirado — inicie uma nova doação'
-      : 'PIX expirado — inicie uma nova compra'
-    : isDonation
-      ? clock
-        ? `Tempo restante ${clock}`
-        : 'Aguardando pagamento PIX'
-      : ticketDeadline
-        ? `Aguardando pagamento · pague até ${ticketDeadline}`
-        : `Aguardando pagamento · prazo de ${PIX_TICKET_HOLD_DAYS} dias`;
 
   return (
     <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 mb-6 print:hidden">
@@ -164,12 +155,7 @@ export function PixCheckoutPanel({
         </a>
       ) : null}
 
-      <p className="text-[11px] text-gray-400 leading-relaxed">
-        {hint ||
-          (isDonation
-            ? 'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'
-            : `Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até ${PIX_TICKET_HOLD_DAYS} dias para pagamento. Os ingressos aparecem aqui após a confirmação.`)}
-      </p>
+      <p className="text-[11px] text-gray-400 leading-relaxed">{resolvedHint}</p>
     </div>
   );
 }

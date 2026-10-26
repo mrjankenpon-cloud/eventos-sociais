@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
+  PIX_TICKET_HOLD_DAYS,
   PIX_TICKET_MINUTES,
   RESERVE_MINUTES,
   checkoutProPaymentMethods,
@@ -389,6 +390,13 @@ export const createCheckoutSession = functions.https.onRequest(
       const reservaExpiraEm = new Date(
         agora.getTime() + holdMinutes * 60 * 1000
       );
+      if (metodo === 'pix') {
+        functions.logger.info('[createCheckoutSession] pix hold', {
+          holdDays: PIX_TICKET_HOLD_DAYS,
+          holdMinutes,
+          reservaExpiraEm: reservaExpiraEm.toISOString(),
+        });
+      }
 
       await reserveStockLines(
         resolved.map((l) => ({
@@ -541,6 +549,7 @@ export const createCheckoutSession = functions.https.onRequest(
             qrCodeBase64: pix.qrCodeBase64,
             ticketUrl: pix.ticketUrl || undefined,
             expiresAt: reservaExpiraEm.toISOString(),
+            pixHoldDays: PIX_TICKET_HOLD_DAYS,
             receiptUrl: `${successUrl}?token=${accessToken}`,
           });
           return;
