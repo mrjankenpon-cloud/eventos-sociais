@@ -987,6 +987,7 @@ export default function Dashboard() {
             value: eventStats.ingressosPendentes,
             icon: Clock,
             accent: '#d97706',
+            hint: 'Aguardando pagamento · vagas reservadas',
             sensitive: false,
             onClick: () => handleOpenReport('nao_faturados'),
           },
@@ -1185,7 +1186,11 @@ export default function Dashboard() {
                   <SearchField
                     value={searchTerm}
                     onChange={setSearchTerm}
-                    placeholder="Pesquisar por nome, CPF ou e-mail..."
+                    placeholder={
+                      activeReport === 'nao_faturados'
+                        ? 'Pesquisar por nome, documento, e-mail ou ingresso...'
+                        : 'Pesquisar por nome, CPF ou e-mail...'
+                    }
                   />
                 </div>
 
