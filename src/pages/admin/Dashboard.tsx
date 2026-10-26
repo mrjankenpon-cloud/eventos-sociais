@@ -811,10 +811,11 @@ export default function Dashboard() {
               ),
           },
           {
-            title: 'Ingressos pendentes',
+            title: 'Não faturados',
             value: eventStats.ingressosPendentes,
             icon: Clock,
             accent: '#d97706',
+            hint: 'Comprados · aguardando pagamento (vagas reservadas)',
             sensitive: false,
             onClick: () =>
               navigate(

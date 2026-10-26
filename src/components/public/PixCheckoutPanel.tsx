@@ -5,8 +5,21 @@ import { Button } from '../ui';
 import { formatCurrency } from '../../lib/utils';
 import {
   PIX_COUNTDOWN_MINUTES,
+  PIX_TICKET_HOLD_DAYS,
   formatPixCountdown,
+  pixRemainingMs,
 } from '../../lib/pixCountdown';
+
+function formatPixDeadlineDate(expiresAt?: string | null): string {
+  if (!expiresAt) return '';
+  const d = new Date(expiresAt);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
 
 export function PixCheckoutPanel({
   amount,
@@ -29,24 +42,39 @@ export function PixCheckoutPanel({
   const [tick, setTick] = useState(0);
   const qrValue = qrCode?.trim() || '';
   const qrImage = qrCodeBase64?.trim() || '';
+  const isDonation = kind === 'doacao';
 
+  // Doação: contagem por segundo. Ingresso: só revalida expiração a cada minuto
+  // (prazo de 10 dias — sem cronômetro MM:SS).
   useEffect(() => {
-    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    const ms = isDonation ? 1000 : 60_000;
+    const id = window.setInterval(() => setTick((n) => n + 1), ms);
     return () => window.clearInterval(id);
-  }, []);
+  }, [isDonation]);
 
   const clock = useMemo(
     () =>
-      formatPixCountdown(
-        expiresAt,
-        // Doação mantém janela curta; ingresso usa a data real (até 10 dias).
-        kind === 'doacao' ? { maxMinutes: PIX_COUNTDOWN_MINUTES } : undefined
-      ),
-    // tick força atualização a cada segundo
+      isDonation
+        ? formatPixCountdown(expiresAt, {
+            maxMinutes: PIX_COUNTDOWN_MINUTES,
+          })
+        : '',
+    // tick força atualização
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expiresAt, tick, kind]
+    [expiresAt, tick, isDonation]
   );
-  const expired = clock === 'Expirado';
+
+  const expired = useMemo(() => {
+    if (isDonation) return clock === 'Expirado';
+    const msLeft = pixRemainingMs(expiresAt);
+    return msLeft != null && msLeft <= 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiresAt, tick, isDonation, clock]);
+
+  const ticketDeadline = useMemo(
+    () => (isDonation ? '' : formatPixDeadlineDate(expiresAt)),
+    [expiresAt, isDonation]
+  );
 
   const copyCode = async () => {
     if (!qrValue) return;
@@ -59,7 +87,17 @@ export function PixCheckoutPanel({
     }
   };
 
-  const isDonation = kind === 'doacao';
+  const statusLabel = expired
+    ? isDonation
+      ? 'PIX expirado — inicie uma nova doação'
+      : 'PIX expirado — inicie uma nova compra'
+    : isDonation
+      ? clock
+        ? `Tempo restante ${clock}`
+        : 'Aguardando pagamento PIX'
+      : ticketDeadline
+        ? `Aguardando pagamento · pague até ${ticketDeadline}`
+        : `Aguardando pagamento · prazo de ${PIX_TICKET_HOLD_DAYS} dias`;
 
   return (
     <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 mb-6 print:hidden">
@@ -88,14 +126,8 @@ export function PixCheckoutPanel({
         </div>
       </div>
 
-      <p className="text-center text-xs font-bold uppercase tracking-wider text-amber-600 tabular-nums">
-        {expired
-          ? isDonation
-            ? 'PIX expirado — inicie uma nova doação'
-            : 'PIX expirado — inicie uma nova compra'
-          : clock
-            ? `Tempo restante ${clock}`
-            : 'Aguardando pagamento PIX'}
+      <p className="text-center text-xs font-bold uppercase tracking-wider text-amber-600">
+        {statusLabel}
       </p>
 
       {qrValue ? (
@@ -136,7 +168,7 @@ export function PixCheckoutPanel({
         {hint ||
           (isDonation
             ? 'Abra o app do banco, escaneie o QR ou cole o código. O certificado aparece automaticamente após a confirmação.'
-            : 'Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até 10 dias para pagamento. Os ingressos aparecem aqui após a confirmação.')}
+            : `Abra o app do banco, escaneie o QR ou cole o código. A vaga fica reservada por até ${PIX_TICKET_HOLD_DAYS} dias para pagamento. Os ingressos aparecem aqui após a confirmação.`)}
       </p>
     </div>
   );
