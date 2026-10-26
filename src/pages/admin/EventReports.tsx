@@ -515,10 +515,9 @@ export default function EventReports() {
           icon={Ticket}
         />
         <StatCard
-          title="Não faturados"
+          title="Ingressos Pendentes"
           value={stats.ingressosPendentes}
           icon={Clock}
-          hint="Comprados · aguardando pagamento (vagas reservadas)"
         />
         <StatCard
           title="Valor Arrecadado"

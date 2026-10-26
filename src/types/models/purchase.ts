@@ -42,6 +42,8 @@ export interface Purchase {
   mpFeeAmount?: number;
   mpNetReceivedAmount?: number;
   natureza?: string;
+  /** Fim da reserva de estoque (PIX ingresso: até 10 dias). */
+  reservaExpiraEm?: string;
   createdAt: string;
   updatedAt: string;
 }

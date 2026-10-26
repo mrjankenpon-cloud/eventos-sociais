@@ -324,6 +324,7 @@ export function pedidoToPurchase(pedido: Pedido): Purchase {
     mpFeeAmount: pedido.mpFeeAmount,
     mpNetReceivedAmount: pedido.mpNetReceivedAmount,
     natureza: pedido.natureza,
+    reservaExpiraEm: pedido.reservaExpiraEm,
     createdAt: pedido.createdAt,
     updatedAt: pedido.updatedAt,
   };

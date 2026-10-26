@@ -46,7 +46,13 @@ import { isTicketPurchase, purchasePayerKey } from '../../lib/donations';
 import { paymentMethodLabel } from '../../lib/paymentMethod';
 
 type ViewMode = 'general' | 'event' | 'report';
-type ReportType = 'vendidos' | 'pagantes' | 'checkin' | 'arrecadacao' | 'apps';
+type ReportType =
+  | 'vendidos'
+  | 'pagantes'
+  | 'checkin'
+  | 'arrecadacao'
+  | 'apps'
+  | 'nao_faturados';
 
 const REPORT_TITLES: Record<ReportType, string> = {
   vendidos: 'Ingressos vendidos',
@@ -54,7 +60,42 @@ const REPORT_TITLES: Record<ReportType, string> = {
   checkin: 'Check-ins efetivados',
   arrecadacao: 'Arrecadação total',
   apps: 'Aplicativos e avisos',
+  nao_faturados: 'Não faturados',
 };
+
+/** Pedidos aguardando pagamento ou já expirados (vaga devolvida). */
+function isUninvoicedPurchase(p: Purchase): boolean {
+  return (
+    p.statusPagamento === 'pendente' || p.statusPagamento === 'expirado'
+  );
+}
+
+function uninvoicedStatusMeta(p: Purchase): {
+  label: string;
+  variant: 'warning' | 'danger' | 'neutral';
+  detail?: string;
+} {
+  if (p.statusPagamento === 'expirado') {
+    return {
+      label: 'Expirado',
+      variant: 'danger',
+      detail: 'Prazo encerrado · vaga liberada',
+    };
+  }
+  const end = p.reservaExpiraEm ? new Date(p.reservaExpiraEm) : null;
+  if (end && !Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) {
+    return {
+      label: 'Expirado',
+      variant: 'danger',
+      detail: 'Prazo encerrado · vaga liberada',
+    };
+  }
+  const prazo =
+    end && !Number.isNaN(end.getTime())
+      ? `No prazo · até ${end.toLocaleDateString('pt-BR')}`
+      : 'Aguardando pagamento';
+  return { label: 'Aguardando', variant: 'warning', detail: prazo };
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -297,6 +338,33 @@ export default function Dashboard() {
     }
     return list;
   }, [confirmedPurchases, selectedEvent, searchTerm]);
+
+  const filteredUninvoiced = useMemo(() => {
+    if (!selectedEvent) return [];
+    let list = ticketPurchases
+      .filter(
+        (p) => p.eventId === selectedEvent.id && isUninvoicedPurchase(p)
+      )
+      .sort((a, b) => {
+        // Pendentes (ainda no prazo) primeiro; depois expirados.
+        const aExp = a.statusPagamento === 'expirado' ? 1 : 0;
+        const bExp = b.statusPagamento === 'expirado' ? 1 : 0;
+        if (aExp !== bExp) return aExp - bExp;
+        return String(b.createdAt).localeCompare(String(a.createdAt));
+      });
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      const digits = q.replace(/\D/g, '');
+      list = list.filter(
+        (p) =>
+          p.compradorNome.toLowerCase().includes(q) ||
+          p.compradorEmail.toLowerCase().includes(q) ||
+          (digits && p.compradorCPF.includes(digits)) ||
+          (p.ticketTypeNome || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [ticketPurchases, selectedEvent, searchTerm]);
 
   const handleOpenEventDashboard = (event: Event) => {
     setSelectedEvent(event);
@@ -689,6 +757,110 @@ export default function Dashboard() {
     [eventsById, ticketsByPurchaseId]
   );
 
+  const uninvoicedColumns: DataTableColumn<Purchase>[] = useMemo(
+    () => [
+      {
+        key: 'comprador',
+        header: 'Comprador',
+        render: (p) => (
+          <div className="min-w-0">
+            <p className="font-black text-gray-900 truncate">
+              {p.compradorNome}
+            </p>
+            <p className="text-xs text-gray-400 truncate">{p.compradorEmail}</p>
+            <p className="text-xs text-gray-500 mt-0.5 sm:hidden">
+              {p.compradorTelefone || '—'}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: 'documento',
+        header: 'Documento',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="text-xs font-black text-gray-700 uppercase tracking-widest tabular-nums">
+            {p.compradorCPF || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'contato',
+        header: 'Telefone',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="text-xs font-bold text-gray-600 tabular-nums">
+            {p.compradorTelefone || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'ingresso',
+        header: 'Ingresso',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="text-xs font-black text-brand uppercase tracking-widest line-clamp-1">
+            {p.ticketTypeNome || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'qtd',
+        header: 'Qtd',
+        className: 'text-center',
+        render: (p) => (
+          <span className="font-black tabular-nums">
+            {Math.max(0, Number(p.quantidadeIngressos) || 0)}
+          </span>
+        ),
+      },
+      {
+        key: 'valor',
+        header: 'Valor',
+        className: 'text-right',
+        hideOnMobile: true,
+        render: (p) => (
+          <span className="font-black text-gray-900 tabular-nums">
+            {formatCurrency(p.valorTotal)}
+          </span>
+        ),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        render: (p) => {
+          const meta = uninvoicedStatusMeta(p);
+          return (
+            <div className="flex flex-col items-start gap-1 min-w-0">
+              <Badge variant={meta.variant}>{meta.label}</Badge>
+              {meta.detail ? (
+                <span className="text-[10px] text-gray-400 font-medium leading-snug">
+                  {meta.detail}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        key: 'acoes',
+        header: 'Ações',
+        className: 'text-right',
+        render: (p) => (
+          <Link
+            to={ROUTES.ADMIN.PURCHASE_DETAILS.replace(':id', p.id)}
+            className="p-2.5 bg-gray-50 text-gray-400 hover:text-brand hover:bg-brand-muted rounded-xl transition-all inline-flex"
+            title="Ver detalhes da compra"
+            aria-label="Ver detalhes da compra"
+          >
+            <Eye size={16} />
+          </Link>
+        ),
+      },
+    ],
+    []
+  );
+
   if (loading) return <PageLoader label="Carregando dashboard..." />;
 
   const generalCards: Array<{
@@ -815,12 +987,8 @@ export default function Dashboard() {
             value: eventStats.ingressosPendentes,
             icon: Clock,
             accent: '#d97706',
-            hint: 'Comprados · aguardando pagamento (vagas reservadas)',
             sensitive: false,
-            onClick: () =>
-              navigate(
-                ROUTES.ADMIN.EVENT_REPORTS.replace(':id', selectedEvent.id)
-              ),
+            onClick: () => handleOpenReport('nao_faturados'),
           },
           {
             title: 'Valor arrecadado',
@@ -1021,7 +1189,17 @@ export default function Dashboard() {
                   />
                 </div>
 
-                {activeReport === 'pagantes' || activeReport === 'arrecadacao' ? (
+                {activeReport === 'nao_faturados' ? (
+                  <DataTable
+                    columns={uninvoicedColumns}
+                    data={filteredUninvoiced}
+                    rowKey={(p) => p.id}
+                    emptyTitle="Nenhum ingresso não faturado"
+                    emptyDescription="Compras aguardando pagamento ou com prazo PIX expirado aparecerão aqui."
+                    emptyIcon={Clock}
+                  />
+                ) : activeReport === 'pagantes' ||
+                  activeReport === 'arrecadacao' ? (
                   <DataTable
                     columns={payerColumns}
                     data={filteredPayers}
