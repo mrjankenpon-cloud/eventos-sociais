@@ -270,11 +270,55 @@ export const PIX_MP_MIN_MINUTES = 30;
 /** Máximo documentado para expiration_time do pagamento PIX na Orders API. */
 export const PIX_MP_MAX_MINUTES = 30 * 24 * 60;
 /**
- * Compra de ingresso via PIX: 10 dias para pagar, mantendo a vaga reservada
- * (caso de compra para terceiros / envio do QR para pagamento).
+ * Compra de ingresso via PIX: 10 dias civis a partir da data da compra
+ * (America/Sao_Paulo), independente do horário — encerra às 23:59:59.999
+ * desse 10º dia. A UI mostra só a data.
  */
 export const PIX_TICKET_HOLD_DAYS = 10;
+/** Aproximação em minutos (10×24h) — preferir `pixTicketHoldExpiresAt`. */
 export const PIX_TICKET_MINUTES = PIX_TICKET_HOLD_DAYS * 24 * 60;
+
+const SAO_PAULO_TZ = 'America/Sao_Paulo';
+
+function pad2(n: number): string {
+  return String(Math.trunc(n)).padStart(2, '0');
+}
+
+/** Ano/mês/dia civil em America/Sao_Paulo. */
+export function civilDateInSaoPaulo(at: Date): {
+  year: number;
+  month: number;
+  day: number;
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: SAO_PAULO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(at);
+  const num = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value || NaN);
+  return { year: num('year'), month: num('month'), day: num('day') };
+}
+
+/**
+ * Fim do 10º dia civil após a data da compra (23:59:59.999 em São Paulo).
+ * Ex.: compra em 26/10 (qualquer hora) → 05/11 23:59:59.999 -03:00.
+ */
+export function pixTicketHoldExpiresAt(
+  purchasedAt: Date = new Date(),
+  holdDays: number = PIX_TICKET_HOLD_DAYS
+): Date {
+  const { year, month, day } = civilDateInSaoPaulo(purchasedAt);
+  // Soma dias no calendário UTC “puro” (só Y-M-D) para evitar DST/hora local do host.
+  const anchor = new Date(Date.UTC(year, month - 1, day));
+  anchor.setUTCDate(anchor.getUTCDate() + Math.max(1, Math.round(holdDays)));
+  const y = anchor.getUTCFullYear();
+  const m = pad2(anchor.getUTCMonth() + 1);
+  const d = pad2(anchor.getUTCDate());
+  // São Paulo sem horário de verão desde 2019 → offset fixo -03:00.
+  return new Date(`${y}-${m}-${d}T23:59:59.999-03:00`);
+}
 
 /** ISO 8601 duration a partir de minutos (ex.: P10D, PT30M, P1DT2H). */
 export function iso8601DurationFromMinutes(minutes: number): string {

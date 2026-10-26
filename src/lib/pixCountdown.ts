@@ -3,7 +3,11 @@
 /** Janela padrão de doação / legado (minutos). */
 export const PIX_COUNTDOWN_MINUTES = 15;
 
-/** Janela de compra de ingresso via PIX (dias). */
+/**
+ * Janela de compra de ingresso via PIX (dias civis).
+ * No servidor a reserva encerra às 23:59:59 do 10º dia (America/Sao_Paulo);
+ * a UI mostra só a data.
+ */
 export const PIX_TICKET_HOLD_DAYS = 10;
 
 export function pixRemainingMs(

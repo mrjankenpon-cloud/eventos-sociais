@@ -2,7 +2,6 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
   PIX_TICKET_HOLD_DAYS,
-  PIX_TICKET_MINUTES,
   RESERVE_MINUTES,
   checkoutProPaymentMethods,
   clientSafeMessage,
@@ -17,6 +16,7 @@ import {
   parseDeviceSessionId,
   mpWebhookUrl,
   parseCheckoutMetodo,
+  pixTicketHoldExpiresAt,
   randomToken,
   roundMoney,
   assertMercadoPagoCredentials,
@@ -384,16 +384,16 @@ export const createCheckoutSession = functions.https.onRequest(
         }
       }
 
-      // PIX ingresso: 10 dias (compra para terceiros). Cartão: reserva curta.
-      const holdMinutes =
-        metodo === 'pix' ? PIX_TICKET_MINUTES : RESERVE_MINUTES;
-      const reservaExpiraEm = new Date(
-        agora.getTime() + holdMinutes * 60 * 1000
-      );
+      // PIX ingresso: 10º dia civil (SP) às 23:59:59, independente do horário.
+      // Cartão: reserva curta em minutos.
+      const reservaExpiraEm =
+        metodo === 'pix'
+          ? pixTicketHoldExpiresAt(agora, PIX_TICKET_HOLD_DAYS)
+          : new Date(agora.getTime() + RESERVE_MINUTES * 60 * 1000);
       if (metodo === 'pix') {
         functions.logger.info('[createCheckoutSession] pix hold', {
           holdDays: PIX_TICKET_HOLD_DAYS,
-          holdMinutes,
+          rule: 'end_of_day_sao_paulo',
           reservaExpiraEm: reservaExpiraEm.toISOString(),
         });
       }

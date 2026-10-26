@@ -58,7 +58,7 @@ Não apagar o documento ao “excluir”.
 | `valorTotal` | number | `valorUnitario * quantidade` (backend) |
 | `status` | `pendente` \| `confirmado` \| `expirado` \| `cancelado` \| `reembolsado` | |
 | `estoqueReservado` | bool | |
-| `reservaExpiraEm` | timestamp | PIX ingresso: +10 dias; cartão: +15 min |
+| `reservaExpiraEm` | timestamp | PIX ingresso: 23:59:59 do 10º dia civil (SP); cartão: +15 min |
 | `formaPagamento` | `mercadopago` \| `gratuito` \| legado | |
 | `mpPreferenceId` | string? | |
 | `mpPaymentId` | string? | |
@@ -198,7 +198,7 @@ Status MP relevantes: `pending`, `approved`, `rejected`, `cancelled`, `refunded`
 
 ## 6. Fluxo de expiração (reservaExpiraEm)
 
-- Na criação: `reservaExpiraEm = now + 10 dias` (PIX ingresso) ou `now + 15min` (cartão).
+- Na criação: `reservaExpiraEm` = 23:59:59 do 10º dia civil em SP (PIX ingresso) ou `now + 15min` (cartão).
 - **Scheduled Function** (a cada 1–5 min) ou chamada HTTP autenticada:
   - query `status == pendente` && `reservaExpiraEm < now` && `estoqueReservado == true`
   - transaction: `status = expirado`, `estoqueReservado = false`, decrementa `quantidadeVendida` do ingresso
