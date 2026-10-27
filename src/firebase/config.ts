@@ -16,7 +16,7 @@ const DEFAULT_FIREBASE_CONFIG = {
   projectId: 'eventosociais-c057d',
   storageBucket: 'eventosociais-c057d.firebasestorage.app',
   messagingSenderId: '878802346786',
-  appId: '1:878802346786:web:1089188a3b4cd893b8bb7b',
+  appId: '1:878802346786:web:cf99b711ff888c4bb8bb7b',
 } as const;
 
 function resolveAuthDomain(): string {
